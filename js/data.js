@@ -364,7 +364,8 @@ const ACHIEVEMENTS = [
   { id: "farmvet", name: "Country Vet", desc: "Answer a farm call.", icon: "van" },
   { id: "camp", name: "Herd Immunity", desc: "Run a vaccination camp.", icon: "drop" },
   { id: "accredited", name: "Accredited", desc: "Pass the board inspection.", icon: "check" },
-  { id: "certified", name: "Diplomate", desc: "Pass the board certification exam.", icon: "trophy" }
+  { id: "certified", name: "Diplomate", desc: "Pass the board certification exam.", icon: "trophy" },
+  { id: "petparent", name: "Pet Parent", desc: "Feed the clinic pet.", icon: "bowl" }
 ];
 
 const LEVELS = [

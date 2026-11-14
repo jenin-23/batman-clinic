@@ -136,3 +136,14 @@ body.rtl #panelBody, body.rtl .toast { direction: rtl; text-align: right; } body
 @media (max-width: 760px) { #iconBtns { gap: 6px; } .iconbtn { width: 40px; height: 40px; } #topLeft .sub { font-size: 11px; } .rep { transform: scale(.85); transform-origin: left; } .eventbanner { display: none !important; } .tools { grid-template-columns: 1fr 1fr; } .tool svg { width: 110px; height: 44px; } .cols3 { grid-template-columns: 1fr; } }
 @media (max-height: 500px) { #panel { max-height: 96vh; } #topRight, #boardWrap { display: none; } }
 @media (max-width: 760px) { #toasts { top: auto; bottom: calc(250px + var(--sab)); width: 94vw; } .toast { font-size: 12px; padding: 7px 12px; } #toasts .toast:nth-child(n+3) { display: none; } }
+/* ===== v2.1: energy, pet, joystick, wardrobe ===== */
+.energy { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11px; color: var(--muted); } .ebar { width: 90px; height: 8px; background: #2a2f4a; border-radius: 5px; overflow: hidden; } #energyFill { height: 100%; width: 100%; background: linear-gradient(90deg, #4fb3a9, #7ef29a); transition: width .3s; } #energyFill.mid { background: linear-gradient(90deg, #f2c14e, #e07a5f); } #energyFill.low { background: #ff5f7a; animation: blink 1s infinite; }
+.pethud { font-size: 11px; color: var(--muted); margin-top: 3px; display: flex; gap: 4px; align-items: center; } .pethud svg { color: var(--gold); } .pethud .bad { color: #ff8fa3; }
+#joyZone { position: fixed; left: 0; bottom: 0; width: 46vw; height: 55vh; display: none; z-index: 6; touch-action: none; } #joyZone.show { display: block; }
+#joyBase { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: rgba(27,31,51,.55); border: 2px solid rgba(242,193,78,.5); display: none; } #joyBase.on { display: block; }
+#joyKnob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: var(--accent); box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+#joyZone::after { content: "drag to move"; position: absolute; left: 24px; bottom: calc(80px + var(--sab)); color: rgba(158,164,196,.6); font-size: 12px; } #joyZone.show.used::after { display: none; }
+#panel.side { left: auto; right: 16px; top: 50%; transform: translateY(-50%); width: min(400px, 92vw); max-height: min(88vh, 760px); }
+@media (max-width: 760px) { #panel.side { left: 50%; right: auto; top: auto; bottom: 0; transform: translate(-50%, 0); width: 100vw; max-height: 56vh; border-radius: 26px 26px 0 0; } }
+.homegrid { display: grid; gap: 8px; } .btn.opt.sel { border-color: var(--gold); background: #2a2616; }
+body.rtl #joyZone { left: auto; right: 0; }

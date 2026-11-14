@@ -8,6 +8,7 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const fmtMoney = (n) => `${Math.round(n)} JD`;
 const T = (s) => (G.s && G.s.settings.lang === "ar" && I18N.ar[s]) || s;
+const DR = () => "Dr. " + ((G.s && G.s.doctor && G.s.doctor.name) || "Ahmad");
 
 const G = { s: null, patients: [], input: { x: 0, z: 0, run: false }, input2: { x: 0, z: 0 }, keys: {}, panelOpen: false, nearest: null, spawnTimer: 0, shopTimer: 0, gateToast: 0, lastRoom: null, patientSeq: 1, nurseTimer: 0, catTimer: 20, staffNPCs: {}, rng: null };
 
@@ -16,14 +17,16 @@ function defaultState() {
     seenTutorial: false, stock: Object.fromEntries(SHOP_ITEMS.map(i => [i.id, 5])), theme: { v: 2, wall: "#2a2f4a", accent: "#f2c14e", trim: "#4b4f7a", floor: null, coat: "#e9e9f2", decor: true },
     rep: 3.0, hygiene: 90, staff: [], equipment: [], expansions: [], clients: [], goals: { day: 0, list: [] }, dayStats: {}, event: null, story: { seen: [], rival: false, charity: false, accredited: false, referral: false, certified: false, prestige: 0 },
     collections: { bones: [], tools: [], species: [] }, thankCards: 0, settings: { lang: "en", hints: true, difficulty: "vet", textSize: 1, camMode: "third", coop: false, oneHand: "left", music: true, weather: "auto" }, avatar: { scrub: "#2f4f8f", cap: "#2f4f8f", frames: "#2d2438" },
-    quiz: { boxes: {}, last: {} }, textbook: [], leaderboard: [], weekly: { week: null, best: 0 }, lastBriefing: null, payrollMissed: 0, customNames: [], news: 0, dosesDone: 0, labsDone: 0 };
+    quiz: { boxes: {}, last: {} }, textbook: [], leaderboard: [], weekly: { week: null, best: 0 }, lastBriefing: null, payrollMissed: 0, customNames: [], news: 0, dosesDone: 0, labsDone: 0,
+    energy: 100, naps: 0, coffees: 0, atHome: false, doctor: { name: "Ahmad", hairstyle: "curly", hair: "#1b1420", skin: "#9a5f3a", glassesStyle: "round", frames: "#2d2438", shoes: "#23222e", scrub: "#2f4f8f", cap: "#2f4f8f", coat: "#e9e9f2", scrubsOfDay: ["#2f4f8f", "#3f6f6a", "#5a3e8f", "#b4557a", "#4fb3a9", "#23222e", "#8a3350"] },
+    clinicPet: { species: "cat", name: "Mishmish", personality: "curious", color: "#3a3a3a", hunger: 40, feeds: 0, bond: 0, missed: 0 } };
 }
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G.s)); } catch (e) { } }
-function load() { try { const r = localStorage.getItem(SAVE_KEY); if (r) { const s = JSON.parse(r); const d = defaultState(); const m = Object.assign(d, s, { shiftActive: false, outfit: "clinic" }); m.settings = Object.assign(d.settings, s.settings || {}); m.story = Object.assign(d.story, s.story || {}); m.collections = Object.assign(d.collections, s.collections || {}); return m; } } catch (e) { } return defaultState(); }
+function load() { try { const r = localStorage.getItem(SAVE_KEY); if (r) { const s = JSON.parse(r); const d = defaultState(); const m = Object.assign(d, s, { shiftActive: false, outfit: "clinic" }); m.settings = Object.assign(d.settings, s.settings || {}); m.story = Object.assign(d.story, s.story || {}); m.doctor = Object.assign(d.doctor, s.doctor || {}); m.clinicPet = Object.assign(d.clinicPet, s.clinicPet || {}); m.collections = Object.assign(d.collections, s.collections || {}); return m; } } catch (e) { } return defaultState(); }
 
 /* ---------------- UI primitives ---------------- */
 function toast(msg, kind = "info", ms = 3200) { const t = document.createElement("div"); t.className = "toast " + kind; t.innerHTML = msg; $("#toasts").appendChild(t); requestAnimationFrame(() => t.classList.add("show")); setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 400); }, ms); if (kind === "warn") Sound.vibrate(40); }
-function openPanel(title, html, opts = {}) { G.panelOpen = true; const p = $("#panel"); p.classList.remove("hidden"); p.classList.toggle("wide", !!opts.wide); $("#panelTitle").innerHTML = title; $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; $("#panelClose").style.display = opts.noClose ? "none" : ""; G.input.x = G.input.z = 0; G.keys = {}; }
+function openPanel(title, html, opts = {}) { G.panelOpen = true; const p = $("#panel"); p.classList.remove("hidden"); p.classList.toggle("wide", !!opts.wide); p.classList.toggle("side", !!opts.side); $("#panelTitle").innerHTML = title; $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; $("#panelClose").style.display = opts.noClose ? "none" : ""; G.input.x = G.input.z = 0; G.keys = {}; }
 function closePanel() { G.panelOpen = false; $("#panel").classList.add("hidden"); if (G.onPanelClose) { const f = G.onPanelClose; G.onPanelClose = null; f(); } }
 function setBody(html) { $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; }
 function hint(text) { return G.s.settings.hints ? `<div class="hintbox">${icon("help", 16)} <b>Mentor:</b> ${text}</div>` : ""; }
@@ -50,6 +53,8 @@ function updateHUD() {
   $("#hudMoney").textContent = fmtMoney(s.money); $("#hudLevel").textContent = `Lv ${s.level}${s.story.prestige ? " ★" + s.story.prestige : ""}`;
   const cur = LEVELS.find(l => l.level === s.level), nxt = LEVELS.find(l => l.level === s.level + 1); const pct = nxt ? Math.min(100, (s.xp - cur.xp) / (nxt.xp - cur.xp) * 100) : 100; $("#xpFill").style.width = pct + "%"; $("#hudXP").textContent = nxt ? `${s.xp} / ${nxt.xp} XP` : `${s.xp} XP · MAX`;
   $("#hudRep").innerHTML = starsHTML(s.rep) + ` <span class="repnum">${s.rep.toFixed(1)}</span>`;
+  const en = Math.round(s.energy); $("#energyFill").style.width = en + "%"; $("#energyFill").className = en < 25 ? "low" : en < 45 ? "mid" : ""; $("#energyTxt").textContent = `${en}%`;
+  const cp = s.clinicPet; $("#petHud").innerHTML = `${icon(cp.species, 14)} ${cp.name} · ${cp.hunger > 75 ? "<b class='bad'>hungry!</b>" : cp.hunger > 45 ? "peckish" : "fed"}`;
   $("#hudOutfit").innerHTML = { clinic: icon("coat", 16) + " White coat", scrubs: icon("cap", 16) + " Scrubs + cap + mask", surgical: icon("glove", 16) + " Sterile gown + gloves" }[s.outfit];
   const list = G.patients.filter(p => p.status !== "done").map(p => `<li class="${p.emergency ? "emerg" : ""}"><span>${SPECIES[p.species].emoji} <b>${p.name}</b>${p.emergency && p.emergencyLeft > 0 ? ` <em>${Math.ceil(p.emergencyLeft)}s</em>` : ""}</span><span class="st ${p.status}">${statusLabel(p.status)}</span></li>`).join("");
   $("#board").innerHTML = list || "<li class='muted'>No patients right now</li>";
@@ -136,13 +141,14 @@ const INTERACT = [
   { id: "bell", pos: { x: -3.4, z: -6.5 }, r: 0.7, label: () => "Ring the bell", action: () => { Sound.bell(); toast(`${icon("bell", 18)} Ding!`, "info", 1200); }, coop: true },
   { id: "examTable", pos: { x: 6.5, z: -6.1 }, r: 1.7, label: () => { const p = patientAt("exam_ready"); return p ? `Examine ${p.name}` : "Exam table"; }, action: () => uiExam() },
   { id: "staffBoard", pos: { x: 14.5, z: -10.9 }, r: 1.6, label: () => "Staff notice board — hire & manage staff", action: () => uiStaff() },
-  { id: "staffTable", pos: { x: 13, z: -8.9 }, r: 1.2, label: () => "Staff room — radio & break", action: () => uiRadio() },
+  { id: "staffTable", pos: { x: 13, z: -8.9 }, r: 1.4, label: () => `Staff room — coffee, nap, radio (energy ${Math.round(G.s.energy)}%)`, action: () => uiBreak() },
   { id: "dentalTable", pos: { x: 19.5, z: -6.1 }, r: 1.7, label: () => { const p = patientAt("dental_ready"); return p ? `Dental procedure — ${p.name}` : "Dental table"; }, action: () => uiDental(), room: "dental" },
   { id: "xrayTable", pos: { x: 13.5, z: 5.5 }, r: 1.6, label: () => { const p = patientAt("xray_ready"); return p ? `Take radiograph of ${p.name}` : "X-ray table"; }, action: () => uiXray() },
   { id: "viewer", pos: { x: 13.5, z: 10.9 }, r: 1.4, label: () => "Radiograph viewer — anatomy atlas", action: () => uiViewer() },
   { id: "prepTable", pos: { x: 0, z: 4.4 }, r: 1.6, label: () => { const p = patientAt("preop"); return p ? `Pre-operative checklist — ${p.name}` : "Prep table"; }, action: () => uiPreop() },
   { id: "autoclave", pos: { x: 1.8, z: 3.2 }, r: 1.1, label: () => "Autoclave — assemble & sterilise the surgical pack", action: () => uiAutoclave() },
-  { id: "locker", pos: { x: -1.8, z: 9.5 }, r: 1.4, label: () => "Locker — change outfit", action: () => uiLocker() },
+  { id: "locker", pos: { x: -1.8, z: 9.5 }, r: 1.4, label: () => "Wardrobe — outfits, appearance & clinic pet", action: () => uiWardrobe() },
+  { id: "bowl", pos: { x: 0.6, z: -10.3 }, r: 1.3, label: () => `Feed ${G.s.clinicPet.name}${G.s.clinicPet.hunger > 45 ? " (hungry)" : ""}`, action: () => feedPet() },
   { id: "sink", pos: { x: 0, z: 10.7 }, r: 1.3, label: () => "Scrub sink — hand scrub, gown & gloves", action: () => uiSink() },
   { id: "orTable", pos: { x: 7, z: 7.5 }, r: 1.6, label: () => { const p = patientAt("ready_or"); return p ? `Begin surgery — ${p.name}` : "Operating table"; }, action: () => uiSurgery() },
   { id: "tray", pos: { x: 8.8, z: 5.1 }, r: 1.1, label: () => "Instrument tray — learn the instruments", action: () => uiReference("tools") },
@@ -164,7 +170,7 @@ const INTERACT = [
 ];
 function dynamicInteractables() {
   const list = G.patients.filter(p => p.status === "waiting").map(p => ({ id: "pet" + p.id, pos: { x: p.npc.rig.group.position.x, z: p.npc.rig.group.position.z }, r: 1.4, label: () => `Call ${p.name} into the exam room`, action: () => callToExam(p) }));
-  const cp = World.catPos(); if (cp) list.push({ id: "cat", pos: { x: cp.x, z: cp.z }, r: 1.1, label: () => "Pet Mishmish, the clinic cat", action: () => { Sound.purr(); Sound.vibrate(60); award("catfriend"); toast("Mishmish purrs and head-bumps your hand.", "good", 2000); G.catTimer = 3; } });
+  const cp = World.catPos(); if (cp) list.push({ id: "cat", pos: { x: cp.x, z: cp.z }, r: 1.1, label: () => `Pet ${G.s.clinicPet.name}`, action: () => petClinicPet() });
   return list;
 }
 function callToExam(p) { if (patientAt("exam_ready") || patientAt("to_exam")) return toast("The exam room is occupied.", "warn"); Sound.click(); const waited = G.s.clockMin - p.arrivedAt; if (waited > 8) { G.s.dayStats.longWait = 1; rep(-0.1, `${p.name} waited ${Math.round(waited)} min`); } walkNPC(p, PATH.waitToExam, "to_exam", () => { World.placePet(p.npc, 6.5, 1.0, -7, Math.PI / 2); p.npc.rig.group.position.set(7.4, 0, -6.1); p.npc.rig.group.rotation.y = -Math.PI / 2; p.status = "exam_ready"; Sound.pet(p.species); toast(`${p.name} is on the exam table.`, "info"); }); }
@@ -208,7 +214,8 @@ function endShift() {
   s.shiftActive = false; s.shiftsDone++; s.day++; if (s.shiftsDone >= 3) award("shifts3"); addXP(30);
   if (G.weeklyMode) { const xp = s.dayStats.xp || 0; if (xp > s.weekly.best) s.weekly.best = xp; s.weekly.week = isoWeek(); G.weeklyMode = false; }
   Sound.music.stop(); World.setWeather("clear");
-  setBody(`<h3>${icon("moon", 20)} Shift complete — Day ${s.day - 1}</h3><table class="ref"><tr><td>Patients seen today</td><td>${s.dayStats.patients || 0}</td></tr><tr><td>Goals achieved</td><td>${s.goals.list.filter(g => g.done).length}/3 (+${goalMoney + goalMoney2} JD)</td></tr><tr><td>Staff wages</td><td>−${wages} JD</td></tr><tr><td>Rent & utilities</td><td>−${costs} JD</td></tr><tr><td>Reputation</td><td>${starsHTML(s.rep)} ${s.rep.toFixed(1)}</td></tr><tr><td>Hygiene score</td><td>${s.hygiene}%</td></tr><tr><td>Balance</td><td><b>${fmtMoney(s.money)}</b></td></tr></table>${s.money < 0 ? "<div class='badbox'>You are overdrawn. Sell stock, skip hiring, or take fewer staff — two unpaid paydays and staff leave.</div>" : ""}<div class="btnrow"><button class="btn primary" onclick="closePanel()">Close</button><button class="btn" onclick="shareCard('day')">${icon("share", 16)} Share day card</button></div>`);
+  setBody(`<h3>${icon("moon", 20)} Shift complete — Day ${s.day - 1}</h3><table class="ref"><tr><td>Patients seen today</td><td>${s.dayStats.patients || 0}</td></tr><tr><td>Goals achieved</td><td>${s.goals.list.filter(g => g.done).length}/3 (+${goalMoney + goalMoney2} JD)</td></tr><tr><td>Staff wages</td><td>−${wages} JD</td></tr><tr><td>Rent & utilities</td><td>−${costs} JD</td></tr><tr><td>Reputation</td><td>${starsHTML(s.rep)} ${s.rep.toFixed(1)}</td></tr><tr><td>Hygiene score</td><td>${s.hygiene}%</td></tr><tr><td>Balance</td><td><b>${fmtMoney(s.money)}</b></td></tr></table>${s.money < 0 ? "<div class='badbox'>You are overdrawn. Sell stock, skip hiring, or take fewer staff — two unpaid paydays and staff leave.</div>" : ""}<p>Energy ${Math.round(s.energy)}% — ${s.clinicPet.feeds >= 2 ? `${s.clinicPet.name} was fed twice today.` : `<b>${s.clinicPet.name} was only fed ${s.clinicPet.feeds} time(s) today</b> (clients notice a hungry clinic pet).`}</p><div class="btnrow"><button class="btn primary" onclick="goHome()">${icon("home", 16)} Go home & rest</button><button class="btn" onclick="shareCard('day')">${icon("share", 16)} Share day card</button></div>`);
+  if (s.clinicPet.feeds < 2) { rep(-0.05 * (2 - s.clinicPet.feeds)); s.clinicPet.missed += 2 - s.clinicPet.feeds; } s.clinicPet.feeds = 0; s.clinicPet.hunger = Math.min(100, s.clinicPet.hunger + 30); s.naps = 0; s.coffees = 0; G.exhausted = false;
   updateHUD(); save();
 }
 function isoWeek() { const d = new Date(); const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return `${t.getUTCFullYear()}-W${Math.ceil(((t - y) / 864e5 + 1) / 7)}`; }
@@ -277,7 +284,7 @@ function uiBehaviourCue(p) {
   $("#cuePause").onclick = () => { Sound.success(); addXP(15, "read the body language"); p.npc.petMood = "calm"; p.fear = Math.max(0, p.fear - 0.1); MGpanel("Restraint", (el) => MG.restraint(el, p.species)).then(r => { if (!r.ok) { p.mistakes++; stat("handlingErrors"); } renderExam(p); }); };
   $("#cuePush").onclick = () => uiFightBack(p, () => renderExam(p));
 }
-function MGpanel(title, runner, opts = {}) { openPanel(`${icon(opts.icon || "hand", 20)} ${title}`, `<div id="mgHost"></div>`, { noClose: true, wide: true }); return runner($("#mgHost")); }
+function MGpanel(title, runner, opts = {}) { openPanel(`${icon(opts.icon || "hand", 20)} ${title}`, `<div id="mgHost"></div>`, { noClose: true, wide: true }); energy(-1); return runner($("#mgHost")).then(r => { if (r && r.ok && G.s.energy < 25 && Math.random() < 0.15) { r.ok = false; r.text += " (fatigue error)"; toast("Fatigue cost you that one — take a break.", "warn"); } return r; }); }
 function renderExam(p) {
   const sp = SPECIES[p.species], v = sp.vitals, done = p.examDone, allDone = EXAM_STEPS.every(s => done[s.id]);
   const steps = EXAM_STEPS.map(s => `<div class="step ${done[s.id] ? "done" : ""}" onclick="examStep(${p.id},'${s.id}')"><span class="chk">${done[s.id] ? icon("check", 16) : ""}</span><div><b>${s.label}</b>${done[s.id] ? `<div class="tip">${s.tip}${s.id === "tpr" ? vitalsHTML(p) : ""}${s.id === "history" ? `<div class='tip'>Owner: “${p.caseDef.complaint}”</div>` : ""}${s.id === "ausc" && p.hidden && p.hidden.murmur ? `<div class='tip'><b>Finding:</b> grade II/VI systolic murmur over the left apex — note for the anaesthetic plan (ASA II).</div>` : ""}${s.id === "msk" && p.secondary ? `<div class='tip'><b>Also noted:</b> ${p.secondary}.</div>` : ""}${s.id === "bcs" ? `<div class='tip'>${BCS[p.caseDef.id === "bird_well" ? 1 : p.secondary && p.secondary.includes("overweight") ? 3 : 2]}</div>` : ""}</div>` : ""}</div></div>`).join("");
@@ -287,7 +294,7 @@ function renderExam(p) {
     <h4>Normal ranges — ${sp.label}</h4><table class="ref small"><tr><td>Temp</td><td>${v.temp[0]}–${v.temp[1]} °C</td></tr><tr><td>Heart rate</td><td>${v.hr[0]}–${v.hr[1]} bpm</td></tr><tr><td>Resp. rate</td><td>${v.rr[0]}–${v.rr[1]} /min</td></tr><tr><td>CRT</td><td>${v.crt}</td></tr></table><p class="muted">${sp.vitalsNote}</p></div></div>`, { wide: true });
 }
 function vitalsHTML(p) { const v = SPECIES[p.species].vitals, t = p.vitals; return `<div class="vitals"><span class="${vitalClass(t.temp, v.temp)}">T ${t.temp} °C</span><span class="${vitalClass(t.hr, v.hr)}">HR ${t.hr}</span><span class="${vitalClass(t.rr, v.rr)}">RR ${t.rr}</span><span>CRT ${t.crt}</span><span>MM ${t.mm}</span></div>`; }
-function examStep(id, step) { const p = G.patients.find(x => x.id === id); if (!p || p.examDone[step]) return; p.examDone[step] = true; Sound.click(); if (step === "tpr" || step === "ausc") Sound.beep(); if (step === "ausc" && p.hidden && p.hidden.murmur) { p.murmurFound = true; addXP(10, "murmur detected"); } if (step === "msk" && p.secondary) p.secondaryFound = true; renderExam(p); }
+function examStep(id, step) { const p = G.patients.find(x => x.id === id); if (!p || p.examDone[step]) return; p.examDone[step] = true; energy(-0.5); Sound.click(); if (step === "tpr" || step === "ausc") Sound.beep(); if (step === "ausc" && p.hidden && p.hidden.murmur) { p.murmurFound = true; addXP(10, "murmur detected"); } if (step === "msk" && p.secondary) p.secondaryFound = true; renderExam(p); }
 function diagnose(id, i) {
   const p = G.patients.find(x => x.id === id); const c = p.caseDef; const ok = i === c.correct;
   p.record.push(`${clockStr()} — Exam: ${c.findings} TPR ${p.vitals.temp} °C / ${p.vitals.hr} / ${p.vitals.rr}.${p.murmurFound ? " Grade II murmur noted." : ""}${p.secondaryFound ? " Also: " + p.secondary + "." : ""} Plan: "${c.options[i]}" (${ok ? "correct" : "corrected"}).`);
@@ -332,7 +339,7 @@ function uiXray() {
   const p = patientAt("xray_ready"); if (!p) return openPanel(`${icon("xray", 20)} X-ray table`, "<p>No patient here. Radiographs are ordered from the exam room.</p>");
   openPanel(`${icon("xray", 20)} Radiography — ${p.name}`, `<ol><li><b>Radiation safety:</b> lead apron, thyroid shield, gloves; only essential staff; dosimeter badge on.</li><li><b>Sedation/analgesia</b> so a painful patient lies still.</li><li><b>Two orthogonal views</b> (lateral + craniocaudal/ventrodorsal), include the joint above and below.</li><li><b>Exposure</b> by thickness (kVp/mAs chart); collimate.</li></ol><div class="btnrow"><button class="btn primary" onclick="takeXray(${p.id})">${icon("camera", 16)} Expose</button></div>`);
 }
-function takeXray(id) { const p = G.patients.find(x => x.id === id); Sound.beep(); const xr = p.caseDef.xray || { view: p.species, finding: null, label: "No abnormality detected" }; p.xray = xr; p.record.push(`${clockStr()} — Radiographs: ${xr.label}.`); award("xray1"); addXP(25, "radiograph taken"); stat("xrays"); showXrayPanel(p, xr, true); }
+function takeXray(id) { const p = G.patients.find(x => x.id === id); Sound.beep(); energy(-3); const xr = p.caseDef.xray || { view: p.species, finding: null, label: "No abnormality detected" }; p.xray = xr; p.record.push(`${clockStr()} — Radiographs: ${xr.label}.`); award("xray1"); addXP(25, "radiograph taken"); stat("xrays"); showXrayPanel(p, xr, true); }
 function showXrayPanel(p, xr, decide) {
   const sp = SPECIES[xr.view];
   const nextBtn = !decide ? "" : (p.caseDef.outcome === "surgery" ? `<button class="btn primary" onclick="closePanel();admitForSurgery(G.patients.find(x=>x.id===${p.id}),PATH.xrayToPrep)">Admit for surgery → prep room</button>` : `<button class="btn primary" onclick="xrayBandage(${p.id})">Robert Jones bandage & discharge</button>`);
@@ -400,7 +407,7 @@ function uiSurgery() {
   if (G.s.outfit !== "surgical") return openPanel(`${icon("scalpel", 20)} Operating table`, `<div class="badbox"><b>You are not sterile.</b> ${G.s.outfit === "clinic" ? "Locker, then sink." : "Complete the hand scrub, gown and gloves at the sink."}</div>`);
   const proc = PROCEDURES[p.caseDef.procedure];
   p.surg = { step: 0, mistakes: 0, events: 0, vit: { hr: p.species === "bird" ? 320 : p.species === "cat" ? 150 : 95, spo2: 98, etco2: 40, map: 78, temp: p.species === "bird" ? 40.5 : 38.2 }, start: performance.now() };
-  if (G.s.settings.music) Sound.music.start("or");
+  if (G.s.settings.music) Sound.music.start("or"); energy(-6);
   const approach = proc.approaches ? `<h4>Choose the approach</h4>${proc.approaches.filter(a => !a.species || a.species.includes(p.species)).map(a => `<button class="btn opt" onclick="pickApproach(${p.id},'${a.id}')"><b>${a.label}</b><br><span class="muted">${a.why}</span></button>`).join("")}` : `<div class="btnrow"><button class="btn primary" onclick="renderSurgery(${p.id})">Begin — "Scalpel, please."</button></div>`;
   openPanel(`${icon("scalpel", 20)} ${proc.name} — ${p.name}`, `<p class="big">${proc.intro}</p><p><b>Time-out:</b> ${p.name}, ${p.breed}, ${p.weight} kg · ${proc.name} · allergies none · antibiotics given · count done. Est. ${proc.duration}.${p.packMissing ? " <b>Warning:</b> the pack was incomplete — expect delays." : ""}</p>${G.s.staff.some(s => s.role === "assistant") ? `<p class="muted">${icon("user", 14)} Your surgical assistant is scrubbed in: instruments handed faster, fewer surprises.</p>` : ""}${approach}`, { wide: true, noClose: true });
 }
@@ -417,8 +424,8 @@ function renderSurgery(id) {
   openPanel(`${icon("scalpel", 20)} ${proc.name} — step ${S.step + 1}/${proc.steps.length}`, `${monitorHTML(S.vit, p.species)}<div class="surgstep"><p class="big">${st.text}</p><p class="muted">Which instrument?${timed ? ' <span class="emerg" id="stepTimer">25 s</span>' : ""}</p><div class="tools">${choices.map(c => `<button class="tool" data-t="${c}">${toolSVG(c, 150, 60)}<span>${TOOLS[c].short}</span></button>`).join("")}</div>${hint(TOOLS[st.tool].desc.split(".")[0] + ".")}</div>`, { wide: true, noClose: true });
   let left = 25, tm = null; if (timed) tm = setInterval(() => { left--; const el = $("#stepTimer"); if (el) el.textContent = left + " s"; if (left <= 0) { clearInterval(tm); S.mistakes++; p.mistakes++; S.vit.temp -= 0.2; toast("Too slow — anaesthetic time is risk time.", "warn"); S.step++; renderSurgery(id); } }, 1000);
   document.querySelectorAll("#panelBody .tool").forEach(b => b.onclick = () => {
-    if (tm) clearInterval(tm);
-    const ok = b.dataset.t === st.tool; const chosen = TOOLS[b.dataset.t], right = TOOLS[st.tool]; if (!G.s.collections.tools.includes(st.tool)) G.s.collections.tools.push(st.tool);
+    if (tm) clearInterval(tm); energy(-1);
+    let ok = b.dataset.t === st.tool; if (ok && G.s.energy < 25 && Math.random() < 0.2) { ok = false; toast("Your hands are shaking — you fumble the instrument. Rest!", "warn", 3000); } const chosen = TOOLS[b.dataset.t], right = TOOLS[st.tool]; if (!G.s.collections.tools.includes(st.tool)) G.s.collections.tools.push(st.tool);
     if (ok) { Sound.success(); addXP(12); S.vit.hr += rnd(-3, 3); } else { Sound.error(); S.vit.hr += rnd(5, 15); S.vit.map -= rnd(2, 6); }
     p.record.push(`${clockStr()} — Step ${S.step + 1}: ${st.text} → ${chosen.short}${ok ? "" : " (incorrect; " + right.short + " used)"}`);
     const retry = !ok ? `<button class="btn" id="sretry">Retry this step (−5 XP, no error recorded)</button>` : "";
@@ -519,12 +526,12 @@ function gate(pos) {
 function tick() {
   requestAnimationFrame(tick);
   const night = G.s.shiftActive && G.s.clockMin >= 18 * 60;
-  const res = World.update(G.input, { frozen: G.panelOpen, gate, night, input2: G.s.settings.coop ? G.input2 : null });
+  const res = World.update(G.input, { frozen: G.panelOpen, gate, night, input2: G.s.settings.coop ? G.input2 : null, speedMult: G.s.energy < 40 ? 0.85 : 1 });
   const dt = res.dt; const pos = res.pos;
   if (res.moving) { G.stepT = (G.stepT || 0) + dt; if (G.stepT > 0.32) { G.stepT = 0; Sound.step(); } }
   const room = World.roomAt(pos.x, pos.z); if (room !== G.lastRoom) { G.lastRoom = room; $("#hudRoom").textContent = room ? (ROOMS[room] ? ROOMS[room].name : "Outside") : ""; if (room === "or" && G.s.settings.music && Sound.music.on && Sound.music.kind !== "or") Sound.music.start("or"); if (room !== "or" && Sound.music.on && Sound.music.kind === "or") Sound.music.start("lobby"); }
   if (G.s.shiftActive && !G.panelOpen) {
-    G.s.clockMin += dt; updateClockOnly();
+    G.s.clockMin += dt; updateClockOnly(); energy(-dt * (0.022 + (G.input.run && res.moving ? 0.03 : 0))); const cp = G.s.clinicPet; cp.hunger = Math.min(100, cp.hunger + dt * 100 / 560); if (cp.hunger > 75 && !G.petHungryToast) { G.petHungryToast = true; toast(`${icon(cp.species, 16)} ${cp.name} is hungry — the bowl is by the pet bed in reception.`, "warn", 4000); World.catMood("sad"); World.catWander([0.6, -10.9]); } if (cp.hunger <= 45) G.petHungryToast = false; if (G.s.energy <= 5 && !G.exhausted) { G.exhausted = true; toast("You're exhausted. Finish the shift and go home to sleep.", "warn", 6000); }
     const ev = G.s.event ? EVENTS.find(e => e.id === G.s.event.id) : null; const rush = (ev && ev.rush) || 1; const rival = G.s.story.rival && G.s.rep < 4 ? 0.65 : 1; const hourRush = (G.s.clockMin > 10 * 60 && G.s.clockMin < 12 * 60) || (G.s.clockMin > 16 * 60 && G.s.clockMin < 17.5 * 60) ? 1.6 : 1;
     const inClinic = G.patients.filter(p => p.status !== "done").length; const waiting = G.patients.filter(p => ["arriving", "at_desk", "waiting"].includes(p.status)).length;
     G.spawnTimer -= dt * rush * rival * hourRush * (0.7 + G.s.rep * 0.12) * (1 + G.s.day * 0.03);
@@ -537,7 +544,7 @@ function tick() {
     if (G.s.clockMin >= 18 * 60 && !G.closingWarned) { G.closingWarned = true; toast(`${icon("moon", 18)} 18:00 — after-hours mode: only emergencies arrive (×1.5 fee). End the shift at the board when ready.`, "info", 6000); if (G.s.settings.music) Sound.music.start("night"); }
     if (Math.random() < dt * 0.02) updateHUD();
   }
-  G.catTimer -= dt; if (G.catTimer <= 0) { G.catTimer = rnd(35, 70); World.catWander(); }
+  G.catTimer -= dt; if (G.catTimer <= 0) { const per = G.s.clinicPet.personality; G.catTimer = per === "playful" ? rnd(15, 30) : per === "lazy" ? rnd(70, 120) : rnd(35, 70); if (G.s.clinicPet.hunger > 75) World.catWander([0.6, -10.9]); else if (per === "curious" && Math.random() < 0.5) { const pp = World.playerPos(); World.catWander([pp.x + 0.8, pp.z + 0.6]); } else World.catWander(); }
   const it = G.panelOpen ? null : nearestInteractable(pos); G.nearest = it;
   const pr = $("#prompt"); if (it) { pr.classList.add("show"); pr.querySelector("span").textContent = it.label(); World.setRing(it.pos); } else { pr.classList.remove("show"); World.setRing(null); }
   if (G.s.settings.coop) { const p2 = World.player2Pos(); G.nearest2 = p2 && !G.panelOpen ? nearestInteractable(p2, true) : null; }
@@ -553,22 +560,32 @@ function bindInput() {
   addEventListener("keyup", (e) => { if (map[e.code]) { G.keys[map[e.code]] = false; recompute(); } if (map2[e.code]) { G.keys[map2[e.code]] = false; recompute(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = false; });
   addEventListener("blur", () => { G.keys = {}; recompute(); G.input.run = false; });
   $("#prompt").onclick = interact; $("#panelClose").onclick = closePanel; $("#helpBtn").onclick = () => { if (!G.panelOpen) uiHelp(); }; $("#muteBtn").onclick = toggleMute; $("#camBtn").onclick = toggleCamera; $("#setBtn").onclick = () => { if (!G.panelOpen) uiSettings(); else closePanel(); }; $("#photoBtn").onclick = photoMode;
+  bindJoystick();
   const pad = $("#dpad"); if (pad) pad.querySelectorAll("button").forEach(b => { const d = b.dataset.d; const on = (e) => { e.preventDefault(); Sound.init(); if (d === "act") return interact(); G.keys[d] = true; recompute(); }; const off = (e) => { e.preventDefault(); G.keys[d] = false; recompute(); }; b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off); b.addEventListener("pointercancel", off); b.addEventListener("pointerleave", off); });
   const act = $("#actBtn"); if (act) act.addEventListener("pointerdown", (e) => { e.preventDefault(); Sound.init(); interact(); });
   G.touch = matchMedia("(pointer:coarse)").matches || "ontouchstart" in window;
-  if (G.touch) { if (pad) pad.classList.add("show"); if (act) act.classList.add("show"); $("#prompt kbd").innerHTML = icon("hand", 16); }
+  if (G.touch) { if (act) act.classList.add("show"); $("#prompt kbd").innerHTML = icon("hand", 16); applyControlMode(); }
   addEventListener("touchstart", () => Sound.init(), { once: true, passive: true });
   $("#c").addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
   let lastTouch = 0; addEventListener("touchend", (e) => { const now = Date.now(); if (now - lastTouch < 320 && !e.target.closest("#panel")) e.preventDefault(); lastTouch = now; }, { passive: false });
 }
+function applyControlMode() { const mode = G.s.settings.controls || "joystick"; const pad = $("#dpad"), zone = $("#joyZone"); if (!G.touch) { pad.classList.remove("show"); zone.classList.remove("show"); return; } pad.classList.toggle("show", mode === "dpad"); zone.classList.toggle("show", mode === "joystick"); }
+function bindJoystick() {
+  const zone = $("#joyZone"), base = $("#joyBase"), knob = $("#joyKnob"); if (!zone) return; let active = null, cx = 0, cy = 0; const R = 52;
+  const setVec = (dx, dy) => { const d = Math.hypot(dx, dy); const k = d > R ? R / d : 1; knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`; const nx = dx * k / R, nz = dy * k / R; const mag = Math.hypot(nx, nz); G.input.x = mag < 0.15 ? 0 : nx; G.input.z = mag < 0.15 ? 0 : nz; G.input.run = mag > 0.92; };
+  zone.addEventListener("pointerdown", (e) => { if (active !== null) return; active = e.pointerId; cx = e.clientX; cy = e.clientY; try { zone.setPointerCapture(e.pointerId); } catch (err) { } Sound.init(); zone.classList.add("used"); const r = zone.getBoundingClientRect(); base.style.left = (cx - r.left) + "px"; base.style.top = (cy - r.top) + "px"; base.classList.add("on"); setVec(0, 0); e.preventDefault(); });
+  zone.addEventListener("pointermove", (e) => { if (e.pointerId !== active) return; setVec(e.clientX - cx, e.clientY - cy); });
+  const end = (e) => { if (e.pointerId !== active) return; active = null; base.classList.remove("on"); G.input.x = 0; G.input.z = 0; G.input.run = false; knob.style.transform = ""; };
+  zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
+}
 function toggleMute() { const m = Sound.toggleMute(); $("#muteBtn").innerHTML = icon(m ? "mute" : "sound", 22); toast(m ? icon("mute", 18) + " Muted" : icon("sound", 18) + " Sound on", "info", 1200); }
 function toggleCamera() { const m = World.setCamMode(World.camMode === "third" ? "first" : "third"); G.s.settings.camMode = m; toast(m === "first" ? `${icon("camera", 18)} First person — ${G.touch ? "drag on the screen to look around" : "move the mouse (click the game to lock the cursor)"}; V switches back.` : `${icon("camera", 18)} Third person.`, "info", 3500); save(); }
-function applySettingsToWorld() { const st = G.s.settings; document.documentElement.style.setProperty("--fs", st.textSize); document.documentElement.dir = st.lang === "ar" ? "rtl" : "ltr"; document.body.classList.toggle("rtl", st.lang === "ar"); document.body.classList.toggle("onehand-right", st.oneHand === "right"); World.setCamMode(st.camMode || "third"); World.enableCoop(!!st.coop); World.applyAvatar(st.avatarApplied ? G.s.avatar : G.s.avatar); $("#coopHint").style.display = st.coop ? "" : "none"; }
+function applySettingsToWorld() { const st = G.s.settings; if (typeof applyControlMode === "function") applyControlMode(); document.documentElement.style.setProperty("--fs", st.textSize); document.documentElement.dir = st.lang === "ar" ? "rtl" : "ltr"; document.body.classList.toggle("rtl", st.lang === "ar"); document.body.classList.toggle("onehand-right", st.oneHand === "right"); World.setCamMode(st.camMode || "third"); World.enableCoop(!!st.coop); World.applyAvatar(st.avatarApplied ? G.s.avatar : G.s.avatar); $("#coopHint").style.display = st.coop ? "" : "none"; }
 
 function boot() {
   G.s = load();
   if (typeof THREE === "undefined") { $("#loading").innerHTML = "<h2>Could not load the 3D engine</h2><p>Three.js did not load (offline or blocked). Check your connection and reload.</p>"; return; }
-  World.init($("#c")); applyTheme(); World.setSign(G.s.clinicName); World.setOutfit("clinic"); G.s.expansions.forEach(e => World.setLocked(e, false)); World.showThankCards(G.s.thankCards); rebuildStaffNPCs(); applySettingsToWorld();
+  World.init($("#c")); applyTheme(); World.setSign(G.s.clinicName); applyDoctor(); applyClinicPet(); World.setOutfit("clinic"); G.s.expansions.forEach(e => World.setLocked(e, false)); World.showThankCards(G.s.thankCards); rebuildStaffNPCs(); applySettingsToWorld();
   bindInput(); updateHUD(); $("#loading").classList.add("hidden"); registerSW();
   if (!G.s.seenTutorial) { G.s.seenTutorial = true; save(); uiHelp(); } else dailyBriefing();
   tick();
