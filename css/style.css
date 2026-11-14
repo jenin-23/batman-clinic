@@ -91,3 +91,12 @@ svg.xray { width: 100%; height: auto; max-width: 100%; border-radius: 18px; }
 @media (pointer: coarse) { .step { padding: 12px; } .btn { padding: 12px 18px; } }
 @media print { body > * { display: none !important; } #printArea { display: block !important; } }
 #printArea { display: none; }
+
+/* icons */
+svg.ic { vertical-align: -0.2em; flex: none; } svg.ic.sp { color: var(--gold); margin-right: 2px; }
+#panelTitle svg.ic { color: var(--gold); margin-right: 6px; vertical-align: -0.25em; } #panelTitle { display: flex; align-items: center; gap: 2px; }
+.icw { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #141729; color: var(--gold); flex: none; }
+.ach .icw { width: 36px; height: 36px; } .btn.book .icw { width: 32px; height: 32px; border-radius: 10px; }
+.iconbtn { color: var(--gold); display: grid; place-items: center; } #prompt kbd svg { vertical-align: middle; }
+#hudOutfit svg { color: var(--muted); } .toast svg.ic { color: var(--gold); } .step .chk svg { stroke-width: 2.4; }
+#boardWrap h5::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); margin-right: 8px; vertical-align: 1px; }

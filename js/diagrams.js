@@ -148,3 +148,61 @@ function wireXrayHover(container, labelEl) {
   container.addEventListener("mouseleave", () => labelEl.style.opacity = 0);
   container.addEventListener("click", (e) => { const g = e.target.closest(".bone"); if (g) { labelEl.textContent = g.dataset.bone; labelEl.style.opacity = 1; labelEl.style.left = (e.clientX + 14) + "px"; labelEl.style.top = (e.clientY - 10) + "px"; } });
 }
+
+/* ---------------- UI line icons (24px grid, stroke = currentColor) ---------------- */
+const ICON_PATHS = {
+  bell: '<path d="M5 15a7 7 0 0 1 14 0z"/><path d="M12 8V5"/><path d="M4 18.5h16"/>',
+  steth: '<path d="M6 4v6a5 5 0 0 0 10 0V4"/><path d="M11 15v2a4 4 0 0 0 8 0v-3"/><circle cx="19" cy="11" r="2"/>',
+  xray: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M12 7v10M8.5 10h7M9.5 13h5M10 16h4"/>',
+  scalpel: '<path d="M4 20l8-8"/><path d="M12 12l8-8-1.5 6L13 13z"/>',
+  sink: '<path d="M4 12h16v2a6 6 0 0 1-6 6h-4a6 6 0 0 1-6-6z"/><path d="M12 12V6a2 2 0 0 1 4 0"/>',
+  locker: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M12 3v18M9 10v2M15 10v2"/>',
+  shop: '<path d="M4 9l1.5-4h13L20 9"/><path d="M4 9h16v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M9 13h6"/>',
+  office: '<rect x="3" y="5" width="18" height="11" rx="2"/><path d="M8 21h8M12 16v5"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  book: '<path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h12"/>',
+  trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4"/><path d="M12 13v4M8 21h8M10 17h4"/>',
+  clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+  paw: '<circle cx="12" cy="15.5" r="3.6"/><circle cx="6.8" cy="10.5" r="1.7"/><circle cx="17.2" cy="10.5" r="1.7"/><circle cx="9.4" cy="6.6" r="1.7"/><circle cx="14.6" cy="6.6" r="1.7"/>',
+  warn: '<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.5h.01"/>',
+  card: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h3"/>',
+  bed: '<path d="M3 18V8M3 13h18v5M7 13v-3h6v3M21 18v-3"/>',
+  monitor: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M6 11h3l2-3 2 6 2-3h3"/><path d="M9 21h6"/>',
+  tray: '<path d="M3 11h18l-2 7H5z"/><path d="M8 11V8M12 11V7M16 11V8"/>',
+  print: '<path d="M7 8V4h10v4"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 14h10v6H7z"/>',
+  check: '<path d="M5 12l5 5 9-10"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  cap: '<path d="M4 13a8 8 0 0 1 16 0z"/><path d="M4 13h16v2.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 15.5z"/>',
+  coat: '<path d="M8 3l4 3 4-3 4 3-1 6h-2v9H7v-9H5L4 6z"/><path d="M12 6v15"/>',
+  glove: '<path d="M8 21v-7l-3-5a1.5 1.5 0 0 1 2.6-1.5L9 10V4a1.5 1.5 0 0 1 3 0v4V3a1.5 1.5 0 0 1 3 0v5V5a1.5 1.5 0 0 1 3 0v10a6 6 0 0 1-6 6z"/>',
+  block: '<circle cx="12" cy="12" r="8"/><path d="M6.5 6.5l11 11"/>',
+  home: '<path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5"/><path d="M12 17h.01"/>',
+  sound: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
+  mute: '<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M17 9l4 6M21 9l-4 6"/>',
+  dog: '<path d="M7 9a5 5 0 0 1 10 0v4.5a5 5 0 0 1-10 0z"/><path d="M7 9L4 14l3 .8M17 9l3 5-3 .8"/><circle cx="10" cy="11.5" r=".9" fill="currentColor" stroke="none"/><circle cx="14" cy="11.5" r=".9" fill="currentColor" stroke="none"/><path d="M11 15.5h2l-1 1.2z" fill="currentColor"/>',
+  cat: '<path d="M6 13a6 6 0 0 0 12 0V6.5L15 9H9L6 6.5z"/><circle cx="10" cy="12" r=".9" fill="currentColor" stroke="none"/><circle cx="14" cy="12" r=".9" fill="currentColor" stroke="none"/><path d="M3 12.5h3M18 12.5h3M11 15h2l-1 1z"/>',
+  bird: '<circle cx="12.5" cy="11.5" r="6"/><path d="M18.5 11.5l3.5 1-3.5 1"/><circle cx="14" cy="9.5" r=".9" fill="currentColor" stroke="none"/><path d="M10 5.8c-.5-2 1-3.3 2.5-3.3"/><path d="M11 17.5l-1 3M14 17.5l1 3"/>',
+  bowl: '<path d="M4 12h16a8 8 0 0 1-16 0z"/><path d="M8 12V9.5M12 12V8M16 12V9.5"/>',
+  drop: '<path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/>',
+  pill: '<rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-45 12 12)"/><path d="M9.9 9.9l4.2 4.2"/>',
+  ring: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+  bottle: '<path d="M10 3h4v3l2 3v11a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9l2-3z"/><path d="M8 13h8"/>',
+  basket: '<path d="M4 10h16l-2 10H6z"/><path d="M8 10l2.5-6M16 10l-2.5-6M9 14v3M15 14v3"/>',
+  brush: '<path d="M5 19l5.5-5.5"/><rect x="10" y="3.5" width="10" height="9" rx="2.5" transform="rotate(45 15 8)"/>',
+  bone: '<path d="M7 7a2 2 0 1 1 3 2.2l4.8 4.8A2 2 0 1 1 17 17a2 2 0 1 1-3-2.2L9.2 10A2 2 0 1 1 7 7z"/>',
+  leaf: '<path d="M4 20c0-8 6-14 16-16-2 10-8 16-16 16z"/><path d="M4 20L14 10"/>',
+  fish: '<path d="M3 12c4-5 10-5 14 0-4 5-10 5-14 0z"/><path d="M17 12l4-3v6z"/><circle cx="7" cy="11.5" r=".8" fill="currentColor" stroke="none"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+  palette: '<path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2v-1a2 2 0 0 1 2-2h1.5A3.5 3.5 0 0 0 21 12.5 9 9 0 0 0 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7" r="1.2"/><circle cx="15.5" cy="7.5" r="1.2"/>',
+  door: '<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M15 12h.01"/>',
+  hand: '<path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-12 0v-3a1.5 1.5 0 0 1 3 0v1.5"/>',
+  party: '<path d="M5 20l3-9 6 6z"/><path d="M11 5l1-2M15 8l2-1M14 4l3-1M19 12l2 .5M17 15l2 2"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+};
+function icon(name, size = 20, cls = "") {
+  const d = ICON_PATHS[name] || ICON_PATHS.paw;
+  return `<svg class="ic ${cls}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+}

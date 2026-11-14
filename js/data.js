@@ -10,7 +10,7 @@
 
 const SPECIES = {
   dog: {
-    label: "Dog", emoji: "🐕", soundFn: "bark",
+    label: "Dog", icon: "dog", get emoji() { return icon("dog", 18, "sp"); }, soundFn: "bark",
     vitals: { temp: [38.3, 39.2], hr: [60, 140], rr: [10, 30], crt: "< 2 s", mm: "pink, moist" },
     vitalsNote: "Large breeds sit at the low end of heart rate; toy breeds and puppies can run 140–180 bpm.",
     fasting: "Healthy adult: withhold food 4–6 h before premedication (AAHA 2020); water allowed until premed. Puppies < 8 weeks: 1–2 h only.",
@@ -23,7 +23,7 @@ const SPECIES = {
     weight: [4, 38]
   },
   cat: {
-    label: "Cat", emoji: "🐈", soundFn: "meow",
+    label: "Cat", icon: "cat", get emoji() { return icon("cat", 18, "sp"); }, soundFn: "meow",
     vitals: { temp: [38.1, 39.2], hr: [140, 220], rr: [20, 30], crt: "< 2 s", mm: "pink, moist" },
     vitalsNote: "Stress in the clinic easily pushes heart rate above 220 — recheck after the cat settles.",
     fasting: "Healthy adult: 4–6 h food fast; water until premed. Kittens: ≤ 2 h.",
@@ -36,7 +36,7 @@ const SPECIES = {
     weight: [2.5, 7]
   },
   bird: {
-    label: "Bird", emoji: "🦜", soundFn: "chirp",
+    label: "Bird", icon: "bird", get emoji() { return icon("bird", 18, "sp"); }, soundFn: "chirp",
     vitals: { temp: [40.0, 42.0], hr: [250, 600], rr: [40, 75], crt: "n/a", mm: "pink (oral)" },
     vitalsNote: "Small psittacines (budgie, cockatiel). Heart rate is counted with a stethoscope over the keel; respiration by tail-bob. Values climb steeply with handling stress.",
     fasting: "Small birds: 1–3 h at most (high metabolic rate → hypoglycaemia risk). Check that the crop is EMPTY by palpation before induction to avoid regurgitation.",
@@ -295,27 +295,27 @@ const POSTOP = [
 
 /* Shop inventory */
 const SHOP_ITEMS = [
-  { id: "food_dog", name: "Premium dog food 3 kg", price: 18, cost: 10, icon: "🥣", info: "Complete & balanced; feed by body condition, not by the bag's chart alone." },
-  { id: "food_cat", name: "Adult cat food 2 kg", price: 15, cost: 8, icon: "🐟", info: "Cats are obligate carnivores — taurine and arginine are essential." },
-  { id: "seed", name: "Pelleted parrot diet", price: 9, cost: 4, icon: "🌾", info: "Pellets beat seed-only diets, which cause vitamin A and calcium deficiency." },
-  { id: "flea", name: "Flea & tick spot-on", price: 12, cost: 6, icon: "💧", info: "Monthly; dog products with permethrin are TOXIC to cats." },
-  { id: "deworm", name: "Broad-spectrum dewormer", price: 8, cost: 3, icon: "💊", info: "Every 3 months for adults; monthly for puppies/kittens until 6 months." },
-  { id: "ecollar", name: "Elizabethan collar", price: 7, cost: 3, icon: "⭕", info: "Must extend past the nose to protect the incision." },
-  { id: "shampoo", name: "Hypoallergenic shampoo", price: 10, cost: 4, icon: "🧴", info: "Oatmeal-based; never use human shampoo (wrong skin pH)." },
-  { id: "carrier", name: "Cat carrier", price: 25, cost: 14, icon: "🧺", info: "Top-opening carriers make vet visits far less stressful." },
-  { id: "toothbrush", name: "Pet toothbrush & enzymatic paste", price: 9, cost: 4, icon: "🪥", info: "Daily brushing is the gold standard for preventing periodontal disease." },
-  { id: "cuttle", name: "Cuttlebone & mineral block", price: 4, cost: 1.5, icon: "🦴", info: "Calcium source for birds; also keeps the beak worn." }
+  { id: "food_dog", name: "Premium dog food 3 kg", price: 18, cost: 10, icon: "bowl", info: "Complete & balanced; feed by body condition, not by the bag's chart alone." },
+  { id: "food_cat", name: "Adult cat food 2 kg", price: 15, cost: 8, icon: "fish", info: "Cats are obligate carnivores — taurine and arginine are essential." },
+  { id: "seed", name: "Pelleted parrot diet", price: 9, cost: 4, icon: "leaf", info: "Pellets beat seed-only diets, which cause vitamin A and calcium deficiency." },
+  { id: "flea", name: "Flea & tick spot-on", price: 12, cost: 6, icon: "drop", info: "Monthly; dog products with permethrin are TOXIC to cats." },
+  { id: "deworm", name: "Broad-spectrum dewormer", price: 8, cost: 3, icon: "pill", info: "Every 3 months for adults; monthly for puppies/kittens until 6 months." },
+  { id: "ecollar", name: "Elizabethan collar", price: 7, cost: 3, icon: "ring", info: "Must extend past the nose to protect the incision." },
+  { id: "shampoo", name: "Hypoallergenic shampoo", price: 10, cost: 4, icon: "bottle", info: "Oatmeal-based; never use human shampoo (wrong skin pH)." },
+  { id: "carrier", name: "Cat carrier", price: 25, cost: 14, icon: "basket", info: "Top-opening carriers make vet visits far less stressful." },
+  { id: "toothbrush", name: "Pet toothbrush & enzymatic paste", price: 9, cost: 4, icon: "brush", info: "Daily brushing is the gold standard for preventing periodontal disease." },
+  { id: "cuttle", name: "Cuttlebone & mineral block", price: 4, cost: 1.5, icon: "bone", info: "Calcium source for birds; also keeps the beak worn." }
 ];
 
 /* Office bookshelf / references */
 const REFERENCES = [
-  { id: "vitals", title: "Normal vital signs", icon: "📗", body: () => {
+  { id: "vitals", title: "Normal vital signs", icon: "steth", body: () => {
       let h = "<table class='ref'><tr><th>Species</th><th>Temp (°C)</th><th>Heart rate</th><th>Resp. rate</th><th>CRT</th></tr>";
       for (const k in SPECIES) { const s = SPECIES[k], v = s.vitals; h += `<tr><td>${s.emoji} ${s.label}</td><td>${v.temp[0]}–${v.temp[1]}</td><td>${v.hr[0]}–${v.hr[1]}</td><td>${v.rr[0]}–${v.rr[1]}</td><td>${v.crt}</td></tr>`; }
       h += "</table>";
       for (const k in SPECIES) h += `<p><b>${SPECIES[k].label}:</b> ${SPECIES[k].vitalsNote}</p>`;
       return h; } },
-  { id: "asa", title: "ASA physical status classification", icon: "📘", body: () => `
+  { id: "asa", title: "ASA physical status classification", icon: "monitor", body: () => `
       <table class='ref'><tr><th>ASA</th><th>Patient</th><th>Example</th></tr>
       <tr><td>I</td><td>Normal, healthy</td><td>Elective spay</td></tr>
       <tr><td>II</td><td>Mild systemic disease</td><td>Controlled diabetes, mild obesity</td></tr>
@@ -323,37 +323,37 @@ const REFERENCES = [
       <tr><td>IV</td><td>Severe disease, constant threat to life</td><td>Shock, uraemia, ruptured bladder</td></tr>
       <tr><td>V</td><td>Moribund, not expected to survive 24 h</td><td>Severe trauma, multi-organ failure</td></tr></table>
       <p>Add "E" for emergency. Moving from ASA I–II to ≥ III raises the odds of anaesthetic death (Brodbelt 2008; AAHA 2020). Mortality in healthy pets is about 0.05 % (dogs) and 0.11 % (cats).</p>` },
-  { id: "anes", title: "Anaesthesia: the continuum of care", icon: "📙", body: () => `
+  { id: "anes", title: "Anaesthesia: the continuum of care", icon: "monitor", body: () => `
       <ol>${PREOP_STEPS.map(s => `<li><b>${s.label}.</b> ${typeof s.why === "function" ? s.why("dog") : s.why}</li>`).join("")}</ol>
       <h4>Monitoring targets under anaesthesia</h4>
       <ul><li>SpO₂ ≥ 95 %</li><li>ETCO₂ 35–45 mmHg</li><li>MAP ≥ 60 mmHg, systolic ≥ 90 mmHg</li><li>Temperature 37–39 °C (dog/cat)</li><li>Depth: ventromedial eye rotation, absent palpebral reflex, relaxed jaw tone = surgical plane</li></ul>
       <h4>Recovery</h4><ul>${POSTOP.map(p => `<li>${p}</li>`).join("")}</ul>` },
-  { id: "asepsis", title: "Aseptic technique & surgeon scrub", icon: "📕", body: () => `
+  { id: "asepsis", title: "Aseptic technique & surgeon scrub", icon: "sink", body: () => `
       <p>Asepsis covers five things: the <b>patient</b>, the <b>surgeon</b>, the <b>instruments</b> (steam autoclave 121 °C/15 min or 134 °C/3 min, indicator strips), the <b>environment</b> (dedicated theatre, minimal traffic, no clipping inside) and the <b>sterile field</b> (drapes; anything below table level is contaminated).</p>
       <ol>${SCRUB_STEPS.map(s => `<li><b>${s.label}.</b> ${s.why}</li>`).join("")}</ol>
       <p><b>Patient skin prep:</b> clip in the prep room, vacuum, chlorhexidine 2–4 % alternated with 70 % alcohol in a target pattern from the incision outward for ≥ 2–5 min, then a final sterile prep in theatre. Chlorhexidine-alcohol is superior to povidone-iodine for SSI prevention.</p>` },
-  { id: "tools", title: "Surgical instrument atlas", icon: "🔧", body: () => Object.keys(TOOLS).map(k => `<div class='toolrow'>${toolSVG(k, 110, 44)}<div><b>${TOOLS[k].name}</b><br><span class='muted'>${TOOLS[k].desc}</span></div></div>`).join("") },
-  { id: "handling", title: "Low-stress handling & when pets fight back", icon: "🐾", body: () => Object.keys(SPECIES).map(k => `<p><b>${SPECIES[k].emoji} ${SPECIES[k].label}:</b> ${SPECIES[k].handlingWhy}</p>`).join("") + "<p>Signs a patient is about to react: dog — whale eye, lip lift, stiff body, growl; cat — ears flat, tail thrash, hiss, dilated pupils; bird — open beak, raised feathers, lunging. Stop, step back, and change the plan (towel, muzzle, sedation) rather than forcing it.</p>" },
-  { id: "anatomy", title: "Skeletal anatomy atlas", icon: "🦴", body: () => `<p>Hover any bone for its name. Dogs and cats have 7 cervical, 13 thoracic, 7 lumbar, 3 fused sacral and ~20 caudal vertebrae, and 13 pairs of ribs. Cats keep a tiny floating clavicle; dogs have none. Birds fuse many bones for flight: the carpometacarpus, tibiotarsus, tarsometatarsus, synsacrum and pygostyle, and have a huge keel (carina) for the flight muscles.</p>
+  { id: "tools", title: "Surgical instrument atlas", icon: "tray", body: () => Object.keys(TOOLS).map(k => `<div class='toolrow'>${toolSVG(k, 110, 44)}<div><b>${TOOLS[k].name}</b><br><span class='muted'>${TOOLS[k].desc}</span></div></div>`).join("") },
+  { id: "handling", title: "Low-stress handling & when pets fight back", icon: "paw", body: () => Object.keys(SPECIES).map(k => `<p><b>${SPECIES[k].emoji} ${SPECIES[k].label}:</b> ${SPECIES[k].handlingWhy}</p>`).join("") + "<p>Signs a patient is about to react: dog — whale eye, lip lift, stiff body, growl; cat — ears flat, tail thrash, hiss, dilated pupils; bird — open beak, raised feathers, lunging. Stop, step back, and change the plan (towel, muzzle, sedation) rather than forcing it.</p>" },
+  { id: "anatomy", title: "Skeletal anatomy atlas", icon: "xray", body: () => `<p>Hover any bone for its name. Dogs and cats have 7 cervical, 13 thoracic, 7 lumbar, 3 fused sacral and ~20 caudal vertebrae, and 13 pairs of ribs. Cats keep a tiny floating clavicle; dogs have none. Birds fuse many bones for flight: the carpometacarpus, tibiotarsus, tarsometatarsus, synsacrum and pygostyle, and have a huge keel (carina) for the flight muscles.</p>
       <div class='xrgrid'>${["dog", "cat", "bird"].map(s => `<div><h4>${SPECIES[s].label}</h4>${skeletonSVG(s, null, 360, 240)}</div>`).join("")}</div>` },
-  { id: "wsava", title: "Body condition scoring", icon: "⚖️", body: () => "<ul>" + BCS.map(b => `<li>${b}</li>`).join("") + "</ul><p>Weigh every patient at every visit; a 10 % change in a cat is clinically significant.</p>" }
+  { id: "wsava", title: "Body condition scoring", icon: "paw", body: () => "<ul>" + BCS.map(b => `<li>${b}</li>`).join("") + "</ul><p>Weigh every patient at every visit; a 10 % change in a cat is clinically significant.</p>" }
 ];
 
 const ACHIEVEMENTS = [
-  { id: "first_patient", name: "First Patient", desc: "Register your first patient at reception.", icon: "🛎️" },
-  { id: "bell10", name: "Bell Ringer", desc: "See 10 patients.", icon: "🔔" },
-  { id: "diagnose5", name: "Sharp Clinician", desc: "Make 5 correct diagnoses.", icon: "🩺" },
-  { id: "xray1", name: "See-Through", desc: "Read your first radiograph.", icon: "🩻" },
-  { id: "scrubbed", name: "Scrubbed In", desc: "Complete the full surgeon scrub sequence.", icon: "🧼" },
-  { id: "first_surgery", name: "First Incision", desc: "Complete a surgery.", icon: "🔪" },
-  { id: "flawless", name: "Steady Hands", desc: "Complete a surgery choosing every instrument correctly.", icon: "✨" },
-  { id: "catwhisperer", name: "Cat Whisperer", desc: "Calm a fractious cat correctly.", icon: "😺" },
-  { id: "birdnerd", name: "Bird Nerd", desc: "Treat a bird without compressing its chest.", icon: "🦜" },
-  { id: "shop10", name: "Shopkeeper", desc: "Sell 10 items.", icon: "🛍️" },
-  { id: "bookworm", name: "Bookworm", desc: "Read 5 references in the office.", icon: "📚" },
-  { id: "decorator", name: "Interior Designer", desc: "Customise your clinic.", icon: "🎨" },
-  { id: "shifts3", name: "Dedicated", desc: "Complete 3 shifts.", icon: "🌙" },
-  { id: "blocked", name: "Rules Are Rules", desc: "Get stopped at the OR door for not being scrubbed in — and learn why.", icon: "🚫" }
+  { id: "first_patient", name: "First Patient", desc: "Register your first patient at reception.", icon: "bell" },
+  { id: "bell10", name: "Bell Ringer", desc: "See 10 patients.", icon: "bell" },
+  { id: "diagnose5", name: "Sharp Clinician", desc: "Make 5 correct diagnoses.", icon: "steth" },
+  { id: "xray1", name: "See-Through", desc: "Read your first radiograph.", icon: "xray" },
+  { id: "scrubbed", name: "Scrubbed In", desc: "Complete the full surgeon scrub sequence.", icon: "sink" },
+  { id: "first_surgery", name: "First Incision", desc: "Complete a surgery.", icon: "scalpel" },
+  { id: "flawless", name: "Steady Hands", desc: "Complete a surgery choosing every instrument correctly.", icon: "star" },
+  { id: "catwhisperer", name: "Cat Whisperer", desc: "Calm a fractious cat correctly.", icon: "cat" },
+  { id: "birdnerd", name: "Bird Nerd", desc: "Treat a bird without compressing its chest.", icon: "bird" },
+  { id: "shop10", name: "Shopkeeper", desc: "Sell 10 items.", icon: "shop" },
+  { id: "bookworm", name: "Bookworm", desc: "Read 5 references in the office.", icon: "book" },
+  { id: "decorator", name: "Interior Designer", desc: "Customise your clinic.", icon: "palette" },
+  { id: "shifts3", name: "Dedicated", desc: "Complete 3 shifts.", icon: "moon" },
+  { id: "blocked", name: "Rules Are Rules", desc: "Get stopped at the OR door for not being scrubbed in — and learn why.", icon: "block" }
 ];
 
 const LEVELS = [

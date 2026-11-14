@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#232a4d"/><stop offset="1" stop-color="#0d101f"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd978"/><stop offset="1" stop-color="#e2ab2f"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="196" fill="none" stroke="#2f3763" stroke-width="3"/>
+  <!-- stethoscope tubing -->
+  <path d="M166 128 v110 a90 90 0 0 0 180 0 v-110" fill="none" stroke="url(#gold)" stroke-width="22" stroke-linecap="round"/>
+  <path d="M256 328 v30 a62 62 0 0 0 124 0 v-26" fill="none" stroke="url(#gold)" stroke-width="22" stroke-linecap="round"/>
+  <!-- ear tips -->
+  <circle cx="166" cy="118" r="18" fill="url(#gold)"/><circle cx="346" cy="118" r="18" fill="url(#gold)"/>
+  <!-- chest piece -->
+  <circle cx="380" cy="300" r="40" fill="url(#gold)"/><circle cx="380" cy="300" r="22" fill="#141a33"/><circle cx="380" cy="300" r="9" fill="url(#gold)"/>
+  <!-- heart -->
+  <path d="M256 268 c-30 -22 -52 -40 -52 -66 a26 26 0 0 1 52 -10 a26 26 0 0 1 52 10 c0 26 -22 44 -52 66 z" fill="#141a33" stroke="url(#gold)" stroke-width="12" stroke-linejoin="round"/>
+</svg>

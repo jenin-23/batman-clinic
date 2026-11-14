@@ -38,11 +38,11 @@ function setBody(html) { $("#panelBody").innerHTML = html; $("#panelBody").scrol
 function addXP(n, why) {
   G.s.xp += n; if (why) toast(`+${n} XP · ${why}`, "xp", 2200);
   const next = LEVELS.find(l => l.level === G.s.level + 1);
-  if (next && G.s.xp >= next.xp) { G.s.level = next.level; Sound.unlock(); setTimeout(() => openPanel("🎉 Level " + next.level + " unlocked!", `<p class="big">New phase: <b>${next.unlock}</b></p><p>${levelHint(next.level)}</p><div class="btnrow"><button class="btn primary" onclick="closePanel()">Let's go</button></div>`), 300); }
+  if (next && G.s.xp >= next.xp) { G.s.level = next.level; Sound.unlock(); setTimeout(() => openPanel(`${icon('party',20)} Level ` + next.level + " unlocked!", `<p class="big">New phase: <b>${next.unlock}</b></p><p>${levelHint(next.level)}</p><div class="btnrow"><button class="btn primary" onclick="closePanel()">Let's go</button></div>`), 300); }
   updateHUD(); save();
 }
 function levelHint(l) { return { 2: "Fractures and foreign bodies now arrive. Take the patient to the X-ray Suite after the exam and hover the bones on the viewer to learn them. Birds will start visiting — remember: never squeeze their chest.", 3: "Surgical cases unlock. The pathway is: Exam → Prep room (pre-op checklist) → Locker (scrubs, cap, mask) → Sink (hand scrub, gown, gloves) → Operating Room. The OR door will stop you if you are not dressed correctly.", 4: "Gastric foreign body surgery (gastrotomy) is now available — longer, with more anaesthetic events to manage.", 5: "Avian surgery: the ingluviotomy. Birds need an uncuffed tube, constant warming and no alcohol prep.", 6: "You are a Master Surgeon. Keep the clinic running and collect every achievement!" }[l] || ""; }
-function award(id) { if (G.s.achievements.includes(id)) return; const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return; G.s.achievements.push(id); Sound.success(); toast(`${a.icon} Achievement: <b>${a.name}</b> — ${a.desc}`, "ach", 4200); addXP(25); }
+function award(id) { if (G.s.achievements.includes(id)) return; const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return; G.s.achievements.push(id); Sound.success(); toast(`${icon(a.icon, 18)} Achievement: <b>${a.name}</b> — ${a.desc}`, "ach", 4200); addXP(25); }
 function earn(n) { G.s.money += n; Sound.cash(); updateHUD(); }
 
 function updateHUD() {
@@ -52,8 +52,8 @@ function updateHUD() {
   $("#hudMoney").textContent = fmtMoney(s.money); $("#hudLevel").textContent = `Lv ${s.level}`;
   const cur = LEVELS.find(l => l.level === s.level), nxt = LEVELS.find(l => l.level === s.level + 1);
   const pct = nxt ? Math.min(100, (s.xp - cur.xp) / (nxt.xp - cur.xp) * 100) : 100; $("#xpFill").style.width = pct + "%"; $("#hudXP").textContent = nxt ? `${s.xp} / ${nxt.xp} XP` : `${s.xp} XP · MAX`;
-  const outfitLabel = { clinic: "👔 White coat (clinic)", scrubs: "🧢 Scrubs + cap + mask", surgical: "🧤 Sterile gown + gloves" }[s.outfit];
-  $("#hudOutfit").textContent = outfitLabel;
+  const outfitLabel = { clinic: icon("coat", 16) + " White coat (clinic)", scrubs: icon("cap", 16) + " Scrubs + cap + mask", surgical: icon("glove", 16) + " Sterile gown + gloves" }[s.outfit];
+  $("#hudOutfit").innerHTML = outfitLabel;
   // patient board
   const list = G.patients.filter(p => p.status !== "done").map(p => `<li><span>${SPECIES[p.species].emoji} <b>${p.name}</b></span><span class="st ${p.status}">${statusLabel(p.status)}</span></li>`).join("");
   $("#board").innerHTML = list || "<li class='muted'>No patients right now</li>";
@@ -77,7 +77,7 @@ function spawnPatient() {
   const spots = [[0, -6.3], [1.1, -7.3], [-1.1, -7.3]]; const spot = spots[Math.min(q, 2)];
   p.npc.path = [[0, -10.5], [0, -8.8], spot]; p.npc.speed = 2.2;
   p.npc.onArrive = () => { p.status = "at_desk"; updateHUD(); };
-  setTimeout(() => { Sound.door(); }, 900); setTimeout(() => { Sound.bell(); toast(`🛎️ ${p.ownerName} arrives with ${p.name} the ${p.breed}${p.regular ? " (regular client)" : " (new patient)"}`, "info"); setTimeout(() => Sound.pet(p.species), 500); }, 1600);
+  setTimeout(() => { Sound.door(); }, 900); setTimeout(() => { Sound.bell(); toast(`${icon('bell',20)} ${p.ownerName} arrives with ${p.name} the ${p.breed}${p.regular ? " (regular client)" : " (new patient)"}`, "info"); setTimeout(() => Sound.pet(p.species), 500); }, 1600);
   p.record.push(`${clockStr()} — Arrived. Owner: ${p.ownerName}. Complaint: ${c.complaint}`); updateHUD();
 }
 function clockStr() { const h = Math.floor(G.s.clockMin / 60), m = Math.floor(G.s.clockMin % 60); return `Day ${G.s.day} ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; }
@@ -99,7 +99,7 @@ const PATH = {
 const INTERACT = [
   { id: "shiftBoard", pos: { x: 4.5, z: -8.3 }, r: 1.6, label: () => G.s.shiftActive ? "Shift board — end shift / goals" : "Shift board — START SHIFT", action: () => uiShiftBoard() },
   { id: "desk", pos: { x: 0, z: -4.5 }, r: 1.7, label: () => { const p = patientAt("at_desk"); const d = patientAt("ready_discharge"); return d ? `Reception — discharge ${d.name} & take payment` : p ? `Reception — register ${p.name}` : "Reception desk"; }, action: () => uiDesk() },
-  { id: "bell", pos: { x: 1.3, z: -4.5 }, r: 0.7, label: () => "Ring the bell", action: () => { Sound.bell(); toast("🛎️ Ding!", "info", 1200); } },
+  { id: "bell", pos: { x: 1.3, z: -4.5 }, r: 0.7, label: () => "Ring the bell", action: () => { Sound.bell(); toast(`${icon("bell", 18)} Ding!`, "info", 1200); } },
   { id: "examTable", pos: { x: 11, z: -4.6 }, r: 1.7, label: () => { const p = patientAt("exam_ready"); return p ? `Examine ${p.name}` : "Exam table (no patient)"; }, action: () => uiExam() },
   { id: "xrayTable", pos: { x: 10.5, z: 5.0 }, r: 1.6, label: () => { const p = patientAt("xray_ready"); return p ? `Take radiograph of ${p.name}` : "X-ray table"; }, action: () => uiXray() },
   { id: "viewer", pos: { x: 10.5, z: 9.4 }, r: 1.4, label: () => "Radiograph viewer — anatomy atlas", action: () => uiViewer() },
@@ -122,9 +122,9 @@ function patientAt(status) { return G.patients.find(p => p.status === status); }
 function uiShiftBoard() {
   const s = G.s; const active = G.patients.filter(p => p.status !== "done").length;
   const goals = [[`Patients seen: ${s.patientsSeen}`, s.patientsSeen], [`Correct diagnoses: ${s.correctDx}`, s.correctDx], [`Surgeries: ${s.surgeries}`, s.surgeries], [`Items sold: ${s.itemsSold}`, s.itemsSold], [`Shifts completed: ${s.shiftsDone}`, s.shiftsDone]];
-  const ach = ACHIEVEMENTS.map(a => `<div class="ach ${s.achievements.includes(a.id) ? "got" : ""}"><span class="ic">${a.icon}</span><div><b>${a.name}</b><br><span class="muted">${a.desc}</span></div></div>`).join("");
+  const ach = ACHIEVEMENTS.map(a => `<div class="ach ${s.achievements.includes(a.id) ? "got" : ""}"><span class="icw">${icon(a.icon, 24)}</span><div><b>${a.name}</b><br><span class="muted">${a.desc}</span></div></div>`).join("");
   const nxt = LEVELS.find(l => l.level === s.level + 1);
-  openPanel("📋 Shift board", `
+  openPanel(`${icon('clock',20)} Shift board`, `
     <div class="cols"><div>
       <h4>Shift</h4>
       ${s.shiftActive ? `<p>Shift is open. ${active ? `<b>${active}</b> patient(s) still in the clinic — finish them before closing, or they'll be rescheduled.` : "No patients inside."}</p><button class="btn warn" onclick="endShift()">End shift</button>`
@@ -133,7 +133,7 @@ function uiShiftBoard() {
       <p><b>Level ${s.level}</b> — ${LEVELS.find(l => l.level === s.level).unlock}<br>${nxt ? `Next: Lv ${nxt.level} at ${nxt.xp} XP → ${nxt.unlock}` : "Max level reached"}</p>
     </div><div><h4>Achievements (${s.achievements.length}/${ACHIEVEMENTS.length})</h4><div class="achlist">${ach}</div></div></div>`, { wide: true });
 }
-function startShift() { G.s.shiftActive = true; G.s.clockMin = 9 * 60; G.spawnTimer = 3; G.shopTimer = 20; Sound.success(); toast("🌞 Shift started — the clinic is open!", "good"); closePanel(); updateHUD(); save(); }
+function startShift() { G.s.shiftActive = true; G.s.clockMin = 9 * 60; G.spawnTimer = 3; G.shopTimer = 20; Sound.success(); toast(`${icon('sun',20)} Shift started — the clinic is open!`, "good"); closePanel(); updateHUD(); save(); }
 function endShift() {
   const active = G.patients.filter(p => p.status !== "done");
   active.forEach(p => { World.removeNPC(p.npc); p.status = "done"; });
@@ -142,7 +142,7 @@ function endShift() {
   const bonus = 40 + G.s.level * 10; G.s.money += bonus;
   if (G.s.shiftsDone >= 3) award("shifts3");
   addXP(30);
-  setBody(`<h3>🌙 Shift complete</h3><p>Day ${G.s.day - 1} is done. ${active.length ? `${active.length} patient(s) were rescheduled.` : "Every patient was treated."}</p><p>Overheads covered, end-of-day bonus: <b>+${bonus} JD</b>, +30 XP.</p><div class="btnrow"><button class="btn primary" onclick="closePanel()">Close</button></div>`);
+  setBody(`<h3>${icon('moon',20)} Shift complete</h3><p>Day ${G.s.day - 1} is done. ${active.length ? `${active.length} patient(s) were rescheduled.` : "Every patient was treated."}</p><p>Overheads covered, end-of-day bonus: <b>+${bonus} JD</b>, +30 XP.</p><div class="btnrow"><button class="btn primary" onclick="closePanel()">Close</button></div>`);
   updateHUD(); save();
 }
 
@@ -150,13 +150,13 @@ function endShift() {
 function uiDesk() {
   const d = patientAt("ready_discharge"); if (d) return uiDischarge(d);
   const p = patientAt("at_desk");
-  if (!p) { const w = G.patients.filter(x => x.status === "waiting"); return openPanel("🛎️ Reception", `<p>${G.s.shiftActive ? "No one is at the desk right now." : "The clinic is closed — open a shift at the shift board by the entrance."}</p>${w.length ? `<p>${w.length} patient(s) in the waiting room. Walk to them and press <kbd>E</kbd> to call them into the exam room.</p>` : ""}`); }
+  if (!p) { const w = G.patients.filter(x => x.status === "waiting"); return openPanel(`${icon('bell',20)} Reception`, `<p>${G.s.shiftActive ? "No one is at the desk right now." : "The clinic is closed — open a shift at the shift board by the entrance."}</p>${w.length ? `<p>${w.length} patient(s) in the waiting room. Walk to them and press <kbd>E</kbd> to call them into the exam room.</p>` : ""}`); }
   const sp = SPECIES[p.species];
-  openPanel(`🛎️ Registration — ${p.ownerName} & ${p.name}`, `
+  openPanel(`${icon('bell',20)} Registration — ${p.ownerName} & ${p.name}`, `
     <div class="cols"><div>
       <p class="muted">${p.regular ? "Regular client — file found. Confirm details." : "New patient — create a file."}</p>
       <label>Patient name <input id="fName" value="${p.name}"></label>
-      <label>Species <input value="${sp.emoji} ${sp.label} — ${p.breed}" disabled></label>
+      <label>Species <input value="${sp.label} — ${p.breed}" disabled></label>
       <label>Age <input id="fAge" value="${p.age}"></label>
       <label>Sex <input id="fSex" value="${p.sex}"></label>
       <label>Weight (kg) <input id="fWeight" type="number" step="0.01" value="${p.weight}"></label>
@@ -194,15 +194,15 @@ function genVitals(p) {
 }
 function vitalClass(val, r) { return val < r[0] ? "low" : val > r[1] ? "high" : "ok"; }
 function uiExam() {
-  const p = patientAt("exam_ready"); if (!p) return openPanel("🩺 Exam room", "<p>No patient on the table. Call one from the waiting room.</p>");
+  const p = patientAt("exam_ready"); if (!p) return openPanel(`${icon('steth',20)} Exam room`, "<p>No patient on the table. Call one from the waiting room.</p>");
   if (!p.vitals) p.vitals = genVitals(p);
   if (!p.fightChecked) { p.fightChecked = true; if (Math.random() < 0.45 || p.species === "bird") return uiFightBack(p, () => uiExam()); }
   renderExam(p);
 }
 function renderExam(p) {
   const sp = SPECIES[p.species], v = sp.vitals, done = p.examDone, allDone = EXAM_STEPS.every(s => done[s.id]);
-  const steps = EXAM_STEPS.map(s => `<div class="step ${done[s.id] ? "done" : ""}" onclick="examStep(${p.id},'${s.id}')"><span class="chk">${done[s.id] ? "✓" : ""}</span><div><b>${s.label}</b>${done[s.id] ? `<div class="tip">${s.tip}${s.id === "tpr" ? vitalsHTML(p) : ""}${s.id === "history" ? `<div class='tip'>Owner: “${p.caseDef.complaint}”</div>` : ""}${s.id === "bcs" ? `<div class='tip'>${BCS[p.caseDef.id === "bird_well" ? 1 : 2]}</div>` : ""}</div>` : ""}</div></div>`).join("");
-  openPanel(`🩺 Physical exam — ${sp.emoji} ${p.name} (${p.breed}, ${p.age}, ${p.weight} kg)`, `
+  const steps = EXAM_STEPS.map(s => `<div class="step ${done[s.id] ? "done" : ""}" onclick="examStep(${p.id},'${s.id}')"><span class="chk">${done[s.id] ? icon("check", 16) : ""}</span><div><b>${s.label}</b>${done[s.id] ? `<div class="tip">${s.tip}${s.id === "tpr" ? vitalsHTML(p) : ""}${s.id === "history" ? `<div class='tip'>Owner: “${p.caseDef.complaint}”</div>` : ""}${s.id === "bcs" ? `<div class='tip'>${BCS[p.caseDef.id === "bird_well" ? 1 : 2]}</div>` : ""}</div>` : ""}</div></div>`).join("");
+  openPanel(`${icon('steth',20)} Physical exam — ${sp.emoji} ${p.name} (${p.breed}, ${p.age}, ${p.weight} kg)`, `
     <div class="cols"><div><h4>Work through the exam in order</h4>${steps}</div>
     <div><h4>Findings</h4>${allDone ? `<p>${p.caseDef.findings}</p><h4>Your assessment & plan</h4>${p.caseDef.options.map((o, i) => `<button class="btn opt" onclick="diagnose(${p.id},${i})">${o}</button>`).join("")}` : `<p class="muted">Complete every exam step to reveal the findings. Click a step to perform it and read what it checks.</p>`}
     <h4>Normal ranges — ${sp.label}</h4><table class="ref small"><tr><td>Temp</td><td>${v.temp[0]}–${v.temp[1]} °C</td></tr><tr><td>Heart rate</td><td>${v.hr[0]}–${v.hr[1]} bpm</td></tr><tr><td>Resp. rate</td><td>${v.rr[0]}–${v.rr[1]} /min</td></tr><tr><td>CRT</td><td>${v.crt}</td></tr></table><p class="muted">${sp.vitalsNote}</p></div></div>`, { wide: true });
@@ -233,7 +233,7 @@ function uiFightBack(p, next) {
   const sp = SPECIES[p.species]; Sound.petAngry(p.species); p.npc.petMood = "angry";
   const line = { dog: `${p.name} stiffens, lifts a lip and growls as you reach for the leg.`, cat: `${p.name} flattens the ears, hisses and swats at your hand!`, bird: `${p.name} flaps wildly and lunges with an open beak when the carrier opens.` }[p.species];
   const opts = sp.handling.slice().sort(() => Math.random() - 0.5);
-  openPanel(`⚠️ ${p.name} is fighting back!`, `<p class="big">${line}</p><p>How do you restrain safely?</p>${opts.map(o => `<button class="btn opt" data-h="${o}">${o}</button>`).join("")}`, { noClose: true });
+  openPanel(`${icon('warn',20)} ${p.name} is fighting back!`, `<p class="big">${line}</p><p>How do you restrain safely?</p>${opts.map(o => `<button class="btn opt" data-h="${o}">${o}</button>`).join("")}`, { noClose: true });
   document.querySelectorAll("#panelBody .opt").forEach(b => b.onclick = () => {
     const ok = b.dataset.h === sp.bestHandling;
     if (ok) { Sound.success(); addXP(20, "safe handling"); if (p.species === "cat") award("catwhisperer"); if (p.species === "bird") award("birdnerd"); p.npc.petMood = "calm"; p.record.push(`${clockStr()} — Patient fractious; restrained with: ${sp.bestHandling}.`); }
@@ -245,8 +245,8 @@ function uiFightBack(p, next) {
 
 /* ---------------- X-RAY ---------------- */
 function uiXray() {
-  const p = patientAt("xray_ready"); if (!p) return openPanel("🩻 X-ray table", "<p>No patient here. Radiographs are ordered from the exam room.</p>");
-  openPanel(`🩻 Radiography — ${p.name}`, `<ol><li><b>Radiation safety:</b> lead apron, thyroid shield, gloves; only essential staff in the room; dosimeter badge on.</li><li><b>Sedation/analgesia</b> so a painful patient lies still — never wrestle a fracture.</li><li><b>Two orthogonal views</b> (lateral + craniocaudal / ventrodorsal), include the joint above and below.</li><li><b>Exposure</b> set by thickness (kVp/mAs chart); collimate to the area of interest.</li></ol><div class="btnrow"><button class="btn primary" onclick="takeXray(${p.id})">📸 Expose</button></div>`);
+  const p = patientAt("xray_ready"); if (!p) return openPanel(`${icon('xray',20)} X-ray table`, "<p>No patient here. Radiographs are ordered from the exam room.</p>");
+  openPanel(`${icon('xray',20)} Radiography — ${p.name}`, `<ol><li><b>Radiation safety:</b> lead apron, thyroid shield, gloves; only essential staff in the room; dosimeter badge on.</li><li><b>Sedation/analgesia</b> so a painful patient lies still — never wrestle a fracture.</li><li><b>Two orthogonal views</b> (lateral + craniocaudal / ventrodorsal), include the joint above and below.</li><li><b>Exposure</b> set by thickness (kVp/mAs chart); collimate to the area of interest.</li></ol><div class="btnrow"><button class="btn primary" onclick="takeXray(${p.id})">${icon('xray',20)} Expose</button></div>`);
 }
 function takeXray(id) {
   const p = G.patients.find(x => x.id === id); Sound.beep(); setTimeout(() => Sound.click(), 300);
@@ -257,11 +257,11 @@ function takeXray(id) {
 function showXrayPanel(p, xr, decide) {
   const sp = SPECIES[xr.view];
   const nextBtn = !decide ? "" : (p.caseDef.outcome === "surgery" ? `<button class="btn primary" onclick="closePanel();admitForSurgery(G.patients.find(x=>x.id===${p.id}),PATH.xrayToPrep)">Admit for surgery → prep room</button>` : `<button class="btn primary" onclick="xrayDischarge(${p.id})">Treat conservatively & discharge</button>`);
-  openPanel(`🩻 Radiograph — ${sp.label}: ${p.name}`, `<div class="xrwrap"><div id="xrHolder">${skeletonSVG(xr.view, xr.finding, 560, 414)}</div><div><h4>Report</h4><p><b>${xr.label}</b></p><p class="muted">Hover (or tap) any bone to see its name. Dogs and cats: 7 cervical, 13 thoracic, 7 lumbar vertebrae, 13 pairs of ribs. Birds: fused flight skeleton with a deep keel.</p>${xr.finding && xr.finding.startsWith("fracture") ? "<p>Fracture description: location (which bone, which third), type (transverse / oblique / spiral / comminuted), open or closed, displacement. Stabilise with a splint or bandage and plan fixation (external coaptation vs internal fixation) based on patient size and fracture type.</p>" : ""}${xr.finding === "foreign_body" ? "<p>Radio-opaque gastric foreign body with gas distension. Plan: IV fluids, electrolytes, then exploratory laparotomy & gastrotomy.</p>" : ""}<div class="btnrow">${nextBtn}</div></div></div>`, { wide: true });
+  openPanel(`${icon('xray',20)} Radiograph — ${sp.label}: ${p.name}`, `<div class="xrwrap"><div id="xrHolder">${skeletonSVG(xr.view, xr.finding, 560, 414)}</div><div><h4>Report</h4><p><b>${xr.label}</b></p><p class="muted">Hover (or tap) any bone to see its name. Dogs and cats: 7 cervical, 13 thoracic, 7 lumbar vertebrae, 13 pairs of ribs. Birds: fused flight skeleton with a deep keel.</p>${xr.finding && xr.finding.startsWith("fracture") ? "<p>Fracture description: location (which bone, which third), type (transverse / oblique / spiral / comminuted), open or closed, displacement. Stabilise with a splint or bandage and plan fixation (external coaptation vs internal fixation) based on patient size and fracture type.</p>" : ""}${xr.finding === "foreign_body" ? "<p>Radio-opaque gastric foreign body with gas distension. Plan: IV fluids, electrolytes, then exploratory laparotomy & gastrotomy.</p>" : ""}<div class="btnrow">${nextBtn}</div></div></div>`, { wide: true });
   wireXrayHover($("#xrHolder"), $("#boneLabel"));
 }
 function xrayDischarge(id) { const p = G.patients.find(x => x.id === id); p.fee = p.caseDef.fee; p.record.push(`${clockStr()} — Conservative management: analgesia + external coaptation (bandage/splint), recheck radiographs in 2–3 weeks.`); closePanel(); walkNPC(p, PATH.xrayToDesk, "to_desk", () => { p.status = "ready_discharge"; Sound.bell(); }); }
-function uiViewer() { const last = G.patients.slice().reverse().find(p => p.xray) || null; if (last) return showXrayPanel(last, last.xray, false); openPanel("🩻 Viewer — anatomy atlas", `<p class="muted">No radiograph yet. Here is the atlas — hover any bone.</p><div class="xrgrid">${["dog", "cat", "bird"].map(s => `<div><h4>${SPECIES[s].label}</h4>${skeletonSVG(s, null, 330, 244)}</div>`).join("")}</div>`, { wide: true }); wireXrayHover($("#panelBody"), $("#boneLabel")); }
+function uiViewer() { const last = G.patients.slice().reverse().find(p => p.xray) || null; if (last) return showXrayPanel(last, last.xray, false); openPanel(`${icon('xray',20)} Viewer — anatomy atlas`, `<p class="muted">No radiograph yet. Here is the atlas — hover any bone.</p><div class="xrgrid">${["dog", "cat", "bird"].map(s => `<div><h4>${SPECIES[s].label}</h4>${skeletonSVG(s, null, 330, 244)}</div>`).join("")}</div>`, { wide: true }); wireXrayHover($("#panelBody"), $("#boneLabel")); }
 
 /* ---------------- PRE-OP ---------------- */
 const PREOP_QUIZ = {
@@ -270,14 +270,14 @@ const PREOP_QUIZ = {
   scrub: { all: ["Chlorhexidine alternating with alcohol, target pattern from incision outward, ≥ 2–5 min", "Quick wipe with water", "Scrub from the edges inward toward the incision"], correct: 0 }
 };
 function uiPreop() {
-  const p = patientAt("preop"); if (!p) return openPanel("🧾 Prep table", "<p>No surgical patient on the prep table.</p>");
+  const p = patientAt("preop"); if (!p) return openPanel(`${icon('folder',20)} Prep table`, "<p>No surgical patient on the prep table.</p>");
   if (!p.preopDone) p.preopDone = [];
   renderPreop(p);
 }
 function renderPreop(p) {
   const idx = p.preopDone.length; const proc = PROCEDURES[p.caseDef.procedure];
-  const list = PREOP_STEPS.map((s, i) => `<div class="step ${i < idx ? "done" : i === idx ? "cur" : "lock"}" ${i === idx ? `onclick="preopStep(${p.id})"` : ""}><span class="chk">${i < idx ? "✓" : i + 1}</span><div><b>${s.label}</b>${i < idx ? `<div class="tip">${typeof s.why === "function" ? s.why(p.species) : s.why}</div>` : ""}</div></div>`).join("");
-  openPanel(`🧾 Pre-operative checklist — ${p.name} → ${proc.name}`, `<p class="muted">${proc.intro} Work top to bottom; each step must be done in order (an anaesthesia–surgery checklist is recommended by AAHA to prevent critical oversights).</p>${list}${idx >= PREOP_STEPS.length ? `<div class="goodbox"><b>Patient ready.</b> Transfer ${p.name} to the OR table. Now YOU need to get ready: locker → scrubs, cap & mask; sink → hand scrub, gown & gloves.</div><div class="btnrow"><button class="btn primary" onclick="toOR(${p.id})">Transfer to operating table</button></div>` : ""}`, { wide: true });
+  const list = PREOP_STEPS.map((s, i) => `<div class="step ${i < idx ? "done" : i === idx ? "cur" : "lock"}" ${i === idx ? `onclick="preopStep(${p.id})"` : ""}><span class="chk">${i < idx ? icon("check", 16) : i + 1}</span><div><b>${s.label}</b>${i < idx ? `<div class="tip">${typeof s.why === "function" ? s.why(p.species) : s.why}</div>` : ""}</div></div>`).join("");
+  openPanel(`${icon('folder',20)} Pre-operative checklist — ${p.name} → ${proc.name}`, `<p class="muted">${proc.intro} Work top to bottom; each step must be done in order (an anaesthesia–surgery checklist is recommended by AAHA to prevent critical oversights).</p>${list}${idx >= PREOP_STEPS.length ? `<div class="goodbox"><b>Patient ready.</b> Transfer ${p.name} to the OR table. Now YOU need to get ready: locker → scrubs, cap & mask; sink → hand scrub, gown & gloves.</div><div class="btnrow"><button class="btn primary" onclick="toOR(${p.id})">Transfer to operating table</button></div>` : ""}`, { wide: true });
 }
 function preopStep(id) {
   const p = G.patients.find(x => x.id === id); const i = p.preopDone.length; const s = PREOP_STEPS[i]; if (!s) return;
@@ -294,22 +294,22 @@ function toOR(id) { const p = G.patients.find(x => x.id === id); World.placePet(
 /* ---------------- LOCKER & SINK ---------------- */
 function uiLocker() {
   const o = G.s.outfit;
-  openPanel("🚪 Locker", `<p>Current outfit: <b>${{ clinic: "white coat over scrubs (clinic wear)", scrubs: "clean scrubs, cap, mask, shoe covers", surgical: "sterile gown & gloves over scrubs" }[o]}</b></p>
+  openPanel(`${icon('locker',20)} Locker`, `<p>Current outfit: <b>${{ clinic: "white coat over scrubs (clinic wear)", scrubs: "clean scrubs, cap, mask, shoe covers", surgical: "sterile gown & gloves over scrubs" }[o]}</b></p>
     <p class="muted">Theatre rule: no street/clinic clothes beyond the red line. Cap and mask go on <i>before</i> the hand scrub, never after.</p>
     <div class="btnrow">${o !== "scrubs" ? `<button class="btn primary" onclick="setOutfit('scrubs')">Change into scrubs + cap + mask + shoe covers</button>` : ""}${o !== "clinic" ? `<button class="btn" onclick="setOutfit('clinic')">Back to white coat (leave theatre)</button>` : ""}</div>`);
 }
-function setOutfit(o) { G.s.outfit = o; G.s.handScrubbed = false; World.setOutfit(o); Sound.click(); toast(o === "scrubs" ? "🧢 Scrubs, cap, mask and shoe covers on." : o === "clinic" ? "👔 Back in the white coat." : "🧤 Sterile — keep your hands above your waist!", "good"); updateHUD(); closePanel(); save(); }
+function setOutfit(o) { G.s.outfit = o; G.s.handScrubbed = false; World.setOutfit(o); Sound.click(); toast(o === "scrubs" ? icon("cap", 18) + " Scrubs, cap, mask and shoe covers on." : o === "clinic" ? icon("coat", 18) + " Back in the white coat." : icon("glove", 18) + " Sterile — keep your hands above your waist!", "good"); updateHUD(); closePanel(); save(); }
 function uiSink() {
-  if (G.s.outfit === "clinic") return openPanel("🚰 Scrub sink", `<div class="badbox"><b>Stop.</b> You're still in your white coat. Change into scrubs, cap and mask at the locker first — the cap and mask must be on before you scrub, because touching them afterwards contaminates your hands.</div>`);
-  if (G.s.outfit === "surgical") return openPanel("🚰 Scrub sink", `<p>You are already scrubbed, gowned and gloved. Keep your hands above waist level and don't touch anything non-sterile. If you do, you must re-glove.</p>`);
+  if (G.s.outfit === "clinic") return openPanel(`${icon('sink',20)} Scrub sink`, `<div class="badbox"><b>Stop.</b> You're still in your white coat. Change into scrubs, cap and mask at the locker first — the cap and mask must be on before you scrub, because touching them afterwards contaminates your hands.</div>`);
+  if (G.s.outfit === "surgical") return openPanel(`${icon('sink',20)} Scrub sink`, `<p>You are already scrubbed, gowned and gloved. Keep your hands above waist level and don't touch anything non-sterile. If you do, you must re-glove.</p>`);
   G.scrubIdx = 4; renderScrub();
 }
 function renderScrub() {
-  const i = G.scrubIdx; const html = SCRUB_STEPS.map((s, k) => `<div class="step ${k < i ? "done" : k === i ? "cur" : "lock"}"><span class="chk">${k < i ? "✓" : k + 1}</span><div><b>${s.label}</b><div class="tip">${s.why}</div></div></div>`).join("");
+  const i = G.scrubIdx; const html = SCRUB_STEPS.map((s, k) => `<div class="step ${k < i ? "done" : k === i ? "cur" : "lock"}"><span class="chk">${k < i ? icon("check", 16) : k + 1}</span><div><b>${s.label}</b><div class="tip">${s.why}</div></div></div>`).join("");
   const act = i >= SCRUB_STEPS.length ? `<div class="goodbox"><b>Sterile.</b> You are gowned and gloved. Walk to the OR table to begin.</div><div class="btnrow"><button class="btn primary" onclick="setOutfit('surgical');award('scrubbed')">Enter theatre</button></div>`
-    : i === 4 ? `<p>Hold the button to scrub — hands above elbows, fingertips first, all four sides of each finger, then forearms. Minimum 2 minutes (shown here as a short timer).</p><button class="btn primary hold" id="scrubBtn">Hold to scrub 🧼</button><div class="bar"><div id="scrubFill"></div></div>`
+    : i === 4 ? `<p>Hold the button to scrub — hands above elbows, fingertips first, all four sides of each finger, then forearms. Minimum 2 minutes (shown here as a short timer).</p><button class="btn primary hold" id="scrubBtn">Hold to scrub ${icon('hand',20)} </button><div class="bar"><div id="scrubFill"></div></div>`
     : `<div class="btnrow"><button class="btn primary" onclick="scrubNext()">${["", "", "", "", "", "Dry hands with sterile towel", "Put on sterile gown", "Closed gloving"][i]}</button></div>`;
-  openPanel("🚰 Surgical hand scrub", html + act, { wide: true });
+  openPanel(`${icon('sink',20)} Surgical hand scrub`, html + act, { wide: true });
   if (i === 4) {
     const btn = $("#scrubBtn"); let prog = 0, timer = null;
     const start = (e) => { e.preventDefault(); Sound.water(); timer = setInterval(() => { prog += 2.2; $("#scrubFill").style.width = Math.min(100, prog) + "%"; if (prog % 20 < 2.2) Sound.water(); if (prog >= 100) { clearInterval(timer); timer = null; scrubNext(); } }, 60); };
@@ -321,11 +321,11 @@ function scrubNext() { G.scrubIdx++; Sound.click(); renderScrub(); }
 
 /* ---------------- SURGERY ---------------- */
 function uiSurgery() {
-  const p = patientAt("ready_or"); if (!p) return openPanel("🔪 Operating table", "<p>No anaesthetised patient on the table. Surgical patients come from the prep room after the pre-op checklist.</p>");
-  if (G.s.outfit !== "surgical") return openPanel("🔪 Operating table", `<div class="badbox"><b>You are not sterile.</b> ${G.s.outfit === "clinic" ? "You're in your white coat — go to the locker, then the sink." : "You have scrubs, cap and mask, but no sterile gown and gloves. Complete the hand scrub at the sink."}</div>`);
+  const p = patientAt("ready_or"); if (!p) return openPanel(`${icon('scalpel',20)} Operating table`, "<p>No anaesthetised patient on the table. Surgical patients come from the prep room after the pre-op checklist.</p>");
+  if (G.s.outfit !== "surgical") return openPanel(`${icon('scalpel',20)} Operating table`, `<div class="badbox"><b>You are not sterile.</b> ${G.s.outfit === "clinic" ? "You're in your white coat — go to the locker, then the sink." : "You have scrubs, cap and mask, but no sterile gown and gloves. Complete the hand scrub at the sink."}</div>`);
   const proc = PROCEDURES[p.caseDef.procedure];
   p.surg = { step: 0, mistakes: 0, events: 0, vit: { hr: p.species === "bird" ? 320 : p.species === "cat" ? 150 : 95, spo2: 98, etco2: 40, map: 78, temp: p.species === "bird" ? 40.5 : 38.2 } };
-  openPanel(`🔪 ${proc.name} — ${p.name}`, `<p class="big">${proc.intro}</p><p><b>Time-out:</b> confirm patient identity (${p.name}, ${p.breed}, ${p.weight} kg), procedure (${proc.name}), side/site, allergies, antibiotics given, instrument & swab count done. Estimated duration ${proc.duration}.</p><p class="muted">For each step pick the correct instrument. Watch the monitor — anaesthetic events will interrupt you.</p><div class="btnrow"><button class="btn primary" onclick="renderSurgery(${p.id})">Begin — "Scalpel, please."</button></div>`, { wide: true, noClose: true });
+  openPanel(`${icon('scalpel',20)} ${proc.name} — ${p.name}`, `<p class="big">${proc.intro}</p><p><b>Time-out:</b> confirm patient identity (${p.name}, ${p.breed}, ${p.weight} kg), procedure (${proc.name}), side/site, allergies, antibiotics given, instrument & swab count done. Estimated duration ${proc.duration}.</p><p class="muted">For each step pick the correct instrument. Watch the monitor — anaesthetic events will interrupt you.</p><div class="btnrow"><button class="btn primary" onclick="renderSurgery(${p.id})">Begin — "Scalpel, please."</button></div>`, { wide: true, noClose: true });
 }
 function monitorHTML(v, sp) { const r = SPECIES[sp].vitals; return `<div class="monitor"><div><small>HR</small><b class="${v.hr < r.hr[0] * 0.7 || v.hr > r.hr[1] * 1.15 ? "bad" : ""}">${Math.round(v.hr)}</b></div><div><small>SpO₂</small><b class="${v.spo2 < 95 ? "bad" : ""}">${Math.round(v.spo2)}%</b></div><div><small>ETCO₂</small><b class="${v.etco2 < 35 || v.etco2 > 45 ? "bad" : ""}">${Math.round(v.etco2)}</b></div><div><small>MAP</small><b class="${v.map < 60 ? "bad" : ""}">${Math.round(v.map)}</b></div><div><small>Temp</small><b class="${v.temp < 37 ? "bad" : ""}">${v.temp.toFixed(1)}°</b></div><div class="ecg"><svg viewBox="0 0 120 30"><path d="M0 15 L20 15 L25 5 L30 25 L35 15 L60 15 L65 5 L70 25 L75 15 L100 15 L105 5 L110 25 L115 15 L120 15" fill="none" stroke="#7ef29a" stroke-width="2"/></svg></div></div>`; }
 function renderSurgery(id) {
@@ -335,7 +335,7 @@ function renderSurgery(id) {
   if (S.step > 0 && S.events < (proc.steps.length > 7 ? 2 : 1) && Math.random() < 0.4 && !S.pendingEvent) { S.pendingEvent = true; S.events++; return anesEvent(p); }
   S.pendingEvent = false;
   const choices = st.choices.slice().sort(() => Math.random() - 0.5);
-  openPanel(`🔪 ${proc.name} — step ${S.step + 1}/${proc.steps.length}`, `${monitorHTML(S.vit, p.species)}<div class="surgstep"><p class="big">${st.text}</p><p class="muted">Which instrument?</p><div class="tools">${choices.map(c => `<button class="tool" data-t="${c}">${toolSVG(c, 150, 60)}<span>${TOOLS[c].short}</span></button>`).join("")}</div></div>`, { wide: true, noClose: true });
+  openPanel(`${icon('scalpel',20)} ${proc.name} — step ${S.step + 1}/${proc.steps.length}`, `${monitorHTML(S.vit, p.species)}<div class="surgstep"><p class="big">${st.text}</p><p class="muted">Which instrument?</p><div class="tools">${choices.map(c => `<button class="tool" data-t="${c}">${toolSVG(c, 150, 60)}<span>${TOOLS[c].short}</span></button>`).join("")}</div></div>`, { wide: true, noClose: true });
   document.querySelectorAll("#panelBody .tool").forEach(b => b.onclick = () => {
     const ok = b.dataset.t === st.tool; const chosen = TOOLS[b.dataset.t], right = TOOLS[st.tool];
     if (ok) { Sound.success(); addXP(12); S.vit.hr += rnd(-3, 3); } else { Sound.error(); S.mistakes++; p.mistakes++; S.vit.hr += rnd(5, 15); S.vit.map -= rnd(2, 6); }
@@ -348,7 +348,7 @@ function anesEvent(p) {
   const S = p.surg; const ev = pick(ANES_EVENTS); Sound.alarm();
   if (ev.text.includes("SpO")) S.vit.spo2 = 89; if (ev.text.includes("arterial")) S.vit.map = 52; if (ev.text.includes("temperature")) S.vit.temp = 36.2; if (ev.text.includes("Heart rate")) S.vit.hr *= 1.4; if (ev.text.includes("ETCO")) S.vit.etco2 = 58;
   const order = [0, 1, 2].sort(() => Math.random() - 0.5);
-  setBody(`${monitorHTML(S.vit, p.species)}<div class="alarmbox"><b>⚠️ Anaesthetist calls out:</b> ${ev.text}</div><p>What do you do?</p>${order.map(k => `<button class="btn opt" data-k="${k}">${ev.options[k]}</button>`).join("")}`);
+  setBody(`${monitorHTML(S.vit, p.species)}<div class="alarmbox"><b>${icon('warn',20)} Anaesthetist calls out:</b> ${ev.text}</div><p>What do you do?</p>${order.map(k => `<button class="btn opt" data-k="${k}">${ev.options[k]}</button>`).join("")}`);
   document.querySelectorAll("#panelBody .opt").forEach(b => b.onclick = () => {
     const ok = +b.dataset.k === 0; if (ok) { Sound.success(); addXP(20, "anaesthetic event managed"); } else { Sound.error(); S.mistakes++; p.mistakes++; }
     p.record.push(`${clockStr()} — Anaesthetic event: ${ev.text} Response: ${ev.options[+b.dataset.k]} (${ok ? "correct" : "corrected"}).`);
@@ -362,12 +362,12 @@ function finishSurgery(p) {
   const xp = 80 + (S.mistakes === 0 ? 40 : 0); addXP(xp, "surgery complete");
   p.record.push(`${clockStr()} — ${proc.name} completed. Instrument errors: ${S.mistakes}. Swab & instrument count correct. Moved to recovery.`);
   World.placePet(p.npc, 4.9, 0.25, 9.8, Math.PI); p.status = "recovery"; p.fee = p.caseDef.fee;
-  openPanel("✅ Surgery complete", `<div class="goodbox"><b>${proc.name} done${S.mistakes === 0 ? " — flawless!" : ` with ${S.mistakes} instrument error(s).`}</b> +${xp} XP</div><h4>Recovery</h4><ul>${POSTOP.map(x => `<li>${x}</li>`).join("")}</ul><p>${p.name} is in the recovery kennel. Remove your gown and gloves (they are now contaminated) before leaving theatre, and check on ${p.name} at the kennel to discharge.</p><div class="btnrow"><button class="btn primary" onclick="closePanel();setOutfit('scrubs')">De-gown & de-glove</button></div>`, { noClose: true });
+  openPanel(`${icon('check',20)} Surgery complete`, `<div class="goodbox"><b>${proc.name} done${S.mistakes === 0 ? " — flawless!" : ` with ${S.mistakes} instrument error(s).`}</b> +${xp} XP</div><h4>Recovery</h4><ul>${POSTOP.map(x => `<li>${x}</li>`).join("")}</ul><p>${p.name} is in the recovery kennel. Remove your gown and gloves (they are now contaminated) before leaving theatre, and check on ${p.name} at the kennel to discharge.</p><div class="btnrow"><button class="btn primary" onclick="closePanel();setOutfit('scrubs')">De-gown & de-glove</button></div>`, { noClose: true });
   updateHUD(); save();
 }
 function uiRecovery() {
-  const p = patientAt("recovery"); if (!p) return openPanel("🛏️ Recovery kennel", "<p>Empty. Post-op patients recover here on a warm pad until they can stand.</p>");
-  openPanel(`🛏️ Recovery — ${p.name}`, `<p>${p.name} swallowed and was extubated, is now sternal, temperature ${p.species === "bird" ? "40.8" : "37.9"} °C, pain score low after analgesia. Incision clean and dry.</p><h4>Discharge instructions for ${p.ownerName}</h4><ul><li>E-collar on at all times for 10–14 days.</li><li>Lead walks only; no running, stairs or jumping.</li><li>Check the incision twice daily: slight redness is normal; swelling, discharge, gaping or licking is not — call us.</li><li>Pain relief as prescribed; small bland meal tonight.</li><li>Recheck / suture removal in 10–14 days.</li></ul><div class="btnrow"><button class="btn primary" onclick="dischargeFromRecovery(${p.id})">Call ${p.ownerName} to collect ${p.name}</button></div>`);
+  const p = patientAt("recovery"); if (!p) return openPanel(`${icon('bed',20)} Recovery kennel`, "<p>Empty. Post-op patients recover here on a warm pad until they can stand.</p>");
+  openPanel(`${icon('bed',20)} Recovery — ${p.name}`, `<p>${p.name} swallowed and was extubated, is now sternal, temperature ${p.species === "bird" ? "40.8" : "37.9"} °C, pain score low after analgesia. Incision clean and dry.</p><h4>Discharge instructions for ${p.ownerName}</h4><ul><li>E-collar on at all times for 10–14 days.</li><li>Lead walks only; no running, stairs or jumping.</li><li>Check the incision twice daily: slight redness is normal; swelling, discharge, gaping or licking is not — call us.</li><li>Pain relief as prescribed; small bland meal tonight.</li><li>Recheck / suture removal in 10–14 days.</li></ul><div class="btnrow"><button class="btn primary" onclick="dischargeFromRecovery(${p.id})">Call ${p.ownerName} to collect ${p.name}</button></div>`);
 }
 function dischargeFromRecovery(id) {
   const p = G.patients.find(x => x.id === id); closePanel(); Sound.pet(p.species);
@@ -377,7 +377,7 @@ function dischargeFromRecovery(id) {
 }
 function uiDischarge(p) {
   const fee = p.fee || p.caseDef.fee; const items = SHOP_ITEMS.filter(i => (p.caseDef.outcome === "surgery" ? ["ecollar", "deworm"] : ["deworm", "flea", "toothbrush", "food_" + p.species, "seed", "cuttle"]).includes(i.id)).slice(0, 3);
-  openPanel(`💳 Discharge — ${p.name}`, `<p>Summary for ${p.ownerName}: ${p.record[p.record.length - 1].split("— ")[1]}</p><p><b>Invoice:</b> ${fee} JD${p.mistakes ? ` <span class="muted">(${p.mistakes} correction(s) recorded in the file — no charge to the client)</span>` : ""}</p><h4>Recommend take-home items</h4><div class="shopgrid">${items.map(i => `<label class="shopitem"><input type="checkbox" value="${i.id}" ${G.s.stock[i.id] > 0 ? "" : "disabled"}><span class="ic">${i.icon}</span><div><b>${i.name}</b> — ${i.price} JD<br><span class="muted">${i.info}</span></div></label>`).join("")}</div><div class="btnrow"><button class="btn primary" onclick="finishDischarge(${p.id},${fee})">Take payment & say goodbye</button></div>`, { wide: true });
+  openPanel(`${icon('card',20)} Discharge — ${p.name}`, `<p>Summary for ${p.ownerName}: ${p.record[p.record.length - 1].split("— ")[1]}</p><p><b>Invoice:</b> ${fee} JD${p.mistakes ? ` <span class="muted">(${p.mistakes} correction(s) recorded in the file — no charge to the client)</span>` : ""}</p><h4>Recommend take-home items</h4><div class="shopgrid">${items.map(i => `<label class="shopitem"><input type="checkbox" value="${i.id}" ${G.s.stock[i.id] > 0 ? "" : "disabled"}><span class="icw">${icon(i.icon, 26)}</span><div><b>${i.name}</b> — ${i.price} JD<br><span class="muted">${i.info}</span></div></label>`).join("")}</div><div class="btnrow"><button class="btn primary" onclick="finishDischarge(${p.id},${fee})">Take payment & say goodbye</button></div>`, { wide: true });
 }
 function finishDischarge(id, fee) {
   const p = G.patients.find(x => x.id === id); let total = fee; let sold = 0;
@@ -388,24 +388,24 @@ function finishDischarge(id, fee) {
   G.s.cases.push({ id: p.id, name: p.name, ownerName: p.ownerName, species: p.species, breed: p.breed, age: p.age, sex: p.sex, weight: p.weight, complaint: p.caseDef.complaint, procedure: p.caseDef.procedure ? PROCEDURES[p.caseDef.procedure].name : (p.caseDef.outcome === "xray" ? "Radiography" : "Wellness / medical"), record: p.record.slice(), mistakes: p.mistakes, day: G.s.day, xray: p.xray || null });
   closePanel(); Sound.pet(p.species);
   walkNPC(p, PATH.leave, "leaving", () => { World.removeNPC(p.npc); p.status = "done"; G.patients = G.patients.filter(x => x.status !== "done"); updateHUD(); });
-  toast(`💳 +${total} JD — ${p.ownerName} and ${p.name} say thank you!`, "good"); save();
+  toast(`${icon('card',20)} +${total} JD — ${p.ownerName} and ${p.name} say thank you!`, "good"); save();
 }
 
 /* ---------------- SHOP ---------------- */
 function uiShop() {
   const cust = G.shopCustomer;
-  const grid = SHOP_ITEMS.map(i => `<div class="shopitem"><span class="ic">${i.icon}</span><div><b>${i.name}</b> — ${i.price} JD · stock ${G.s.stock[i.id]}<br><span class="muted">${i.info}</span><div class="btnrow tight">${cust && cust.wants === i.id ? `<button class="btn primary small" onclick="sellItem('${i.id}')">Sell to ${cust.name}</button>` : ""}<button class="btn small" onclick="restock('${i.id}')">Restock ×5 (${i.cost * 5} JD)</button></div></div></div>`).join("");
-  openPanel("🛍️ Clinic shop", `${cust ? `<div class="goodbox">🧍 <b>${cust.name}</b> asks: “${cust.line}”</div>` : `<p class="muted">No shop customer at the moment — they drop by during shifts. Pet owners also buy items at discharge.</p>`}<div class="shopgrid">${grid}</div>`, { wide: true });
+  const grid = SHOP_ITEMS.map(i => `<div class="shopitem"><span class="icw">${icon(i.icon, 26)}</span><div><b>${i.name}</b> — ${i.price} JD · stock ${G.s.stock[i.id]}<br><span class="muted">${i.info}</span><div class="btnrow tight">${cust && cust.wants === i.id ? `<button class="btn primary small" onclick="sellItem('${i.id}')">Sell to ${cust.name}</button>` : ""}<button class="btn small" onclick="restock('${i.id}')">Restock ×5 (${i.cost * 5} JD)</button></div></div></div>`).join("");
+  openPanel(`${icon('shop',20)} Clinic shop`, `${cust ? `<div class="goodbox">${icon('user',20)} <b>${cust.name}</b> asks: “${cust.line}”</div>` : `<p class="muted">No shop customer at the moment — they drop by during shifts. Pet owners also buy items at discharge.</p>`}<div class="shopgrid">${grid}</div>`, { wide: true });
 }
 function sellItem(id) { const it = SHOP_ITEMS.find(i => i.id === id); if (G.s.stock[id] <= 0) return toast("Out of stock — restock first.", "warn"); G.s.stock[id]--; G.s.itemsSold++; earn(it.price); addXP(8, "sale"); if (G.s.itemsSold >= 10) award("shop10"); toast(`Sold ${it.name}. Tip given: ${it.info}`, "good", 4000); G.shopCustomer = null; uiShop(); }
 function restock(id) { const it = SHOP_ITEMS.find(i => i.id === id); const c = it.cost * 5; if (G.s.money < c) return toast("Not enough money.", "warn"); G.s.money -= c; G.s.stock[id] += 5; Sound.click(); updateHUD(); uiShop(); save(); }
 const SHOP_LINES = { flea: "My cat keeps scratching — do you have something for fleas? Is the dog one okay?", food_dog: "My retriever is getting chubby, what food do you recommend?", seed: "My budgie only eats seeds, is that fine?", toothbrush: "The vet said my dog's teeth need brushing — what do I use?", ecollar: "My cat chews her stitches, what can I do?", shampoo: "My dog has itchy skin, can I use my own shampoo?", cuttle: "What does my cockatiel need for calcium?", deworm: "How often should I deworm my puppy?", carrier: "My cat hates the carrier, any tips?", food_cat: "Can my cat live on dog food?" };
-function spawnShopCustomer() { const it = pick(SHOP_ITEMS); G.shopCustomer = { name: pick(OWNER_NAMES), wants: it.id, line: SHOP_LINES[it.id] || `Do you sell ${it.name.toLowerCase()}?` }; Sound.bell(); toast(`🛍️ A customer is at the shop counter asking about ${it.name.toLowerCase()}.`, "info", 4000); }
+function spawnShopCustomer() { const it = pick(SHOP_ITEMS); G.shopCustomer = { name: pick(OWNER_NAMES), wants: it.id, line: SHOP_LINES[it.id] || `Do you sell ${it.name.toLowerCase()}?` }; Sound.bell(); toast(`${icon('shop',20)} A customer is at the shop counter asking about ${it.name.toLowerCase()}.`, "info", 4000); }
 
 /* ---------------- OFFICE ---------------- */
 function uiOffice() {
   const t = G.s.theme; const sw = (key, cols) => cols.map(c => `<span class="swatch ${t[key] === c ? "sel" : ""}" style="background:${c}" onclick="setTheme('${key}','${c}')"></span>`).join("");
-  openPanel("🏢 Office — customise your clinic", `<div class="cols"><div>
+  openPanel(`${icon('office',20)} Office — customise your clinic`, `<div class="cols"><div>
     <label>Clinic name <input id="cName" value="${G.s.clinicName}" maxlength="28"></label><button class="btn primary" onclick="renameClinic()">Rename (updates the sign)</button>
     <h4>Walls</h4><div class="swatches">${sw("wall", ["#2a2f4a", "#1f2235", "#2b2b3f", "#33264a", "#1e2a3a", "#3a3f55"])}</div>
     <h4>Accent (desks, chairs)</h4><div class="swatches">${sw("accent", ["#f2c14e", "#7c6fcf", "#5f8fd6", "#e07a5f", "#4fb3a9", "#b4557a"])}</div>
@@ -426,12 +426,12 @@ function resetGame() { if (!G.confirmReset) { G.confirmReset = true; return toas
 /* ---------------- CASE FILES / PDF ---------------- */
 function uiCases() {
   const cs = G.s.cases.slice().reverse();
-  openPanel("🗂️ Case files", `${cs.length ? `<p class="muted">Select a case to view and print it as a PDF (use your browser's "Save as PDF" in the print dialog).</p><div class="caselist">${cs.map(c => `<button class="btn case" onclick="viewCase(${c.id})">${SPECIES[c.species].emoji} <b>${c.name}</b> — ${c.procedure} · Day ${c.day}${c.mistakes ? ` · ${c.mistakes} correction(s)` : " · ✓"}</button>`).join("")}</div>` : "<p>No closed cases yet. Files are created when a patient is discharged at reception.</p>"}`, { wide: true });
+  openPanel(`${icon('folder',20)} Case files`, `${cs.length ? `<p class="muted">Select a case to view and print it as a PDF (use your browser's "Save as PDF" in the print dialog).</p><div class="caselist">${cs.map(c => `<button class="btn case" onclick="viewCase(${c.id})">${SPECIES[c.species].emoji} <b>${c.name}</b> — ${c.procedure} · Day ${c.day}${c.mistakes ? ` · ${c.mistakes} correction(s)` : " · clean"}</button>`).join("")}</div>` : "<p>No closed cases yet. Files are created when a patient is discharged at reception.</p>"}`, { wide: true });
 }
 function caseHTML(c) { return `<div class="casefile"><div class="chead"><div><h2>${G.s.clinicName}</h2><p>Dr. Ahmad, DVM · Clinical record</p></div><div class="right"><p>Case #${String(c.id).padStart(4, "0")}</p><p>Day ${c.day}</p></div></div><table class="ref"><tr><th>Patient</th><td>${c.name}</td><th>Species / breed</th><td>${SPECIES[c.species].label} — ${c.breed}</td></tr><tr><th>Owner</th><td>${c.ownerName}</td><th>Age / sex</th><td>${c.age} / ${c.sex}</td></tr><tr><th>Weight</th><td>${c.weight} kg</td><th>Procedure</th><td>${c.procedure}</td></tr></table><h3>Presenting complaint</h3><p>${c.complaint}</p><h3>Clinical notes</h3><ol class="notes">${c.record.map(r => `<li>${r}</li>`).join("")}</ol>${c.xray ? `<h3>Imaging</h3><p>${c.xray.label}</p>${skeletonSVG(c.xray.view, c.xray.finding, 420, 310)}` : ""}<p class="sig">Signed: Dr. Ahmad ____________________</p></div>`; }
 function viewCase(id) {
   const c = G.s.cases.find(x => x.id === id); if (!c) return;
-  openPanel(`🗂️ Case #${String(c.id).padStart(4, "0")} — ${c.name}`, `${caseHTML(c)}<div class="btnrow"><button class="btn primary" onclick="printCase(${id})">🖨️ Print / Save as PDF</button><button class="btn" onclick="copyCase(${id})">Copy as text</button><button class="btn" onclick="uiCases()">Back</button></div>`, { wide: true });
+  openPanel(`${icon('folder',20)} Case #${String(c.id).padStart(4, "0")} — ${c.name}`, `${caseHTML(c)}<div class="btnrow"><button class="btn primary" onclick="printCase(${id})">${icon('print',20)} Print / Save as PDF</button><button class="btn" onclick="copyCase(${id})">Copy as text</button><button class="btn" onclick="uiCases()">Back</button></div>`, { wide: true });
 }
 function printCase(id) {
   const c = G.s.cases.find(x => x.id === id); $("#printArea").innerHTML = caseHTML(c);
@@ -441,12 +441,12 @@ function copyCase(id) { const c = G.s.cases.find(x => x.id === id); const txt = 
 function fallbackCopy(txt) { setBody(`<p>Select and copy:</p><textarea rows="16" style="width:100%">${txt}</textarea><div class="btnrow"><button class="btn" onclick="uiCases()">Back</button></div>`); }
 
 /* ---------------- LIBRARY ---------------- */
-function uiLibrary() { openPanel("📚 Library & references", `<p class="muted">Dr. Ahmad's shelf. Read five to earn <b>Bookworm</b>.</p><div class="books">${REFERENCES.map(r => `<button class="btn book ${G.s.refsRead.includes(r.id) ? "read" : ""}" onclick="uiReference('${r.id}')"><span class="ic">${r.icon}</span>${r.title}</button>`).join("")}</div>`, { wide: true }); }
-function uiReference(id) { const r = REFERENCES.find(x => x.id === id); if (!r) return; if (!G.s.refsRead.includes(id)) { G.s.refsRead.push(id); addXP(10, "reference read"); if (G.s.refsRead.length >= 5) award("bookworm"); save(); } openPanel(`${r.icon} ${r.title}`, r.body() + `<div class="btnrow"><button class="btn" onclick="uiLibrary()">Back to shelf</button></div>`, { wide: true }); if (id === "anatomy") wireXrayHover($("#panelBody"), $("#boneLabel")); }
+function uiLibrary() { openPanel(`${icon('book',20)} Library & references`, `<p class="muted">Dr. Ahmad's shelf. Read five to earn <b>Bookworm</b>.</p><div class="books">${REFERENCES.map(r => `<button class="btn book ${G.s.refsRead.includes(r.id) ? "read" : ""}" onclick="uiReference('${r.id}')"><span class="icw">${icon(r.icon, 22)}</span>${r.title}</button>`).join("")}</div>`, { wide: true }); }
+function uiReference(id) { const r = REFERENCES.find(x => x.id === id); if (!r) return; if (!G.s.refsRead.includes(id)) { G.s.refsRead.push(id); addXP(10, "reference read"); if (G.s.refsRead.length >= 5) award("bookworm"); save(); } openPanel(`${icon(r.icon, 20)} ${r.title}`, r.body() + `<div class="btnrow"><button class="btn" onclick="uiLibrary()">Back to shelf</button></div>`, { wide: true }); if (id === "anatomy") wireXrayHover($("#panelBody"), $("#boneLabel")); }
 
 /* ---------------- TUTORIAL / HELP ---------------- */
 function uiHelp() {
-  openPanel("🐾 Welcome to Batman Clinic", `<div class="cols"><div><h4>Controls</h4><ul class="plain"><li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> — walk (hold <kbd>Shift</kbd> to hurry)</li><li><kbd>E</kbd> / <kbd>Space</kbd> or click the prompt — interact</li><li><kbd>Esc</kbd> — close a panel · <kbd>H</kbd> — this help · <kbd>M</kbd> — mute</li><li>Mouse wheel — zoom</li></ul>
+  openPanel(`${icon('paw',20)} Welcome to Batman Clinic`, `<div class="cols"><div><h4>Controls</h4><ul class="plain"><li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> — walk (hold <kbd>Shift</kbd> to hurry)</li><li><kbd>E</kbd> / <kbd>Space</kbd> or click the prompt — interact</li><li><kbd>Esc</kbd> — close a panel · <kbd>H</kbd> — this help · <kbd>M</kbd> — mute</li><li>Mouse wheel — zoom</li></ul>
     <h4>You are Dr. Ahmad</h4><p>Curly hair, glasses, and a clinic to run. Pets arrive with their owners when a shift is open. A bell rings at the door.</p></div>
     <div><h4>The patient pathway</h4><ol><li><b>Shift board</b> (by the entrance) → start shift.</li><li><b>Reception desk</b> → register the patient (new or regular).</li><li><b>Waiting room</b> → walk to the pet and call it in.</li><li><b>Exam room</b> → full physical exam, assessment & plan.</li><li><b>X-ray suite</b> → hover the bones to learn anatomy.</li><li><b>Prep room</b> → pre-operative checklist on the patient.</li><li><b>Locker → Sink</b> → scrubs, cap, mask; hand scrub, gown, gloves.</li><li><b>Operating room</b> → the door stops anyone not dressed for theatre.</li><li><b>Recovery → Reception</b> → discharge, invoice, take-home advice.</li></ol><p>Also: the <b>shop</b>, the <b>office</b> (customise colours & name, print case PDFs) and the <b>library</b>.</p></div></div><div class="btnrow"><button class="btn primary" onclick="closePanel()">Start the day</button></div>`, { wide: true });
 }
@@ -457,7 +457,7 @@ function nearestInteractable(pos) {
 }
 function gate(pos) {
   if (World.roomAt(pos.x, pos.z) === "or" && G.s.outfit === "clinic") {
-    if (performance.now() - G.gateToast > 2500) { G.gateToast = performance.now(); Sound.error(); toast("🚫 <b>Sterile zone.</b> Change into scrubs, cap and mask at the locker in the prep room before entering theatre.", "warn", 3500); award("blocked"); }
+    if (performance.now() - G.gateToast > 2500) { G.gateToast = performance.now(); Sound.error(); toast(`${icon('block',20)} <b>Sterile zone.</b> Change into scrubs, cap and mask at the locker in the prep room before entering theatre.`, "warn", 3500); award("blocked"); }
     return true;
   }
   return false;
@@ -475,7 +475,7 @@ function tick() {
     const inClinic = G.patients.filter(p => p.status !== "done").length; const waiting = G.patients.filter(p => ["arriving", "at_desk", "waiting"].includes(p.status)).length;
     G.spawnTimer -= dt; if (G.spawnTimer <= 0) { G.spawnTimer = rnd(40, 70); if (inClinic < 4 && waiting < 3 && G.s.clockMin < 17 * 60) spawnPatient(); }
     G.shopTimer -= dt; if (G.shopTimer <= 0) { G.shopTimer = rnd(60, 110); if (!G.shopCustomer) spawnShopCustomer(); }
-    if (G.s.clockMin >= 18 * 60 && !G.closingWarned) { G.closingWarned = true; toast("🌙 It's 18:00 — finish up and end the shift at the shift board.", "info", 5000); }
+    if (G.s.clockMin >= 18 * 60 && !G.closingWarned) { G.closingWarned = true; toast(`${icon('moon',20)} It's 18:00 — finish up and end the shift at the shift board.`, "info", 5000); }
   }
   // interaction prompt
   const it = G.panelOpen ? null : nearestInteractable(pos); G.nearest = it;
@@ -487,15 +487,15 @@ function interact() { if (G.panelOpen || !G.nearest) return; Sound.init(); G.nea
 function bindInput() {
   const map = { KeyW: "up", ArrowUp: "up", KeyS: "down", ArrowDown: "down", KeyA: "left", ArrowLeft: "left", KeyD: "right", ArrowRight: "right" };
   const recompute = () => { G.input.x = (G.keys.right ? 1 : 0) - (G.keys.left ? 1 : 0); G.input.z = (G.keys.down ? 1 : 0) - (G.keys.up ? 1 : 0); };
-  addEventListener("keydown", (e) => { Sound.init(); if (e.target.matches("input,textarea,select")) return; if (map[e.code]) { G.keys[map[e.code]] = true; recompute(); e.preventDefault(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = true; if (e.code === "KeyE" || e.code === "Space" || e.code === "Enter") { e.preventDefault(); interact(); } if (e.code === "Escape") { if (G.panelOpen && $("#panelClose").style.display !== "none") closePanel(); } if (e.code === "KeyH") { if (!G.panelOpen) uiHelp(); } if (e.code === "KeyM") { const m = Sound.toggleMute(); toast(m ? "🔇 Muted" : "🔊 Sound on", "info", 1200); } });
+  addEventListener("keydown", (e) => { Sound.init(); if (e.target.matches("input,textarea,select")) return; if (map[e.code]) { G.keys[map[e.code]] = true; recompute(); e.preventDefault(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = true; if (e.code === "KeyE" || e.code === "Space" || e.code === "Enter") { e.preventDefault(); interact(); } if (e.code === "Escape") { if (G.panelOpen && $("#panelClose").style.display !== "none") closePanel(); } if (e.code === "KeyH") { if (!G.panelOpen) uiHelp(); } if (e.code === "KeyM") { const m = Sound.toggleMute(); toast(m ? icon("mute", 18) + " Muted" : icon("sound", 18) + " Sound on", "info", 1200); } });
   addEventListener("keyup", (e) => { if (map[e.code]) { G.keys[map[e.code]] = false; recompute(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = false; });
   addEventListener("blur", () => { G.keys = {}; recompute(); G.input.run = false; });
-  $("#prompt").onclick = interact; $("#panelClose").onclick = closePanel; $("#helpBtn").onclick = () => { if (!G.panelOpen) uiHelp(); }; $("#muteBtn").onclick = () => { const m = Sound.toggleMute(); $("#muteBtn").textContent = m ? "🔇" : "🔊"; };
+  $("#prompt").onclick = interact; $("#panelClose").onclick = closePanel; $("#helpBtn").onclick = () => { if (!G.panelOpen) uiHelp(); }; $("#muteBtn").onclick = () => { const m = Sound.toggleMute(); $("#muteBtn").innerHTML = icon(m ? "mute" : "sound", 22); };
   // touch d-pad
   const pad = $("#dpad"); if (pad) { pad.querySelectorAll("button").forEach(b => { const d = b.dataset.d; const on = (e) => { e.preventDefault(); Sound.init(); if (d === "act") return interact(); G.keys[d] = true; recompute(); }; const off = (e) => { e.preventDefault(); G.keys[d] = false; recompute(); }; b.addEventListener("touchstart", on, { passive: false }); b.addEventListener("touchend", off); b.addEventListener("mousedown", on); b.addEventListener("mouseup", off); b.addEventListener("mouseleave", off); }); }
   const act = $("#actBtn"); if (act) { const go = (e) => { e.preventDefault(); Sound.init(); interact(); }; act.addEventListener("touchstart", go, { passive: false }); act.addEventListener("mousedown", go); }
   G.touch = matchMedia("(pointer:coarse)").matches || "ontouchstart" in window;
-  if (G.touch) { if (pad) pad.classList.add("show"); if (act) act.classList.add("show"); $("#prompt kbd").textContent = "👆"; }
+  if (G.touch) { if (pad) pad.classList.add("show"); if (act) act.classList.add("show"); $("#prompt kbd").innerHTML = icon("hand", 16); }
   // unlock audio on first touch and stop the page from scrolling/zooming behind the game
   addEventListener("touchstart", () => Sound.init(), { once: true, passive: true });
   $("#c").addEventListener("touchmove", (e) => e.preventDefault(), { passive: false });
