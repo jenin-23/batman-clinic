@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Batman Clinic — Vet Simulator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1222">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Batman Clinic">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="topLeft" class="card"><div><div class="name" id="hudName">Batman Clinic</div><div class="sub"><span id="hudDay">Day 1</span> · <span id="hudClock">09:00</span> · <span id="hudShift" class="off">○ Closed</span></div></div></div>
+  <div id="topRight" class="card"><span id="hudMoney">300 JD</span><span id="hudLevel">Lv 1</span><div class="xpbar"><div id="xpFill"></div></div><div id="hudXP">0 XP</div></div>
+  <div id="boardWrap" class="card"><h5>🐾 Patients</h5><ul id="board"></ul></div>
+  <div id="bottomLeft" class="card"><div id="hudRoom">Reception &amp; Waiting</div><div id="hudOutfit">👔 White coat</div></div>
+  <div id="prompt"><kbd>E</kbd><span></span></div>
+  <div id="iconBtns"><button class="iconbtn" id="helpBtn" title="Help (H)">❔</button><button class="iconbtn" id="muteBtn" title="Mute (M)">🔊</button></div>
+  <div id="dpad"><span></span><button data-d="up">▲</button><span></span><button data-d="left">◀</button><button class="act" data-d="act">E</button><button data-d="right">▶</button><span></span><button data-d="down">▼</button><span></span></div>
+  <button id="actBtn">Interact</button>
+</div>
+<div id="toasts"></div>
+<div id="panel" class="hidden"><div id="panelHead"><span id="panelTitle"></span><button id="panelClose" aria-label="Close">✕</button></div><div id="panelBody"></div></div>
+<div id="boneLabel"></div>
+<div id="printArea"></div>
+<div id="loading"><div><div class="paw">🐾</div><h2>Batman Clinic</h2><p>Loading Dr. Ahmad's clinic…</p></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/data.js"></script>
+<script src="js/diagrams.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/world.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
