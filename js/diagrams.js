@@ -55,8 +55,8 @@ function skeletonSVG(species, finding, w = 480, h = 320) {
   const lerpPts = (a, b, n) => Array.from({ length: n }, (_, i) => [a[0] + (b[0] - a[0]) * (i / (n - 1 || 1)), a[1] + (b[1] - a[1]) * (i / (n - 1 || 1))]);
   let overlay = "";
 
-  if (species === "dog" || species === "cat") {
-    const cat = species === "cat";
+  if (species !== "bird") {
+    const cat = species === "cat" || species === "rabbit";
     // skull
     B("Skull (cranium)", `<ellipse cx="${cat ? 78 : 72}" cy="72" rx="${cat ? 24 : 30}" ry="${cat ? 21 : 22}" fill="${BONE}" stroke="${BONE2}" stroke-width="1"/>`);
     B("Maxilla (upper jaw)", cat ? poly("56,76 40,80 42,90 60,90") : poly("46,74 18,80 20,92 50,92"));
@@ -98,6 +98,7 @@ function skeletonSVG(species, finding, w = 480, h = 320) {
     // findings
     if (finding === "fracture_radius") overlay = `<path d="M148 184 l6 3 l-6 3" stroke="#ff5f7a" stroke-width="2.5" fill="none"/><path d="M155 182 l5 3 l-5 3" stroke="#ff5f7a" stroke-width="2" fill="none"/><circle cx="151" cy="186" r="16" fill="none" stroke="#ff5f7a" stroke-dasharray="4 3" stroke-width="1.5"/>`;
     if (finding === "fracture_femur") overlay = `<path d="M296 128 l-8 10" stroke="#ff5f7a" stroke-width="2.5"/><circle cx="292" cy="133" r="16" fill="none" stroke="#ff5f7a" stroke-dasharray="4 3" stroke-width="1.5"/>`;
+    if (finding === "bladder_stones") overlay = `<ellipse cx="268" cy="150" rx="26" ry="18" fill="#cfc7e6" opacity=".3"/>${[[-10,-4],[2,-8],[8,4],[-4,6],[12,-2]].map(p=>`<circle cx="${268+p[0]}" cy="${150+p[1]}" r="4" fill="#fff" stroke="#ff5f7a" stroke-width="1.5"/>`).join("")}<text x="250" y="178" font-size="9" fill="#ff5f7a" font-family="sans-serif">calculi</text>`;
     if (finding === "foreign_body") overlay = `<ellipse cx="226" cy="118" rx="42" ry="26" fill="#cfc7e6" opacity=".35"/><circle cx="222" cy="120" r="9" fill="#f5f0ff" stroke="#ff5f7a" stroke-width="2.5"/><text x="214" y="124" font-size="9" fill="#ff5f7a" font-family="sans-serif">FB</text>`;
   } else {
     // bird (lateral)
@@ -200,7 +201,20 @@ const ICON_PATHS = {
   door: '<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M15 12h.01"/>',
   hand: '<path d="M8 11V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-12 0v-3a1.5 1.5 0 0 1 3 0v1.5"/>',
   party: '<path d="M5 20l3-9 6 6z"/><path d="M11 5l1-2M15 8l2-1M14 4l3-1M19 12l2 .5M17 15l2 2"/>',
-  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  rabbit: '<path d="M8 13a4 4 0 0 0 8 0 4 4 0 0 0-8 0z"/><path d="M9.5 9.5C8 7 8 3 9.5 3s2 3 2 6M14.5 9.5c1.5-2.5 1.5-6.5 0-6.5s-2 3-2 6"/><circle cx="10.5" cy="12.5" r=".8" fill="currentColor" stroke="none"/><circle cx="13.5" cy="12.5" r=".8" fill="currentColor" stroke="none"/><path d="M12 14.5v1M6 19h12"/>',
+  tortoise: '<path d="M5 14a7 5 0 0 1 14 0z"/><path d="M5 14h14M8 14l-1 3M16 14l1 3M12 14v3"/><path d="M19 13h2a1.5 1.5 0 0 1 0 3h-1"/><path d="M8 11l1.5-2M12 10V8M16 11l-1.5-2"/>',
+  van: '<path d="M3 16V8h11l4 4h3v4"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M9 17h6"/>',
+  camera: '<path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  share: '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.9l7.6-4.4M8.2 13.1l7.6 4.4"/>',
+  heart: '<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',
+  coin: '<circle cx="12" cy="12" r="8"/><path d="M12 7v10M9.5 9.5h3.5a1.75 1.75 0 0 1 0 3.5H9.5h4a1.75 1.75 0 0 1 0 3.5H9.5"/>',
+  flask: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/>',
+  tooth: '<path d="M7 3c2 0 3 1 5 1s3-1 5-1c2.5 0 3.5 2.5 2.5 6-.8 2.6-1.5 7-2.5 11-.3 1.2-1.8 1.2-2.2 0L13.5 15h-3l-1.3 5c-.4 1.2-1.9 1.2-2.2 0C6 16 5.3 11.6 4.5 9 3.5 5.5 4.5 3 7 3z"/>',
+  drug: '<path d="M4 20l8-8"/><rect x="10" y="2" width="12" height="7" rx="3.5" transform="rotate(45 16 5.5)"/><path d="M14 8l2 2"/>',
+  tag: '<path d="M3 12V4h8l9 9-8 8z"/><circle cx="7" cy="8" r="1.2" fill="currentColor" stroke="none"/>',
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>'
 };
 function icon(name, size = 20, cls = "") {
   const d = ICON_PATHS[name] || ICON_PATHS.paw;

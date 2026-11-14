@@ -1,31 +1,34 @@
 /* ============================================================
-   WORLD — Three.js scene for Batman Clinic
-   Coordinates: x = east/west, z = north/south (+z is toward the camera)
+   WORLD v2 — Three.js scene for Batman Clinic
+   x = east/west, z = north/south (+z toward the default camera)
    ============================================================ */
 
 const ROOMS = {
-  reception: { name: "Reception & Waiting", x: [-7, 7], z: [-9.5, -1.5], floor: 0x3b3f5c },
-  shop:      { name: "Clinic Shop",         x: [-15, -7], z: [-9.5, -1.5], floor: 0x3a3352 },
-  exam:      { name: "Exam Room",           x: [7, 15], z: [-9.5, -1.5], floor: 0x2f4a4e },
-  office:    { name: "Office & Library",    x: [-15, -8], z: [1.5, 10.5], floor: 0x4a3d33 },
-  prep:      { name: "Prep & Scrub Room",   x: [-8, -2], z: [1.5, 10.5], floor: 0x33405c },
-  or:        { name: "Operating Room",      x: [-2, 6], z: [1.5, 10.5], floor: 0x2e4a44 },
-  xray:      { name: "X-ray Suite",         x: [6, 15], z: [1.5, 10.5], floor: 0x332f4e },
-  corridor:  { name: "Corridor",            x: [-15, 15], z: [-1.5, 1.5], floor: 0x363a52 }
+  shop:      { name: "Clinic Shop",          x: [-21, -13], z: [-12, -2],  floor: 0x3a3352, floor2: 0x332d4a },
+  reception: { name: "Reception & Waiting",  x: [-13, 3],   z: [-12, -2],  floor: 0x3b3f5c, floor2: 0x343852 },
+  exam:      { name: "Exam Room",            x: [3, 10],    z: [-12, -2],  floor: 0x2f4a4e, floor2: 0x2a4246 },
+  staff:     { name: "Staff Room",           x: [10, 16],   z: [-12, -2],  floor: 0x4a3d33, floor2: 0x42362d },
+  dental:    { name: "Dental Suite",         x: [16, 23],   z: [-12, -2],  floor: 0x2f3550, floor2: 0x2a2f48, locked: "dental" },
+  office:    { name: "Office & Library",     x: [-21, -14], z: [1.5, 12],  floor: 0x4a3d33, floor2: 0x42362d },
+  lab:       { name: "Laboratory",           x: [-14, -8],  z: [1.5, 12],  floor: 0x2e3f5a, floor2: 0x293850 },
+  pharmacy:  { name: "Pharmacy",             x: [-8, -3],   z: [1.5, 12],  floor: 0x3d3350, floor2: 0x362d48 },
+  prep:      { name: "Prep & Scrub Room",    x: [-3, 3],    z: [1.5, 12],  floor: 0x33405c, floor2: 0x2d3952 },
+  or:        { name: "Operating Room",       x: [3, 11],    z: [1.5, 12],  floor: 0x2e4a44, floor2: 0x29423d },
+  xray:      { name: "X-ray Suite",          x: [11, 16],   z: [1.5, 12],  floor: 0x332f4e, floor2: 0x2d2a46 },
+  ward:      { name: "Exotics & Isolation Ward", x: [16, 23], z: [1.5, 12], floor: 0x2f4a4e, floor2: 0x2a4246, locked: "ward" },
+  corridor:  { name: "Corridor",             x: [-21, 23],  z: [-2, 1.5],  floor: 0x363a52, floor2: 0x30344a }
 };
 
 const World = (() => {
   let scene, camera, renderer, clock;
-  const walls = [];        // { mesh, aabb }
-  const colliders = [];    // aabbs for furniture
-  const fadeables = [];    // wall meshes that can fade
-  const labels = [];
-  const props = {};        // named prop meshes/groups
-  const npcs = [];
-  let player = null, ring = null, signSprite = null;
+  const walls = [], colliders = [], fadeables = [], labels = [], props = {}, npcs = [], gates = {};
+  let player = null, player2 = null, ring = null, signSprite = null, neonSprite = null, rain = null, searchlight = null, cat = null, hemi = null, sun = null, torch = null;
   const theme = { wall: 0x2a2f4a, accent: 0xf2c14e, trim: 0x4b4f7a, coat: 0xe9e9f2, decor: true };
-  const themeMats = { wall: null, accent: [], trim: [], floors: {} };
-  let camDist = 1.0;
+  const themeMats = { wall: null, wallClones: [], accent: [], trim: [], floors: {} };
+  const lockedRooms = { dental: true, ward: true };
+  const lockedMeshes = { dental: [], ward: [] };
+  let camDist = 1.0, camMode = "third", yaw = Math.PI, pitch = -0.1, nightAmount = 0, weather = "clear", hour = 9;
+  const windowMats = [];
 
   /* ---------- helpers ---------- */
   function roundedBoxGeo(w, h, d, r = 0.08) {
@@ -40,388 +43,439 @@ const World = (() => {
     g.center(); return g;
   }
   const mat = (color, opts = {}) => new THREE.MeshStandardMaterial(Object.assign({ color, roughness: 0.85, metalness: 0.02 }, opts));
-  function box(w, h, d, color, x, y, z, r = 0.08, m = null) {
-    const mesh = new THREE.Mesh(roundedBoxGeo(w, h, d, r), m || mat(color));
-    mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
-  }
+  function box(w, h, d, color, x, y, z, r = 0.08, m = null) { const mesh = new THREE.Mesh(roundedBoxGeo(w, h, d, r), m || mat(color)); mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; return mesh; }
   function sphere(r, color, x, y, z, m = null) { const s = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), m || mat(color)); s.position.set(x, y, z); s.castShadow = true; return s; }
   function cyl(rt, rb, h, color, x, y, z, m = null) { const c = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, 18), m || mat(color)); c.position.set(x, y, z); c.castShadow = true; return c; }
   function addCollider(x1, z1, x2, z2) { colliders.push({ minX: Math.min(x1, x2), maxX: Math.max(x1, x2), minZ: Math.min(z1, z2), maxZ: Math.max(z1, z2) }); }
-  function colliderFor(mesh, w, d) { addCollider(mesh.position.x - w / 2, mesh.position.z - d / 2, mesh.position.x + w / 2, mesh.position.z + d / 2); }
-
-  function roundRectPath(ctx, x, y, w, h, r) { // works on older iOS Safari without ctx.roundRect
-    r = Math.min(r, w / 2, h / 2); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r); ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.closePath();
-  }
+  function roundRectPath(ctx, x, y, w, h, r) { r = Math.min(r, w / 2, h / 2); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r); ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r); ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r); ctx.closePath(); }
   function textSprite(text, opts = {}) {
-    const c = document.createElement("canvas"); c.width = 768; c.height = 160;
-    const ctx = c.getContext("2d");
-    const draw = (t) => {
-      ctx.clearRect(0, 0, c.width, c.height);
-      ctx.font = `bold ${opts.size || 54}px 'Nunito', 'Segoe UI', sans-serif`;
-      const tw = ctx.measureText(t).width + 70, x = (c.width - tw) / 2;
-      ctx.fillStyle = opts.bg || "rgba(24,27,45,0.94)";
-      ctx.beginPath(); roundRectPath(ctx, x, 30, tw, 100, 50); ctx.fill();
-      ctx.fillStyle = opts.color || "#f2c14e"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(t, c.width / 2, 82);
-    };
-    draw(text);
-    const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter;
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-    const sc = opts.scale || 1; sp.scale.set(4.8 * sc, 1.0 * sc, 1);
-    sp.userData.setText = (t) => { draw(t); tex.needsUpdate = true; };
-    return sp;
+    const c = document.createElement("canvas"); c.width = 768; c.height = 160; const ctx = c.getContext("2d");
+    const draw = (t) => { ctx.clearRect(0, 0, c.width, c.height); ctx.font = `bold ${opts.size || 54}px 'Nunito','Segoe UI',sans-serif`; const tw = Math.min(740, ctx.measureText(t).width + 70), x = (c.width - tw) / 2; ctx.fillStyle = opts.bg || "rgba(24,27,45,0.94)"; ctx.beginPath(); roundRectPath(ctx, x, 30, tw, 100, 50); ctx.fill(); if (opts.glow) { ctx.shadowColor = opts.color || "#f2c14e"; ctx.shadowBlur = 24; } ctx.fillStyle = opts.color || "#f2c14e"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(t, c.width / 2, 82, 700); ctx.shadowBlur = 0; };
+    draw(text); const tex = new THREE.CanvasTexture(c); tex.minFilter = THREE.LinearFilter;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })); const sc = opts.scale || 1; sp.scale.set(4.8 * sc, 1.0 * sc, 1);
+    sp.userData.setText = (t) => { draw(t); tex.needsUpdate = true; }; return sp;
+  }
+  function tileTexture(c1, c2, size = 2) {
+    const c = document.createElement("canvas"); c.width = c.height = 128; const ctx = c.getContext("2d");
+    const h1 = "#" + c1.toString(16).padStart(6, "0"), h2 = "#" + c2.toString(16).padStart(6, "0");
+    ctx.fillStyle = h1; ctx.fillRect(0, 0, 128, 128); ctx.fillStyle = h2; ctx.fillRect(0, 0, 64, 64); ctx.fillRect(64, 64, 64, 64);
+    ctx.strokeStyle = "rgba(0,0,0,0.18)"; ctx.lineWidth = 2; ctx.strokeRect(1, 1, 126, 126); ctx.beginPath(); ctx.moveTo(64, 0); ctx.lineTo(64, 128); ctx.moveTo(0, 64); ctx.lineTo(128, 64); ctx.stroke();
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(size, size); return t;
   }
 
   /* ---------- building ---------- */
-  function wall(x1, z1, x2, z2, h = 2.5, t = 0.3) {
-    const horizontal = Math.abs(x2 - x1) > Math.abs(z2 - z1);
-    const len = (horizontal ? Math.abs(x2 - x1) : Math.abs(z2 - z1)) + t;
-    const m = themeMats.wall;
-    const mesh = new THREE.Mesh(roundedBoxGeo(horizontal ? len : t, h, horizontal ? t : len, 0.08), m.clone());
-    mesh.position.set((x1 + x2) / 2, h / 2, (z1 + z2) / 2); mesh.castShadow = true; mesh.receiveShadow = true;
-    mesh.material.transparent = true;
-    scene.add(mesh);
+  function wall(x1, z1, x2, z2, h = 2.6, t = 0.3) {
+    const horizontal = Math.abs(x2 - x1) > Math.abs(z2 - z1); const len = (horizontal ? Math.abs(x2 - x1) : Math.abs(z2 - z1)) + t;
+    const mesh = new THREE.Mesh(roundedBoxGeo(horizontal ? len : t, h, horizontal ? t : len, 0.08), themeMats.wall.clone());
+    mesh.position.set((x1 + x2) / 2, h / 2, (z1 + z2) / 2); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
     const aabb = { minX: mesh.position.x - (horizontal ? len : t) / 2, maxX: mesh.position.x + (horizontal ? len : t) / 2, minZ: mesh.position.z - (horizontal ? t : len) / 2, maxZ: mesh.position.z + (horizontal ? t : len) / 2 };
     walls.push({ mesh, aabb }); fadeables.push(mesh); themeMats.wallClones.push(mesh.material);
+    // baseboard trim
+    const bb = new THREE.Mesh(roundedBoxGeo(horizontal ? len + 0.04 : t + 0.08, 0.18, horizontal ? t + 0.08 : len + 0.04, 0.04), mat(theme.trim)); bb.position.set(mesh.position.x, 0.09, mesh.position.z); scene.add(bb); themeMats.trim.push(bb.material); fadeables.push(bb);
     return mesh;
   }
-  function lintel(x, z, horizontal, w = 2.2) { // soft arch above a doorway
-    const m = box(horizontal ? w + 0.3 : 0.36, 0.5, horizontal ? 0.36 : w + 0.3, theme.trim, x, 2.3, z, 0.12);
-    m.material.transparent = true; themeMats.trim.push(m.material); fadeables.push(m); scene.add(m);
-    walls.push({ mesh: m, aabb: null });
+  function lintel(x, z, horizontal, w = 2.2) { const m = box(horizontal ? w + 0.3 : 0.36, 0.5, horizontal ? 0.36 : w + 0.3, theme.trim, x, 2.35, z, 0.12); themeMats.trim.push(m.material); fadeables.push(m); scene.add(m); walls.push({ mesh: m, aabb: null }); }
+  function windowPane(x, z, horizontal, w = 1.6) { // glass set into an outer wall
+    const g = new THREE.Mesh(roundedBoxGeo(horizontal ? w : 0.12, 1.1, horizontal ? 0.12 : w, 0.04), new THREE.MeshStandardMaterial({ color: 0x9fc5ea, transparent: true, opacity: 0.35, roughness: 0.1, metalness: 0.3, emissive: 0x223355, emissiveIntensity: 0.4 }));
+    g.position.set(x, 1.6, z); scene.add(g); windowMats.push(g.material);
   }
-  function floorPlane(x1, z1, x2, z2, color, key) {
-    const g = new THREE.PlaneGeometry(x2 - x1, z2 - z1);
-    const m = mat(color, { roughness: 0.95 });
-    const p = new THREE.Mesh(g, m); p.rotation.x = -Math.PI / 2; p.position.set((x1 + x2) / 2, 0, (z1 + z2) / 2); p.receiveShadow = true;
-    scene.add(p); if (key) themeMats.floors[key] = m; return p;
+  function floorPlane(x1, z1, x2, z2, color, key, color2) {
+    const g = new THREE.PlaneGeometry(x2 - x1, z2 - z1); const m = mat(color, { roughness: 0.9 });
+    if (color2) { m.map = tileTexture(color, color2, Math.max(1, Math.round((x2 - x1) / 2))); m.color.set(0xffffff); }
+    const p = new THREE.Mesh(g, m); p.rotation.x = -Math.PI / 2; p.position.set((x1 + x2) / 2, 0, (z1 + z2) / 2); p.receiveShadow = true; scene.add(p); if (key) themeMats.floors[key] = m; return p;
   }
-  function buildRooms() {
-    themeMats.wall = mat(theme.wall); themeMats.wallClones = [];
-    for (const k in ROOMS) { const r = ROOMS[k]; floorPlane(r.x[0], r.z[0], r.x[1], r.z[1], r.floor, k); }
-    // outside: pavement + grass
-    floorPlane(-16, -16, 16, -9.5, 0x2a2d3e); floorPlane(-30, -30, 30, -16, 0x274a3e); floorPlane(-30, -16, -16, 14, 0x274a3e); floorPlane(16, -16, 30, 14, 0x274a3e); floorPlane(-30, 10.5, 30, 30, 0x274a3e);
-    // outer walls
-    wall(-15, -9.5, -1.1, -9.5); wall(1.1, -9.5, 15, -9.5); lintel(0, -9.5, true, 2.2);
-    wall(-15, 10.5, 15, 10.5); wall(-15, -9.5, -15, 10.5); wall(15, -9.5, 15, 10.5);
-    // south row interior
-    wall(-7, -9.5, -7, -1.5); wall(7, -9.5, 7, -1.5);
-    // corridor south wall (z=-1.5) with doors at x=-11, 0, 11
-    wall(-15, -1.5, -12, -1.5); wall(-10, -1.5, -1, -1.5); wall(1, -1.5, 10, -1.5); wall(12, -1.5, 15, -1.5);
-    lintel(-11, -1.5, true); lintel(0, -1.5, true); lintel(11, -1.5, true);
-    // corridor north wall (z=1.5) with doors at x=-11.5, -5, 2, 10.5
-    wall(-15, 1.5, -12.5, 1.5); wall(-10.5, 1.5, -6, 1.5); wall(-4, 1.5, 1, 1.5); wall(3, 1.5, 9.5, 1.5); wall(11.5, 1.5, 15, 1.5);
-    lintel(-11.5, 1.5, true); lintel(-5, 1.5, true); lintel(2, 1.5, true); lintel(10.5, 1.5, true);
-    // north row interior
-    wall(-8, 1.5, -8, 10.5); wall(-2, 1.5, -2, 7); wall(-2, 9, -2, 10.5); lintel(-2, 8, false, 2); wall(6, 1.5, 6, 10.5);
-    // room labels
-    for (const k in ROOMS) { if (k === "corridor") continue; const r = ROOMS[k]; const sp = textSprite(r.name, { size: 50 }); sp.position.set((r.x[0] + r.x[1]) / 2, 3.3, (r.z[0] + r.z[1]) / 2); scene.add(sp); labels.push(sp); }
-    // sterile-zone mat at OR doors
-    const sz = textSprite("STERILE ZONE — scrubs, cap & mask required", { size: 34, bg: "rgba(70,18,36,0.96)", color: "#ff8fa3", scale: 0.8 });
-    sz.position.set(2, 1.6, 1.0); scene.add(sz);
-    // clinic sign above the entrance
-    signSprite = textSprite("BATMAN CLINIC", { size: 64, bg: "rgba(14,16,30,0.97)", color: "#f2c14e", scale: 1.5 }); signSprite.position.set(0, 3.6, -9.6); scene.add(signSprite);
-  }
-
+  function pendant(x, z, color = 0xfff1c0) { const g = new THREE.Group(); g.add(cyl(0.01, 0.01, 0.6, 0x5a5e80, 0, 2.95, 0)); const shade = cyl(0.22, 0.32, 0.22, 0x2a2f4a, 0, 2.6, 0); g.add(shade); const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.2 })); bulb.position.y = 2.5; g.add(bulb); g.position.set(x, 0, z); g.userData.decor = true; scene.add(g); return g; }
+  function rug(x, z, w, d, color) { const r = box(w, 0.03, d, color, x, 0.015, z, 0.02); r.userData.decor = true; scene.add(r); return r; }
+  function plant(x, z, big = false) { const g = new THREE.Group(); g.add(cyl(big ? 0.3 : 0.22, big ? 0.25 : 0.18, big ? 0.55 : 0.4, 0x5a3e2b, 0, big ? 0.27 : 0.2, 0)); for (let i = 0; i < (big ? 8 : 5); i++) { const l = sphere(big ? 0.3 : 0.22, 0x3f8f5a, (Math.random() - .5) * .4, (big ? 0.85 : 0.6) + Math.random() * .35, (Math.random() - .5) * .4); l.scale.set(1, 1.3, 1); g.add(l); } g.position.set(x, 0, z); g.userData.decor = true; scene.add(g); return g; }
+  function poster(x, z, rotY, color) { const g = new THREE.Group(); g.add(box(1.0, 0.75, 0.06, 0xdfe3ee, 0, 0, 0, 0.04)); g.add(box(0.8, 0.55, 0.07, color, 0, 0, 0.01, 0.06)); g.add(box(0.35, 0.08, 0.08, 0xf2c14e, -0.15, 0.12, 0.02, 0.03)); g.add(box(0.5, 0.05, 0.08, 0xdfe3ee, -0.07, 0, 0.02, 0.02)); g.position.set(x, 1.6, z); g.rotation.y = rotY; g.userData.decor = true; scene.add(g); return g; }
+  function chair(x, z, rotY) { const g = new THREE.Group(); g.add(accentBox(0.6, 0.12, 0.6, 0, 0.45, 0, 0.06)); g.add(accentBox(0.6, 0.5, 0.12, 0, 0.75, -0.24, 0.06)); [[-0.22, -0.22], [0.22, -0.22], [-0.22, 0.22], [0.22, 0.22]].forEach(p => g.add(cyl(0.03, 0.03, 0.42, 0x6b6f8f, p[0], 0.21, p[1]))); g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); addCollider(x - .3, z - .3, x + .3, z + .3); return g; }
+  function sofa(x, z, rotY, w = 2.2) { const g = new THREE.Group(); g.add(accentBox(w, 0.45, 0.8, 0, 0.25, 0, 0.14)); g.add(accentBox(w, 0.55, 0.22, 0, 0.72, -0.3, 0.1)); g.add(accentBox(0.22, 0.3, 0.8, -w / 2 + 0.11, 0.6, 0, 0.08)); g.add(accentBox(0.22, 0.3, 0.8, w / 2 - 0.11, 0.6, 0, 0.08)); [[-0.5], [0.5]].forEach(p => g.add(box(0.5, 0.1, 0.6, theme.trim, p[0], 0.5, 0.05, 0.05))); g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); const hw = rotY ? 0.45 : w / 2, hd = rotY ? w / 2 : 0.45; addCollider(x - hw, z - hd, x + hw, z + hd); return g; }
+  function table(x, z, w, d, h, color, legColor = 0x6b6f8f) { const g = new THREE.Group(); g.add(box(w, 0.12, d, color, 0, h, 0, 0.06)); [[-w / 2 + .12, -d / 2 + .12], [w / 2 - .12, -d / 2 + .12], [-w / 2 + .12, d / 2 - .12], [w / 2 - .12, d / 2 - .12]].forEach(p => g.add(cyl(0.05, 0.05, h, legColor, p[0], h / 2, p[1]))); g.position.set(x, 0, z); scene.add(g); addCollider(x - w / 2, z - d / 2, x + w / 2, z + d / 2); return g; }
+  function shelf(x, z, w, rotY, items, palette) { const g = new THREE.Group(); g.add(trimBox(w, 2.0, 0.4, 0, 1.0, 0, 0.06)); const pal = palette || [0xf2c14e, 0x7c6fcf, 0x5f8fd6, 0xe07a5f, 0x4fb3a9]; for (let s = 0; s < 3; s++) { g.add(box(w - 0.1, 0.06, 0.38, 0xdfe3ee, 0, 0.45 + s * 0.55, 0.02, 0.03)); for (let i = 0; i < items; i++) g.add(box(0.22, 0.3, 0.2, pal[(i + s) % pal.length], -w / 2 + 0.25 + i * ((w - 0.4) / Math.max(1, items - 1)), 0.65 + s * 0.55, 0.05, 0.05)); } g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); return g; }
+  function cabinet(x, z, w, rotY, color) { const g = new THREE.Group(); g.add(box(w, 0.9, 0.6, color || theme.trim, 0, 0.45, 0, 0.08)); g.add(box(w - 0.1, 0.08, 0.62, 0xdfe3ee, 0, 0.94, 0, 0.04)); for (let i = 0; i < Math.floor(w / 0.6); i++) g.add(box(0.5, 0.7, 0.04, 0xdfe3ee, -w / 2 + 0.35 + i * 0.6, 0.45, 0.31, 0.04)); g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); if (!color) themeMats.trim.push(g.children[0].material); return g; }
   function accentBox(w, h, d, x, y, z, r) { const m = box(w, h, d, theme.accent, x, y, z, r); themeMats.accent.push(m.material); return m; }
   function trimBox(w, h, d, x, y, z, r) { const m = box(w, h, d, theme.trim, x, y, z, r); themeMats.trim.push(m.material); return m; }
-  function plant(x, z) { const g = new THREE.Group(); g.add(cyl(0.22, 0.18, 0.4, 0x5a3e2b, 0, 0.2, 0)); for (let i = 0; i < 5; i++) { const l = sphere(0.22, 0x3f8f5a, (Math.random() - .5) * .35, 0.6 + Math.random() * .3, (Math.random() - .5) * .35); l.scale.set(1, 1.3, 1); g.add(l); } g.position.set(x, 0, z); g.userData.decor = true; scene.add(g); return g; }
-  function poster(x, z, rotY, color) { const g = new THREE.Group(); g.add(box(1.0, 0.75, 0.06, 0xdfe3ee, 0, 0, 0, 0.04)); g.add(box(0.8, 0.55, 0.07, color, 0, 0, 0.01, 0.06)); g.position.set(x, 1.6, z); g.rotation.y = rotY; g.userData.decor = true; scene.add(g); return g; }
-  function chair(x, z, rotY) { const g = new THREE.Group(); g.add(accentBox(0.6, 0.12, 0.6, 0, 0.45, 0, 0.06)); g.add(accentBox(0.6, 0.5, 0.12, 0, 0.75, -0.24, 0.06)); [[-0.22, -0.22], [0.22, -0.22], [-0.22, 0.22], [0.22, 0.22]].forEach(p => g.add(cyl(0.03, 0.03, 0.42, 0x6b6f8f, p[0], 0.21, p[1]))); g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); addCollider(x - .3, z - .3, x + .3, z + .3); return g; }
-  function table(x, z, w, d, h, color, legColor = 0x6b6f8f) { const g = new THREE.Group(); g.add(box(w, 0.12, d, color, 0, h, 0, 0.06)); [[-w / 2 + .12, -d / 2 + .12], [w / 2 - .12, -d / 2 + .12], [-w / 2 + .12, d / 2 - .12], [w / 2 - .12, d / 2 - .12]].forEach(p => g.add(cyl(0.05, 0.05, h, legColor, p[0], h / 2, p[1]))); g.position.set(x, 0, z); scene.add(g); addCollider(x - w / 2, z - d / 2, x + w / 2, z + d / 2); return g; }
-  function shelf(x, z, w, rotY, items) { const g = new THREE.Group(); g.add(trimBox(w, 2.0, 0.4, 0, 1.0, 0, 0.06)); for (let s = 0; s < 3; s++) { g.add(box(w - 0.1, 0.06, 0.38, 0xdfe3ee, 0, 0.45 + s * 0.55, 0.02, 0.03)); for (let i = 0; i < items; i++) { const col = [0xf2c14e, 0x7c6fcf, 0x5f8fd6, 0xe07a5f, 0x4fb3a9][(i + s) % 5]; g.add(box(0.22, 0.3, 0.2, col, -w / 2 + 0.25 + i * ((w - 0.4) / Math.max(1, items - 1)), 0.65 + s * 0.55, 0.05, 0.05)); } } g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); return g; }
+  function screen(w, h, x, y, z, color = 0x5f8fd6) { const s = new THREE.Mesh(roundedBoxGeo(w, h, 0.05, 0.03), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35 })); s.position.set(x, y, z); return s; }
+
+  function buildRooms() {
+    themeMats.wall = mat(theme.wall); themeMats.wallClones = [];
+    for (const k in ROOMS) { const r = ROOMS[k]; floorPlane(r.x[0], r.z[0], r.x[1], r.z[1], r.floor, k, r.floor2); }
+    // outside: pavement, road, grass
+    floorPlane(-24, -18, 26, -12, 0x2a2d3e); floorPlane(-60, -24, 60, -18, 0x1b1d2b); floorPlane(-60, -60, 60, -24, 0x22304a); floorPlane(-60, -18, -24, 30, 0x274a3e); floorPlane(26, -18, 60, 30, 0x274a3e); floorPlane(-60, 12, 60, 60, 0x274a3e);
+    // road markings
+    for (let x = -56; x < 56; x += 4) { const m = box(2, 0.02, 0.2, 0xf2c14e, x, 0.02, -21, 0.01); scene.add(m); }
+    // outer walls (with entrance at x=-5)
+    wall(-21, -12, -6.1, -12); wall(-3.9, -12, 23, -12); lintel(-5, -12, true, 2.2);
+    wall(-21, 12, 23, 12); wall(-21, -12, -21, 12); wall(23, -12, 23, 12);
+    // windows along the south façade
+    [-18, -14.5, -10, 0.5, 6.5, 13, 19.5].forEach(x => windowPane(x, -12, true));
+    // south row interior
+    wall(-13, -12, -13, -2); wall(3, -12, 3, -2); wall(10, -12, 10, -2); wall(16, -12, 16, -2);
+    // corridor south wall (z=-2): doors at x=-17, -5, 6.5, 13, 19.5
+    wall(-21, -2, -18, -2); wall(-16, -2, -6, -2); wall(-4, -2, 5.5, -2); wall(7.5, -2, 12, -2); wall(14, -2, 18.5, -2); wall(20.5, -2, 23, -2);
+    [-17, -5, 6.5, 13, 19.5].forEach(x => lintel(x, -2, true));
+    // corridor north wall (z=1.5): doors at x=-17.5, -11, -5.5, 0, 7, 13.5, 19.5
+    wall(-21, 1.5, -18.5, 1.5); wall(-16.5, 1.5, -12, 1.5); wall(-10, 1.5, -6.5, 1.5); wall(-4.5, 1.5, -1, 1.5); wall(1, 1.5, 6, 1.5); wall(8, 1.5, 12.5, 1.5); wall(14.5, 1.5, 18.5, 1.5); wall(20.5, 1.5, 23, 1.5);
+    [-17.5, -11, -5.5, 0, 7, 13.5, 19.5].forEach(x => lintel(x, 1.5, true));
+    // north row interior
+    wall(-14, 1.5, -14, 12); wall(-8, 1.5, -8, 12); wall(-3, 1.5, -3, 12); wall(3, 1.5, 3, 7); wall(3, 9, 3, 12); lintel(3, 8, false, 2); wall(11, 1.5, 11, 12); wall(16, 1.5, 16, 12);
+    // corridor columns & pendant lights
+    [-19, -9, 1, 10, 18].forEach(x => { pendant(x, -0.25); });
+    for (const k in ROOMS) { if (k === "corridor") continue; const r = ROOMS[k]; const cx = (r.x[0] + r.x[1]) / 2, cz = (r.z[0] + r.z[1]) / 2; pendant(cx, cz); const sp = textSprite(r.name, { size: 50 }); sp.position.set(cx, 3.4, cz); scene.add(sp); labels.push(sp); }
+    // sterile-zone notice + locked notices
+    const sz = textSprite("STERILE ZONE — scrubs, cap & mask required", { size: 34, bg: "rgba(70,18,36,0.96)", color: "#ff8fa3", scale: 0.8 }); sz.position.set(7, 1.7, 1.0); scene.add(sz);
+    ["dental", "ward"].forEach(k => { const r = ROOMS[k]; const s = textSprite("FOR SALE — expand from the office", { size: 36, bg: "rgba(40,36,20,0.96)", color: "#f2c14e", scale: 0.85 }); s.position.set((r.x[0] + r.x[1]) / 2, 2.2, (r.z[0] + r.z[1]) / 2); scene.add(s); lockedMeshes[k].push(s); });
+    // clinic sign: neon above the entrance
+    signSprite = textSprite("BATMAN CLINIC", { size: 64, bg: "rgba(14,16,30,0.97)", color: "#f2c14e", scale: 1.6, glow: true }); signSprite.position.set(-5, 3.7, -12.1); scene.add(signSprite);
+    neonSprite = textSprite("24h  VET", { size: 48, bg: "rgba(14,16,30,0.9)", color: "#ff8fa3", scale: 0.9, glow: true }); neonSprite.position.set(1.5, 2.6, -12.15); scene.add(neonSprite);
+    // skyline backdrop
+    const c = document.createElement("canvas"); c.width = 2048; c.height = 512; const ctx = c.getContext("2d");
+    const grad = ctx.createLinearGradient(0, 0, 0, 512); grad.addColorStop(0, "#0b0e1c"); grad.addColorStop(1, "#1a1f3a"); ctx.fillStyle = grad; ctx.fillRect(0, 0, 2048, 512);
+    for (let i = 0; i < 140; i++) { ctx.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.6})`; ctx.fillRect(Math.random() * 2048, Math.random() * 200, 2, 2); }
+    let x = 0; while (x < 2048) { const w = 40 + Math.random() * 90, h = 120 + Math.random() * 300; ctx.fillStyle = "#141830"; ctx.fillRect(x, 512 - h, w, h); ctx.fillStyle = "#f2c14e"; for (let wy = 512 - h + 12; wy < 500; wy += 18) for (let wx = x + 6; wx < x + w - 8; wx += 14) if (Math.random() < 0.35) ctx.fillRect(wx, wy, 6, 8); x += w + 6 + Math.random() * 20; }
+    const skyTex = new THREE.CanvasTexture(c); const sky = new THREE.Mesh(new THREE.PlaneGeometry(160, 40), new THREE.MeshBasicMaterial({ map: skyTex, fog: false })); sky.position.set(0, 16, -58); scene.add(sky);
+    const sky2 = sky.clone(); sky2.rotation.y = Math.PI / 2; sky2.position.set(-70, 16, 0); scene.add(sky2); const sky3 = sky.clone(); sky3.rotation.y = -Math.PI / 2; sky3.position.set(72, 16, 0); scene.add(sky3);
+    // searchlight beam (a nod to the night sky)
+    searchlight = new THREE.Mesh(new THREE.ConeGeometry(3.5, 40, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0xf2c14e, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false, fog: false }));
+    searchlight.position.set(34, 20, -40); searchlight.rotation.z = 0.5; scene.add(searchlight);
+    // moon
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(2.2, 24, 16), new THREE.MeshBasicMaterial({ color: 0xfff6d5, fog: false })); moon.position.set(-30, 30, -52); scene.add(moon);
+    // rain system (hidden unless weather = rain)
+    const N = 1600, pos = new Float32Array(N * 3); for (let i = 0; i < N; i++) { pos[i * 3] = -30 + Math.random() * 60; pos[i * 3 + 1] = Math.random() * 14; pos[i * 3 + 2] = -30 + Math.random() * 20; }
+    const rg = new THREE.BufferGeometry(); rg.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    rain = new THREE.Points(rg, new THREE.PointsMaterial({ color: 0x9fc5ea, size: 0.08, transparent: true, opacity: 0.6 })); rain.visible = false; scene.add(rain);
+  }
 
   function buildFurniture() {
-    // ---- Reception & waiting
-    const desk = new THREE.Group();
-    desk.add(accentBox(3.2, 1.0, 0.9, 0, 0.5, 0, 0.12)); desk.add(box(3.4, 0.1, 1.0, 0xdfe3ee, 0, 1.03, 0, 0.05));
-    const screen = box(0.5, 0.35, 0.05, 0x5f8fd6, -0.9, 1.3, -0.1, 0.04); desk.add(screen); desk.add(box(0.1, 0.15, 0.1, 0x6b6f8f, -0.9, 1.1, -0.1, 0.03));
-    desk.position.set(0, 0, -4.5); scene.add(desk); addCollider(-1.6, -4.95, 1.6, -4.05); props.desk = desk;
-    const bell = new THREE.Group(); const dome = sphere(0.14, 0xf5c542, 0, 0.07, 0); dome.scale.y = 0.7; bell.add(dome); bell.add(cyl(0.18, 0.2, 0.04, 0x6b6f8f, 0, 0.0, 0)); bell.add(sphere(0.035, 0xb88a20, 0, 0.18, 0)); bell.position.set(1.0, 1.1, -4.5); scene.add(bell); props.bell = bell;
-    [[-5.6, -8.4], [-4.1, -8.4], [-2.6, -8.4], [-5.6, -6.2]].forEach((p, i) => props["chair" + i] = chair(p[0], p[1], i === 3 ? Math.PI / 2 : 0));
-    const shiftBoard = new THREE.Group(); shiftBoard.add(box(1.4, 1.0, 0.08, 0xdfe3ee, 0, 0, 0, 0.06)); shiftBoard.add(trimBox(1.2, 0.3, 0.09, 0, 0.3, 0.01, 0.06)); shiftBoard.add(box(1.1, 0.4, 0.09, 0xf2c14e, 0, -0.15, 0.01, 0.05)); shiftBoard.position.set(4.5, 1.6, -9.3); scene.add(shiftBoard); props.shiftBoard = shiftBoard;
-    plant(-6.4, -2.2); plant(6.4, -2.2); poster(-6.6, -4.5, Math.PI / 2, 0xf2c14e); poster(6.6, -7, -Math.PI / 2, 0x5f8fd6);
-    const mat1 = box(2.2, 0.03, 1.2, 0x5a4e8f, 0, 0.015, -8.6, 0.02); scene.add(mat1);
-    const waterBowl = cyl(0.2, 0.15, 0.1, 0x5f8fd6, -2.8, 0.05, -6.3); scene.add(waterBowl);
+    // ---- Reception & waiting (-13..3, -12..-2); entrance x=-5
+    const desk = new THREE.Group(); desk.add(accentBox(3.4, 1.0, 0.9, 0, 0.5, 0, 0.14)); desk.add(box(3.6, 0.1, 1.0, 0xdfe3ee, 0, 1.03, 0, 0.05)); desk.add(screen(0.5, 0.35, -1.0, 1.3, -0.1)); desk.add(box(0.1, 0.15, 0.1, 0x6b6f8f, -1.0, 1.1, -0.1, 0.03)); desk.add(box(0.6, 0.35, 0.5, 0xdfe3ee, 0.9, 1.25, -0.15, 0.06));
+    desk.position.set(-5, 0, -6.5); scene.add(desk); addCollider(-6.7, -6.95, -3.3, -6.05); props.desk = desk;
+    const bell = new THREE.Group(); const dome = sphere(0.14, 0xf5c542, 0, 0.07, 0); dome.scale.y = 0.7; bell.add(dome); bell.add(cyl(0.18, 0.2, 0.04, 0x6b6f8f, 0, 0, 0)); bell.add(sphere(0.035, 0xb88a20, 0, 0.18, 0)); bell.position.set(-3.7, 1.1, -6.5); scene.add(bell); props.bell = bell;
+    // reception logo on floor
+    const logo = textSprite("Batman Clinic", { size: 60, bg: "rgba(0,0,0,0)", color: "rgba(242,193,78,0.35)", scale: 1.2 }); logo.position.set(-5, 0.06, -9.2); scene.add(logo); props.floorLogo = logo;
+    rug(-5, -9.5, 4.5, 2.6, 0x2a2440);
+    sofa(-10.5, -10.6, 0); sofa(-12.4, -6.5, Math.PI / 2, 2.4); [[-8.2, -10.6], [-7.2, -10.6]].forEach((p, i) => props["chair" + i] = chair(p[0], p[1], 0));
+    // aquarium on the west wall
+    const aq = new THREE.Group(); aq.add(trimBox(1.6, 0.8, 0.5, 0, 0.4, 0, 0.06)); const water = new THREE.Mesh(roundedBoxGeo(1.5, 0.9, 0.45, 0.05), new THREE.MeshStandardMaterial({ color: 0x3f8fd6, transparent: true, opacity: 0.5, emissive: 0x1f4f8a, emissiveIntensity: 0.6 })); water.position.y = 1.25; aq.add(water); for (let i = 0; i < 4; i++) { const f = sphere(0.06, [0xf2c14e, 0xe07a5f, 0xfff1c0, 0x4fb3a9][i], -0.5 + i * 0.3, 1.1 + (i % 2) * 0.25, 0); f.scale.set(1.6, 1, 0.6); f.userData.fish = { ph: i * 1.3, base: f.position.x }; aq.add(f); } aq.position.set(-12.4, 0, -3.3); aq.rotation.y = Math.PI / 2; scene.add(aq); props.aquarium = aq; addCollider(-12.9, -4.2, -11.9, -2.4);
+    const shiftBoard = new THREE.Group(); shiftBoard.add(box(1.4, 1.0, 0.08, 0xdfe3ee, 0, 0, 0, 0.06)); shiftBoard.add(trimBox(1.2, 0.3, 0.09, 0, 0.3, 0.01, 0.06)); shiftBoard.add(box(1.1, 0.4, 0.09, 0xf2c14e, 0, -0.15, 0.01, 0.05)); shiftBoard.position.set(-9.5, 1.6, -11.8); scene.add(shiftBoard); props.shiftBoard = shiftBoard;
+    const news = new THREE.Group(); news.add(box(1.2, 0.9, 0.08, 0x2a2f4a, 0, 0, 0, 0.06)); for (let i = 0; i < 4; i++) news.add(box(0.4, 0.3, 0.09, [0xf2c14e, 0xdfe3ee, 0x5f8fd6, 0xe07a5f][i], -0.25 + (i % 2) * 0.5, 0.2 - Math.floor(i / 2) * 0.4, 0.01, 0.03)); news.position.set(-1, 1.6, -11.8); scene.add(news); props.newsBoard = news;
+    plant(-12.3, -11.3, true); plant(2.3, -2.6); poster(2.85, -7, -Math.PI / 2, 0x5f8fd6);
+    const waterBowl = cyl(0.2, 0.15, 0.1, 0x5f8fd6, -8.8, 0.05, -8.6); scene.add(waterBowl);
+    // cat bed (clinic cat)
+    const bed = cyl(0.45, 0.4, 0.15, 0x7c6fcf, 1.5, 0.07, -10.8); scene.add(bed);
 
-    // ---- Shop
-    props.counter = new THREE.Group(); props.counter.add(accentBox(2.4, 1.0, 0.8, 0, 0.5, 0, 0.12)); props.counter.add(box(2.6, 0.1, 0.9, 0xdfe3ee, 0, 1.03, 0, 0.05)); props.counter.add(box(0.35, 0.3, 0.3, 0x6b6f8f, 0.7, 1.22, 0, 0.05)); props.counter.position.set(-11, 0, -3.5); scene.add(props.counter); addCollider(-12.2, -3.9, -9.8, -3.1);
-    shelf(-14.6, -5.5, 3.6, Math.PI / 2, 5); shelf(-11, -9.1, 5, 0, 6); shelf(-7.4, -6, 2.6, -Math.PI / 2, 4);
-    addCollider(-15, -7.4, -14.2, -3.6); addCollider(-13.6, -9.5, -8.4, -8.8); addCollider(-7.8, -7.4, -7, -4.6);
-    plant(-8, -2.3);
+    // ---- Shop (-21..-13)
+    props.counter = new THREE.Group(); props.counter.add(accentBox(2.4, 1.0, 0.8, 0, 0.5, 0, 0.12)); props.counter.add(box(2.6, 0.1, 0.9, 0xdfe3ee, 0, 1.03, 0, 0.05)); props.counter.add(box(0.35, 0.3, 0.3, 0x6b6f8f, 0.7, 1.22, 0, 0.05)); props.counter.position.set(-17, 0, -4.5); scene.add(props.counter); addCollider(-18.2, -4.9, -15.8, -4.1);
+    shelf(-20.6, -7.5, 4.6, Math.PI / 2, 6); shelf(-17, -11.6, 6, 0, 7); shelf(-13.4, -8, 3.6, -Math.PI / 2, 5);
+    addCollider(-21, -9.9, -20.2, -5.1); addCollider(-20, -12, -14, -11.3); addCollider(-13.8, -9.9, -13, -6.1);
+    rug(-17, -8, 3, 3, 0x2a2440); plant(-14, -2.6);
 
-    // ---- Exam room
-    props.examTable = table(11, -5.5, 1.7, 0.9, 0.85, 0xdfe3ee, 0x6b6f8f); props.examTable.add(box(1.6, 0.06, 0.8, 0x4fb3a9, 0, 0.95, 0, 0.03));
-    const cab = trimBox(1.8, 0.9, 0.6, 14.5, 0.45, -5.5, 0.08); cab.rotation.y = Math.PI / 2; scene.add(cab); addCollider(14.1, -6.5, 15, -4.5);
-    scene.add(box(1.6, 0.08, 0.5, 0xdfe3ee, 14.5, 0.94, -5.5, 0.04));
-    const scale = new THREE.Group(); scale.add(box(0.9, 0.08, 0.6, 0x6b6f8f, 0, 0.04, 0, 0.04)); scale.add(box(0.3, 0.2, 0.12, 0x5f8fd6, 0, 0.18, -0.3, 0.04)); scale.position.set(8.2, 0, -8.6); scene.add(scale); addCollider(7.7, -9.0, 8.7, -8.2);
-    const otoStand = cyl(0.04, 0.04, 1.1, 0x6b6f8f, 13.5, 0.55, -8.6); scene.add(otoStand); scene.add(sphere(0.12, 0xf2c14e, 13.5, 1.15, -8.6));
-    poster(11, -9.3, 0, 0x4fb3a9); plant(7.6, -2.3);
+    // ---- Exam room (3..10)
+    props.examTable = table(6.5, -7, 1.7, 0.9, 0.85, 0xdfe3ee); props.examTable.add(box(1.6, 0.06, 0.8, 0x4fb3a9, 0, 0.95, 0, 0.03));
+    cabinet(9.6, -7, 3, Math.PI / 2); addCollider(9.2, -8.6, 10, -5.4);
+    const scale = new THREE.Group(); scale.add(box(0.9, 0.08, 0.6, 0x6b6f8f, 0, 0.04, 0, 0.04)); scale.add(screen(0.3, 0.2, 0, 0.18, -0.3)); scale.position.set(4.2, 0, -11); scene.add(scale); addCollider(3.7, -11.4, 4.7, -10.6);
+    const oto = cyl(0.04, 0.04, 1.1, 0x6b6f8f, 9, -0, -11); oto.position.y = 0.55; scene.add(oto); scene.add(sphere(0.12, 0xf2c14e, 9, 1.15, -11));
+    poster(6.5, -11.8, 0, 0x4fb3a9);
 
-    // ---- Office & library
-    props.officeDesk = table(-11.5, 6, 2.0, 1.0, 0.78, 0x6e4b36, 0x4a3224); props.officeDesk.add(box(0.7, 0.45, 0.05, 0x5f8fd6, -0.3, 1.12, -0.2, 0.04)); props.officeDesk.add(box(0.12, 0.2, 0.12, 0x6b6f8f, -0.3, 0.9, -0.2, 0.03)); props.officeDesk.add(box(0.5, 0.25, 0.4, 0xdfe3ee, 0.55, 0.97, -0.1, 0.06));
-    chair(-11.5, 7.0, Math.PI);
-    props.bookshelf = new THREE.Group(); props.bookshelf.add(trimBox(3.2, 2.2, 0.4, 0, 1.1, 0, 0.06)); for (let s = 0; s < 3; s++) { props.bookshelf.add(box(3.0, 0.05, 0.38, 0xdfe3ee, 0, 0.5 + s * 0.6, 0.02, 0.02)); for (let i = 0; i < 9; i++) props.bookshelf.add(box(0.22, 0.42 + Math.random() * .1, 0.26, [0xf2c14e, 0x7c6fcf, 0x5f8fd6, 0x4fb3a9, 0xe07a5f, 0xb4557a][(i + s) % 6], -1.3 + i * 0.32, 0.76 + s * 0.6, 0.04, 0.04)); }
-    props.bookshelf.position.set(-14.6, 0, 6.5); props.bookshelf.rotation.y = Math.PI / 2; scene.add(props.bookshelf); addCollider(-15, 4.8, -14.2, 8.2);
-    props.cabinet = new THREE.Group(); props.cabinet.add(accentBox(1.0, 1.5, 0.6, 0, 0.75, 0, 0.08)); for (let i = 0; i < 3; i++) { props.cabinet.add(box(0.8, 0.35, 0.05, 0xdfe3ee, 0, 0.3 + i * 0.45, 0.31, 0.04)); props.cabinet.add(box(0.3, 0.05, 0.06, 0x6b6f8f, 0, 0.3 + i * 0.45, 0.35, 0.02)); }
-    props.cabinet.position.set(-9.2, 0, 10.0); scene.add(props.cabinet); addCollider(-9.8, 9.6, -8.6, 10.5);
-    props.printer = box(0.6, 0.3, 0.5, 0xdfe3ee, -13.5, 0.93, 9.9, 0.08); scene.add(props.printer); scene.add(trimBox(0.8, 0.78, 0.6, -13.5, 0.39, 9.9, 0.08)); addCollider(-14, 9.5, -13, 10.5);
-    poster(-11.5, 10.3, 0, 0xf2c14e); plant(-8.6, 2.2);
+    // ---- Staff room (10..16)
+    props.staffTable = table(13, -7, 1.6, 1.0, 0.75, 0x6e4b36, 0x4a3224); chair(12.3, -8.1, Math.PI); chair(13.7, -8.1, Math.PI); chair(13, -5.9, 0);
+    const coffee = new THREE.Group(); coffee.add(trimBox(1.6, 0.9, 0.6, 0, 0.45, 0, 0.08)); coffee.add(box(1.6, 0.08, 0.62, 0xdfe3ee, 0, 0.94, 0, 0.04)); coffee.add(box(0.4, 0.45, 0.35, 0x23222e, -0.4, 1.2, 0, 0.06)); coffee.add(cyl(0.07, 0.06, 0.12, 0xdfe3ee, 0.3, 1.04, 0.1)); coffee.position.set(15.6, 0, -4.5); coffee.rotation.y = Math.PI / 2; scene.add(coffee); addCollider(15.2, -5.3, 16, -3.7);
+    const lockers = new THREE.Group(); for (let i = 0; i < 4; i++) { lockers.add(trimBox(0.6, 1.9, 0.5, i * 0.62 - 0.93, 0.95, 0, 0.06)); lockers.add(box(0.5, 1.7, 0.04, 0xdfe3ee, i * 0.62 - 0.93, 0.95, 0.26, 0.03)); } lockers.position.set(11.5, 0, -11.7); scene.add(lockers); addCollider(10.2, -12, 13, -11.4);
+    props.staffBoard = new THREE.Group(); props.staffBoard.add(box(1.6, 1.0, 0.08, 0x6e4b36, 0, 0, 0, 0.06)); for (let i = 0; i < 5; i++) props.staffBoard.add(box(0.35, 0.3, 0.09, [0xf2c14e, 0xdfe3ee, 0x5f8fd6, 0xe07a5f, 0x4fb3a9][i], -0.55 + (i % 3) * 0.5, 0.22 - Math.floor(i / 3) * 0.42, 0.01, 0.03)); props.staffBoard.position.set(14.5, 1.6, -11.8); scene.add(props.staffBoard);
+    rug(13, -7, 3, 3, 0x3a2e26); plant(10.5, -2.6);
 
-    // ---- Prep & scrub room
+    // ---- Dental suite (16..23) — locked
+    props.dentalTable = table(19.5, -7, 1.7, 0.9, 0.85, 0xdfe3ee); props.dentalTable.add(box(1.6, 0.06, 0.8, 0x7c6fcf, 0, 0.95, 0, 0.03));
+    const dentalMachine = new THREE.Group(); dentalMachine.add(box(0.7, 1.0, 0.5, 0xdfe3ee, 0, 0.5, 0, 0.1)); dentalMachine.add(cyl(0.03, 0.03, 1.3, 0x6b6f8f, 0.2, 1.6, 0)); dentalMachine.add(box(0.5, 0.3, 0.2, 0x5f8fd6, 0.2, 2.2, 0, 0.05)); dentalMachine.add(cyl(0.02, 0.02, 0.6, 0xdfe3ee, -0.25, 1.3, 0.2)); dentalMachine.position.set(21.8, 0, -7); scene.add(dentalMachine); addCollider(21.4, -7.3, 22.2, -6.7);
+    const dentalXray = new THREE.Group(); dentalXray.add(cyl(0.06, 0.06, 2.2, 0x6b6f8f, 0, 1.1, 0)); dentalXray.add(box(0.8, 0.1, 0.1, 0x6b6f8f, 0.4, 2.2, 0, 0.04)); dentalXray.add(cyl(0.12, 0.08, 0.3, 0xdfe3ee, 0.8, 2.0, 0)); dentalXray.position.set(17.5, 0, -8); scene.add(dentalXray); addCollider(17.3, -8.2, 17.7, -7.8);
+    cabinet(19.5, -11.6, 3, 0); addCollider(18, -12, 21, -11.2);
+    poster(22.85, -4.5, -Math.PI / 2, 0x7c6fcf);
+    lockedMeshes.dental.push(props.dentalTable, dentalMachine, dentalXray);
+
+    // ---- Office & library (-21..-14, 1.5..12)
+    props.officeDesk = table(-17.5, 6.5, 2.2, 1.0, 0.78, 0x6e4b36, 0x4a3224); props.officeDesk.add(screen(0.7, 0.45, -0.4, 1.12, -0.2)); props.officeDesk.add(box(0.12, 0.2, 0.12, 0x6b6f8f, -0.4, 0.9, -0.2, 0.03)); props.officeDesk.add(box(0.5, 0.25, 0.4, 0xdfe3ee, 0.6, 0.97, -0.1, 0.06)); props.officeDesk.add(cyl(0.05, 0.08, 0.4, 0xf2c14e, 0.1, 1.0, 0.2));
+    chair(-17.5, 7.6, Math.PI);
+    props.bookshelf = new THREE.Group(); props.bookshelf.add(trimBox(4.6, 2.3, 0.4, 0, 1.15, 0, 0.06)); for (let s = 0; s < 3; s++) { props.bookshelf.add(box(4.4, 0.05, 0.38, 0xdfe3ee, 0, 0.5 + s * 0.62, 0.02, 0.02)); for (let i = 0; i < 13; i++) props.bookshelf.add(box(0.22, 0.42 + Math.random() * .1, 0.26, [0xf2c14e, 0x7c6fcf, 0x5f8fd6, 0x4fb3a9, 0xe07a5f, 0xb4557a][(i + s) % 6], -2 + i * 0.32, 0.76 + s * 0.62, 0.04, 0.04)); }
+    props.bookshelf.position.set(-20.6, 0, 7); props.bookshelf.rotation.y = Math.PI / 2; scene.add(props.bookshelf); addCollider(-21, 4.6, -20.2, 9.4);
+    props.cabinet = new THREE.Group(); props.cabinet.add(accentBox(1.0, 1.5, 0.6, 0, 0.75, 0, 0.08)); for (let i = 0; i < 3; i++) { props.cabinet.add(box(0.8, 0.35, 0.05, 0xdfe3ee, 0, 0.3 + i * 0.45, 0.31, 0.04)); props.cabinet.add(box(0.3, 0.05, 0.06, 0x6b6f8f, 0, 0.3 + i * 0.45, 0.35, 0.02)); } props.cabinet.position.set(-15, 0, 11.5); scene.add(props.cabinet); addCollider(-15.6, 11.1, -14.4, 12);
+    props.printer = box(0.6, 0.3, 0.5, 0xdfe3ee, -19.5, 0.93, 11.4, 0.08); scene.add(props.printer); scene.add(trimBox(0.8, 0.78, 0.6, -19.5, 0.39, 11.4, 0.08)); addCollider(-20, 11, -19, 12);
+    // thank-you wall (collectibles)
+    props.thankWall = new THREE.Group(); for (let i = 0; i < 12; i++) { const card = box(0.42, 0.32, 0.05, [0xfff1c0, 0xffd1dc, 0xd6ecff, 0xeafbea][i % 4], -1.2 + (i % 6) * 0.48, 0.25 - Math.floor(i / 6) * 0.42, 0, 0.03); card.visible = false; props.thankWall.add(card); } props.thankWall.position.set(-17, 1.8, 11.8); scene.add(props.thankWall);
+    rug(-17.5, 6.5, 3.5, 3, 0x3a2e26); plant(-14.6, 2.3); pendant(-17.5, 6.5, 0xffe3a0);
+
+    // ---- Laboratory (-14..-8)
+    const bench = new THREE.Group(); bench.add(trimBox(5.6, 0.9, 0.7, 0, 0.45, 0, 0.08)); bench.add(box(5.6, 0.08, 0.72, 0xdfe3ee, 0, 0.94, 0, 0.04)); bench.position.set(-11, 0, 11.5); scene.add(bench); addCollider(-13.8, 11.1, -8.2, 12);
+    props.microscope = new THREE.Group(); props.microscope.add(box(0.3, 0.06, 0.4, 0x23222e, 0, 1.0, 0, 0.03)); props.microscope.add(cyl(0.04, 0.04, 0.5, 0x6b6f8f, 0, 1.25, -0.12)); props.microscope.add(cyl(0.06, 0.06, 0.4, 0x6b6f8f, 0, 1.45, 0.05).rotateX(0.5)); props.microscope.add(box(0.2, 0.03, 0.2, 0xdfe3ee, 0, 1.1, 0.05, 0.02)); props.microscope.position.set(-12.6, 0, 11.4); scene.add(props.microscope);
+    props.analyser = new THREE.Group(); props.analyser.add(box(0.7, 0.5, 0.5, 0xdfe3ee, 0, 1.25, 0, 0.08)); props.analyser.add(screen(0.4, 0.25, 0, 1.3, 0.26, 0x7ef29a)); props.analyser.position.set(-9.6, 0, 11.4); scene.add(props.analyser);
+    props.centrifuge = cyl(0.25, 0.25, 0.3, 0x6b6f8f, -11, 1.13, 11.4); scene.add(props.centrifuge);
+    props.ultrasound = new THREE.Group(); props.ultrasound.add(box(0.7, 1.0, 0.6, 0xdfe3ee, 0, 0.5, 0, 0.1)); props.ultrasound.add(screen(0.6, 0.45, 0, 1.4, 0.1, 0x3a3f66)); props.ultrasound.add(cyl(0.03, 0.03, 0.9, 0x6b6f8f, 0, 1.0, 0.0)); props.ultrasound.add(box(0.12, 0.3, 0.08, 0x6b6f8f, 0.42, 1.0, 0.2, 0.04)); props.ultrasound.position.set(-13.2, 0, 5); scene.add(props.ultrasound); addCollider(-13.6, 4.6, -12.8, 5.4);
+    props.labTable = table(-10.5, 6, 1.6, 0.9, 0.85, 0xdfe3ee);
+    const fridge = trimBox(0.8, 1.8, 0.7, -8.5, 0.9, 3, 0.1); scene.add(fridge); addCollider(-8.9, 2.6, -8.1, 3.4);
+    poster(-11, 1.8, Math.PI, 0x4fb3a9);
+
+    // ---- Pharmacy (-8..-3)
+    shelf(-5.5, 11.6, 4.6, 0, 6, [0xdfe3ee, 0xf2c14e, 0x5f8fd6, 0xdfe3ee, 0xe07a5f]); addCollider(-7.8, 11.2, -3.2, 12);
+    shelf(-7.6, 7, 3.4, Math.PI / 2, 4, [0xdfe3ee, 0x7c6fcf, 0xdfe3ee]); addCollider(-8, 5.3, -7.2, 8.7);
+    props.pharmacyCounter = new THREE.Group(); props.pharmacyCounter.add(trimBox(3.0, 1.0, 0.8, 0, 0.5, 0, 0.12)); props.pharmacyCounter.add(box(3.2, 0.1, 0.9, 0xdfe3ee, 0, 1.03, 0, 0.05)); props.pharmacyCounter.add(box(0.5, 0.3, 0.3, 0x6b6f8f, -0.9, 1.22, 0, 0.05)); props.pharmacyCounter.add(cyl(0.1, 0.1, 0.4, 0xdfe3ee, 0.6, 1.3, 0)); props.pharmacyCounter.position.set(-5.5, 0, 5.5); scene.add(props.pharmacyCounter); addCollider(-7, 5.1, -4, 5.9);
+    const drugFridge = trimBox(0.8, 1.6, 0.7, -3.4, 0.8, 9, 0.1); drugFridge.rotation.y = Math.PI / 2; scene.add(drugFridge); addCollider(-3.8, 8.6, -3, 9.4);
+    const rx = textSprite("Rx", { size: 70, bg: "rgba(14,16,30,0.9)", color: "#7ef29a", scale: 0.5, glow: true }); rx.position.set(-5.5, 2.3, 11.6); scene.add(rx);
+
+    // ---- Prep & scrub room (-3..3)
     props.locker = new THREE.Group(); props.locker.add(trimBox(1.4, 2.0, 0.6, 0, 1.0, 0, 0.08)); props.locker.add(box(0.6, 1.8, 0.05, 0xdfe3ee, -0.35, 1.0, 0.31, 0.04)); props.locker.add(box(0.6, 1.8, 0.05, 0xdfe3ee, 0.35, 1.0, 0.31, 0.04)); props.locker.add(box(0.05, 0.2, 0.06, 0x6b6f8f, -0.1, 1.0, 0.34, 0.02)); props.locker.add(box(0.05, 0.2, 0.06, 0x6b6f8f, 0.6, 1.0, 0.34, 0.02));
-    props.locker.position.set(-7.6, 0, 8.4); props.locker.rotation.y = Math.PI / 2; scene.add(props.locker); addCollider(-8, 7.6, -7.2, 9.2);
-    props.sink = new THREE.Group(); props.sink.add(box(1.6, 0.9, 0.7, 0xdfe3ee, 0, 0.45, 0, 0.1)); const basin = cyl(0.35, 0.3, 0.2, 0x9fc5ea, 0, 0.9, 0); props.sink.add(basin); props.sink.add(cyl(0.04, 0.04, 0.4, 0x6b6f8f, 0, 1.15, -0.25)); props.sink.add(cyl(0.04, 0.04, 0.3, 0x6b6f8f, 0, 1.35, -0.12).rotateX(Math.PI / 2)); props.sink.add(box(0.2, 0.25, 0.15, 0xf2c14e, -0.55, 1.05, 0, 0.05));
-    props.sink.position.set(-5, 0, 10.0); scene.add(props.sink); addCollider(-5.9, 9.6, -4.1, 10.5);
-    props.prepTable = table(-4.6, 5.3, 1.7, 0.9, 0.85, 0xdfe3ee); props.prepTable.add(box(1.6, 0.06, 0.8, 0x5f8fd6, 0, 0.95, 0, 0.03));
-    const anesCartP = new THREE.Group(); anesCartP.add(box(0.7, 1.1, 0.5, 0x6b6f8f, 0, 0.55, 0, 0.08)); anesCartP.add(cyl(0.12, 0.12, 0.7, 0x5f8fd6, -0.15, 1.45, 0)); anesCartP.add(cyl(0.12, 0.12, 0.7, 0x4fb3a9, 0.15, 1.45, 0)); anesCartP.position.set(-2.7, 0, 3.2); scene.add(anesCartP); addCollider(-3.1, 2.9, -2.3, 3.5);
-    const bin = cyl(0.25, 0.22, 0.6, 0xf2c14e, -7.5, 0.3, 2.3); scene.add(bin); addCollider(-7.8, 2, -7.2, 2.6);
+    props.locker.position.set(-2.6, 0, 9.5); props.locker.rotation.y = Math.PI / 2; scene.add(props.locker); addCollider(-3, 8.7, -2.2, 10.3);
+    props.sink = new THREE.Group(); props.sink.add(box(1.6, 0.9, 0.7, 0xdfe3ee, 0, 0.45, 0, 0.1)); props.sink.add(cyl(0.35, 0.3, 0.2, 0x9fc5ea, 0, 0.9, 0)); props.sink.add(cyl(0.04, 0.04, 0.4, 0x6b6f8f, 0, 1.15, -0.25)); props.sink.add(cyl(0.04, 0.04, 0.3, 0x6b6f8f, 0, 1.35, -0.12).rotateX(Math.PI / 2)); props.sink.add(box(0.2, 0.25, 0.15, 0xf2c14e, -0.55, 1.05, 0, 0.05));
+    props.sink.position.set(0, 0, 11.5); scene.add(props.sink); addCollider(-0.9, 11.1, 0.9, 12);
+    props.prepTable = table(0, 5.5, 1.7, 0.9, 0.85, 0xdfe3ee); props.prepTable.add(box(1.6, 0.06, 0.8, 0x5f8fd6, 0, 0.95, 0, 0.03));
+    props.autoclave = new THREE.Group(); props.autoclave.add(box(0.8, 0.7, 0.7, 0x6b6f8f, 0, 1.3, 0, 0.1)); props.autoclave.add(cyl(0.22, 0.22, 0.05, 0xdfe3ee, 0, 1.3, 0.36).rotateX(Math.PI / 2)); props.autoclave.add(screen(0.25, 0.1, 0.22, 1.55, 0.36, 0x7ef29a)); props.autoclave.add(trimBox(0.8, 0.95, 0.7, 0, 0.47, 0, 0.08)); props.autoclave.position.set(2.5, 0, 3.2); scene.add(props.autoclave); addCollider(2.1, 2.8, 2.9, 3.6);
+    const anesCartP = new THREE.Group(); anesCartP.add(box(0.7, 1.1, 0.5, 0x6b6f8f, 0, 0.55, 0, 0.08)); anesCartP.add(cyl(0.12, 0.12, 0.7, 0x5f8fd6, -0.15, 1.45, 0)); anesCartP.add(cyl(0.12, 0.12, 0.7, 0x4fb3a9, 0.15, 1.45, 0)); anesCartP.position.set(2.4, 0, 7.5); scene.add(anesCartP); addCollider(2, 7.2, 2.8, 7.8);
+    const bin = cyl(0.25, 0.22, 0.6, 0xf2c14e, -2.5, 0.3, 2.4); scene.add(bin); addCollider(-2.8, 2.1, -2.2, 2.7);
 
-    // ---- Operating room
-    props.orTable = table(2, 6, 1.9, 0.8, 0.9, 0x8a8fb0, 0x5a5e80); props.orTable.add(box(1.8, 0.08, 0.7, 0x4fb3a9, 0, 1.0, 0, 0.04));
-    const lamp = new THREE.Group(); lamp.add(cyl(0.03, 0.03, 1.2, 0x6b6f8f, 0, 3.4, 0)); const head = cyl(0.55, 0.4, 0.25, 0xdfe3ee, 0, 2.75, 0); lamp.add(head); const bulb = new THREE.Mesh(new THREE.CircleGeometry(0.35, 24), new THREE.MeshStandardMaterial({ color: 0xfff8d6, emissive: 0xfff2b0, emissiveIntensity: 0.9 })); bulb.rotation.x = Math.PI / 2; bulb.position.y = 2.62; lamp.add(bulb); lamp.position.set(2, 0, 6); scene.add(lamp);
-    const spot = new THREE.SpotLight(0xfff4d0, 0.9, 7, 0.6, 0.5, 1); spot.position.set(2, 2.6, 6); spot.target.position.set(2, 1, 6); scene.add(spot); scene.add(spot.target);
-    props.tray = new THREE.Group(); props.tray.add(box(1.0, 0.06, 0.6, 0x6b6f8f, 0, 1.0, 0, 0.03)); props.tray.add(cyl(0.03, 0.03, 1.0, 0x5a5e80, 0, 0.5, 0)); props.tray.add(box(0.9, 0.03, 0.5, 0x5f8fd6, 0, 1.05, 0, 0.02)); for (let i = 0; i < 6; i++) props.tray.add(box(0.05, 0.02, 0.3, 0xe9eef7, -0.3 + i * 0.12, 1.08, 0, 0.01)); props.tray.position.set(3.8, 0, 5.4); scene.add(props.tray); addCollider(3.3, 5.1, 4.3, 5.7);
-    props.anes = new THREE.Group(); props.anes.add(box(0.8, 1.2, 0.6, 0x6b6f8f, 0, 0.6, 0, 0.1)); props.anes.add(cyl(0.12, 0.12, 0.8, 0x5f8fd6, -0.2, 1.6, 0)); props.anes.add(cyl(0.12, 0.12, 0.8, 0x4fb3a9, 0.2, 1.6, 0)); props.anes.add(box(0.5, 0.35, 0.08, 0x3a3f66, 0, 1.45, 0.32, 0.04)); props.anes.add(box(0.4, 0.06, 0.02, 0x7ef29a, 0, 1.45, 0.37, 0.01)); props.anes.position.set(0.0, 0, 7.6); scene.add(props.anes); addCollider(-0.4, 7.3, 0.4, 7.9);
-    const monitor = new THREE.Group(); monitor.add(cyl(0.03, 0.03, 1.4, 0x5a5e80, 0, 0.7, 0)); monitor.add(box(0.6, 0.45, 0.06, 0x3a3f66, 0, 1.6, 0, 0.04)); monitor.position.set(0.1, 0, 4.4); scene.add(monitor);
-    props.kennel = new THREE.Group(); props.kennel.add(trimBox(1.2, 1.2, 0.9, 0, 0.6, 0, 0.1)); props.kennel.add(box(1.0, 1.0, 0.05, 0xdfe3ee, 0, 0.6, 0.46, 0.06)); for (let i = 0; i < 5; i++) props.kennel.add(cyl(0.015, 0.015, 0.9, 0x5a5e80, -0.4 + i * 0.2, 0.6, 0.48)); props.kennel.position.set(4.9, 0, 9.8); scene.add(props.kennel); addCollider(4.3, 9.3, 5.5, 10.5);
-    const kennelSign = textSprite("Recovery", { size: 40, scale: 0.6 }); kennelSign.position.set(4.9, 1.7, 9.8); scene.add(kennelSign);
+    // ---- Operating room (3..11)
+    props.orTable = table(7, 6.5, 1.9, 0.8, 0.9, 0x8a8fb0, 0x5a5e80); props.orTable.add(box(1.8, 0.08, 0.7, 0x4fb3a9, 0, 1.0, 0, 0.04));
+    const lamp = new THREE.Group(); lamp.add(cyl(0.03, 0.03, 1.2, 0x6b6f8f, 0, 3.4, 0)); lamp.add(cyl(0.55, 0.4, 0.25, 0xdfe3ee, 0, 2.75, 0)); const bulb = new THREE.Mesh(new THREE.CircleGeometry(0.35, 24), new THREE.MeshStandardMaterial({ color: 0xfff8d6, emissive: 0xfff2b0, emissiveIntensity: 0.9 })); bulb.rotation.x = Math.PI / 2; bulb.position.y = 2.62; lamp.add(bulb); const lamp2 = lamp.clone(); lamp.position.set(6.6, 0, 6.5); lamp2.position.set(7.6, 0, 6.5); lamp2.scale.setScalar(0.8); scene.add(lamp, lamp2);
+    const spot = new THREE.SpotLight(0xfff4d0, 0.9, 7, 0.6, 0.5, 1); spot.position.set(7, 2.6, 6.5); spot.target.position.set(7, 1, 6.5); scene.add(spot); scene.add(spot.target);
+    props.tray = new THREE.Group(); props.tray.add(box(1.0, 0.06, 0.6, 0x8a8fb0, 0, 1.0, 0, 0.03)); props.tray.add(cyl(0.03, 0.03, 1.0, 0x5a5e80, 0, 0.5, 0)); props.tray.add(box(0.9, 0.03, 0.5, 0x5f8fd6, 0, 1.05, 0, 0.02)); for (let i = 0; i < 6; i++) props.tray.add(box(0.05, 0.02, 0.3, 0xe9eef7, -0.3 + i * 0.12, 1.08, 0, 0.01)); props.tray.position.set(8.8, 0, 5.9); scene.add(props.tray); addCollider(8.3, 5.6, 9.3, 6.2);
+    props.anes = new THREE.Group(); props.anes.add(box(0.8, 1.2, 0.6, 0x6b6f8f, 0, 0.6, 0, 0.1)); props.anes.add(cyl(0.12, 0.12, 0.8, 0x5f8fd6, -0.2, 1.6, 0)); props.anes.add(cyl(0.12, 0.12, 0.8, 0x4fb3a9, 0.2, 1.6, 0)); props.anes.add(screen(0.5, 0.35, 0, 1.45, 0.32, 0x3a3f66)); props.anes.add(box(0.4, 0.06, 0.02, 0x7ef29a, 0, 1.45, 0.37, 0.01)); props.anes.position.set(5, 0, 8.2); scene.add(props.anes); addCollider(4.6, 7.9, 5.4, 8.5);
+    const monitor = new THREE.Group(); monitor.add(cyl(0.03, 0.03, 1.4, 0x5a5e80, 0, 0.7, 0)); monitor.add(screen(0.6, 0.45, 0, 1.6, 0, 0x3a3f66)); monitor.position.set(5, 0, 4.8); scene.add(monitor);
+    props.kennel = new THREE.Group(); props.kennel.add(trimBox(1.2, 1.2, 0.9, 0, 0.6, 0, 0.1)); props.kennel.add(box(1.0, 1.0, 0.05, 0xdfe3ee, 0, 0.6, 0.46, 0.06)); for (let i = 0; i < 5; i++) props.kennel.add(cyl(0.015, 0.015, 0.9, 0x5a5e80, -0.4 + i * 0.2, 0.6, 0.48)); props.kennel.position.set(10, 0, 11.3); scene.add(props.kennel); addCollider(9.4, 10.8, 10.6, 12);
+    const kennelSign = textSprite("Recovery", { size: 40, scale: 0.6 }); kennelSign.position.set(10, 1.7, 11.3); scene.add(kennelSign);
+    const scrubSinkOR = box(1.2, 0.9, 0.5, 0xdfe3ee, 3.7, 0.45, 11.6, 0.1); scene.add(scrubSinkOR); addCollider(3.1, 11.3, 4.3, 12);
 
-    // ---- X-ray suite
-    props.xrayTable = table(10.5, 6, 2.0, 0.9, 0.85, 0x3a3f66, 0x5a5e80);
-    const arm = new THREE.Group(); arm.add(cyl(0.08, 0.08, 2.6, 0x6b6f8f, 0, 1.3, 0)); arm.add(box(1.2, 0.12, 0.12, 0x6b6f8f, 0.6, 2.55, 0, 0.05)); arm.add(box(0.5, 0.4, 0.5, 0xdfe3ee, 1.2, 2.3, 0, 0.1)); arm.add(cyl(0.12, 0.08, 0.15, 0x5f8fd6, 1.2, 2.05, 0)); arm.position.set(9.3, 0, 6); scene.add(arm); addCollider(9.1, 5.8, 9.5, 6.2);
-    props.viewer = new THREE.Group(); props.viewer.add(box(1.8, 1.1, 0.1, 0xdfe3ee, 0, 0, 0, 0.06)); props.viewer.add(box(1.6, 0.9, 0.11, 0x2d3350, 0, 0, 0.01, 0.05)); props.viewer.position.set(10.5, 1.6, 10.3); scene.add(props.viewer);
-    const apron = box(0.5, 0.9, 0.08, 0x5f8fd6, 14.7, 1.2, 4, 0.08); apron.rotation.y = Math.PI / 2; scene.add(apron);
-    const consoleX = new THREE.Group(); consoleX.add(box(0.9, 0.9, 0.5, 0x6b6f8f, 0, 0.45, 0, 0.08)); consoleX.add(box(0.6, 0.4, 0.05, 0x5f8fd6, 0, 1.15, 0, 0.04)); consoleX.position.set(13.8, 0, 8.6); scene.add(consoleX); addCollider(13.3, 8.3, 14.3, 8.9);
-    poster(10.5, 1.8, Math.PI, 0x7c6fcf);
+    // ---- X-ray suite (11..16)
+    props.xrayTable = table(13.5, 6.5, 2.0, 0.9, 0.85, 0x3a3f66, 0x5a5e80);
+    const arm = new THREE.Group(); arm.add(cyl(0.08, 0.08, 2.6, 0x8a8fb0, 0, 1.3, 0)); arm.add(box(1.2, 0.12, 0.12, 0x8a8fb0, 0.6, 2.55, 0, 0.05)); arm.add(box(0.5, 0.4, 0.5, 0xdfe3ee, 1.2, 2.3, 0, 0.1)); arm.add(cyl(0.12, 0.08, 0.15, 0x5f8fd6, 1.2, 2.05, 0)); arm.position.set(12.3, 0, 6.5); scene.add(arm); addCollider(12.1, 6.3, 12.5, 6.7);
+    props.viewer = new THREE.Group(); props.viewer.add(box(1.8, 1.1, 0.1, 0xdfe3ee, 0, 0, 0, 0.06)); props.viewer.add(screen(1.6, 0.9, 0, 0, 0.03, 0x2d3350)); props.viewer.position.set(13.5, 1.6, 11.8); scene.add(props.viewer);
+    const apron = box(0.5, 0.9, 0.08, 0x5f8fd6, 15.7, 1.2, 4, 0.08); apron.rotation.y = Math.PI / 2; scene.add(apron);
+    const consoleX = new THREE.Group(); consoleX.add(box(0.9, 0.9, 0.5, 0x6b6f8f, 0, 0.45, 0, 0.08)); consoleX.add(screen(0.6, 0.4, 0, 1.15, 0)); consoleX.position.set(15.2, 0, 9.5); scene.add(consoleX); addCollider(14.7, 9.2, 15.7, 9.8);
+    poster(13.5, 1.8, Math.PI, 0x7c6fcf);
 
-    // outside: tree & bench
-    const tree = new THREE.Group(); tree.add(cyl(0.15, 0.2, 1.2, 0x5a3e2b, 0, 0.6, 0)); tree.add(sphere(0.9, 0x2f6b4f, 0, 1.7, 0)); tree.add(sphere(0.6, 0x3a7d5c, 0.5, 2.0, 0.3)); tree.position.set(4, 0, -12.5); scene.add(tree);
-    const tree2 = tree.clone(); tree2.position.set(-4.5, 0, -12.5); scene.add(tree2);
-    scene.add(box(1.6, 0.1, 0.5, 0x6e4b36, -2.5, 0.45, -11, 0.04));
+    // ---- Exotics & isolation ward (16..23) — locked
+    props.wardTable = table(19.5, 6.5, 1.7, 0.9, 0.85, 0xdfe3ee); props.wardTable.add(box(1.6, 0.06, 0.8, 0x4fb3a9, 0, 0.95, 0, 0.03));
+    const kennelRow = new THREE.Group(); for (let i = 0; i < 4; i++) { kennelRow.add(trimBox(1.2, 1.1, 0.9, i * 1.3 - 1.95, 0.55, 0, 0.1)); kennelRow.add(box(1.0, 0.9, 0.05, 0xdfe3ee, i * 1.3 - 1.95, 0.55, 0.46, 0.06)); for (let b = 0; b < 5; b++) kennelRow.add(cyl(0.015, 0.015, 0.8, 0x5a5e80, i * 1.3 - 1.95 - 0.4 + b * 0.2, 0.55, 0.48)); } kennelRow.position.set(19.5, 0, 11.5); scene.add(kennelRow); addCollider(17, 11, 22, 12);
+    const heatLamp = new THREE.Group(); heatLamp.add(cyl(0.03, 0.03, 1.6, 0x6b6f8f, 0, 0.8, 0)); const hl = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.3, 16), new THREE.MeshStandardMaterial({ color: 0xe07a5f, emissive: 0xe07a5f, emissiveIntensity: 0.8 })); hl.position.y = 1.6; heatLamp.add(hl); heatLamp.position.set(22.2, 0, 5); scene.add(heatLamp);
+    const isoSign = textSprite("ISOLATION — PPE required", { size: 34, bg: "rgba(70,18,36,0.96)", color: "#ff8fa3", scale: 0.75 }); isoSign.position.set(21.5, 1.9, 2.6); scene.add(isoSign);
+    lockedMeshes.ward.push(props.wardTable, kennelRow, heatLamp, isoSign);
+
+    // ---- Outside: trees, bench, lamp posts, van, bins
+    const tree = new THREE.Group(); tree.add(cyl(0.15, 0.2, 1.2, 0x5a3e2b, 0, 0.6, 0)); tree.add(sphere(0.9, 0x2f6b4f, 0, 1.7, 0)); tree.add(sphere(0.6, 0x3a7d5c, 0.5, 2.0, 0.3)); tree.position.set(1, 0, -15.5); scene.add(tree);
+    const tree2 = tree.clone(); tree2.position.set(-11, 0, -15.5); scene.add(tree2); const tree3 = tree.clone(); tree3.position.set(14, 0, -15.5); scene.add(tree3);
+    scene.add(box(1.6, 0.1, 0.5, 0x6e4b36, -8, 0.45, -14, 0.04)); scene.add(box(1.6, 0.1, 0.5, 0x6e4b36, -2, 0.45, -14, 0.04));
+    [-16, -5, 8, 20].forEach(x => { const lp = new THREE.Group(); lp.add(cyl(0.06, 0.08, 3.2, 0x2a2f4a, 0, 1.6, 0)); const l = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffe3a0, emissive: 0xffd978, emissiveIntensity: 1.5 })); l.position.y = 3.3; lp.add(l); lp.position.set(x, 0, -17.5); scene.add(lp); });
+    props.van = new THREE.Group(); props.van.add(box(4.2, 1.6, 2.0, 0xdfe3ee, 0, 1.1, 0, 0.25)); props.van.add(box(1.3, 1.2, 1.9, 0x2a2f4a, 1.9, 0.9, 0, 0.2)); props.van.add(box(1.2, 0.6, 1.92, 0x9fc5ea, 1.7, 1.4, 0, 0.1)); [[-1.3, 0.9], [1.3, 0.9], [-1.3, -0.9], [1.3, -0.9]].forEach(p => { const w = cyl(0.4, 0.4, 0.3, 0x23222e, p[0], 0.4, p[1]); w.rotation.x = Math.PI / 2; props.van.add(w); }); props.van.add(box(2.6, 0.5, 0.05, 0xf2c14e, -0.3, 1.3, 1.02, 0.05)); props.van.position.set(9, 0, -20.5); scene.add(props.van);
+    const vanSign = textSprite("Mobile Vet Van", { size: 40, scale: 0.7 }); vanSign.position.set(9, 2.6, -20.5); scene.add(vanSign);
 
     // interaction highlight ring
-    ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 32), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
-    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; ring.visible = false; scene.add(ring);
+    ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 32), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.85, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; ring.visible = false; scene.add(ring);
+    setLocked("dental", true); setLocked("ward", true);
   }
+  function setLocked(key, locked) { lockedRooms[key] = locked; lockedMeshes[key].forEach(m => { m.visible = m.isSprite ? locked : !locked; }); if (themeMats.floors[key]) themeMats.floors[key].color.set(locked ? 0x555555 : 0xffffff); }
 
   /* ---------- characters ---------- */
   function makeHuman(cfg) {
     const g = new THREE.Group(); const P = {};
     const skin = mat(cfg.skin), shirtM = mat(cfg.shirt), pantsM = mat(cfg.pants), shoeM = mat(cfg.shoes || 0x23222e);
-    // legs
-    ["l", "r"].forEach((side, i) => {
-      const piv = new THREE.Group(); piv.position.set(i === 0 ? -0.13 : 0.13, 0.92, 0);
-      piv.add(cyl(0.11, 0.1, 0.78, 0, 0, -0.39, 0, pantsM));
-      const shoe = sphere(0.12, 0, 0, -0.84, 0.05, shoeM); shoe.scale.set(1, 0.6, 1.4); piv.add(shoe); P[side + "Shoe"] = shoe;
-      g.add(piv); P[side + "Leg"] = piv;
-    });
-    // torso
-    P.torso = box(0.52, 0.66, 0.32, 0, 0, 1.25, 0, 0.14, shirtM); g.add(P.torso);
+    ["l", "r"].forEach((side, i) => { const piv = new THREE.Group(); piv.position.set(i === 0 ? -0.13 : 0.13, 0.92, 0); piv.add(cyl(0.11, 0.1, 0.78, 0, 0, -0.39, 0, pantsM)); const shoe = sphere(0.12, 0, 0, -0.84, 0.05, shoeM); shoe.scale.set(1, 0.6, 1.4); piv.add(shoe); P[side + "Shoe"] = shoe; g.add(piv); P[side + "Leg"] = piv; });
+    P.torso = box(0.52, 0.66, 0.32, 0, 0, 1.25, 0, 0.14, shirtM); g.add(P.torso); P.shirtMat = shirtM;
     P.belt = box(0.5, 0.08, 0.3, 0x23222e, 0, 0.93, 0, 0.04); g.add(P.belt);
-    // arms
-    ["l", "r"].forEach((side, i) => {
-      const piv = new THREE.Group(); piv.position.set(i === 0 ? -0.34 : 0.34, 1.5, 0);
-      const sleeve = cyl(0.085, 0.075, 0.3, 0, 0, -0.15, 0, shirtM); piv.add(sleeve); P[side + "Sleeve"] = sleeve;
-      piv.add(cyl(0.075, 0.07, 0.3, 0, 0, -0.44, 0, skin));
-      const hand = sphere(0.09, 0, 0, -0.63, 0, skin.clone()); piv.add(hand); P[side + "Hand"] = hand;
-      g.add(piv); P[side + "Arm"] = piv;
-    });
-    // head
-    const headG = new THREE.Group(); headG.position.set(0, 1.82, 0);
-    headG.add(cyl(0.07, 0.08, 0.14, 0, 0, -0.24, 0, skin));
-    const head = sphere(0.24, 0, 0, 0, 0, skin); head.scale.set(1, 1.05, 1); headG.add(head);
-    headG.add(sphere(0.055, 0, -0.24, -0.02, 0, skin)); headG.add(sphere(0.055, 0, 0.24, -0.02, 0, skin));
-    // eyes
+    ["l", "r"].forEach((side, i) => { const piv = new THREE.Group(); piv.position.set(i === 0 ? -0.34 : 0.34, 1.5, 0); const sleeve = cyl(0.085, 0.075, 0.3, 0, 0, -0.15, 0, shirtM); piv.add(sleeve); piv.add(cyl(0.075, 0.07, 0.3, 0, 0, -0.44, 0, skin)); const hand = sphere(0.09, 0, 0, -0.63, 0, skin.clone()); piv.add(hand); P[side + "Hand"] = hand; g.add(piv); P[side + "Arm"] = piv; });
+    const headG = new THREE.Group(); headG.position.set(0, 1.82, 0); headG.add(cyl(0.07, 0.08, 0.14, 0, 0, -0.24, 0, skin));
+    const head = sphere(0.24, 0, 0, 0, 0, skin); head.scale.set(1, 1.05, 1); headG.add(head); headG.add(sphere(0.055, 0, -0.24, -0.02, 0, skin)); headG.add(sphere(0.055, 0, 0.24, -0.02, 0, skin));
     const eyeM = mat(0x2d2438); headG.add(sphere(0.03, 0, -0.085, 0.03, 0.215, eyeM)); headG.add(sphere(0.03, 0, 0.085, 0.03, 0.215, eyeM));
-    // smile
     const smile = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 8, 16, Math.PI), mat(0x7a3b3b)); smile.position.set(0, -0.08, 0.215); smile.rotation.z = Math.PI; headG.add(smile);
-    // hair
-    const hairM = mat(cfg.hair);
-    if (cfg.curly) { for (let i = 0; i < 26; i++) { const a = Math.random() * Math.PI * 2, el = Math.random() * 1.1 + 0.25; const r = 0.22; const h = sphere(0.075 + Math.random() * 0.03, 0, r * Math.cos(el) * Math.sin(a), r * Math.sin(el) + 0.02, r * Math.cos(el) * Math.cos(a) - 0.03, hairM); headG.add(h); } }
-    else { const cap = sphere(0.25, 0, 0, 0.04, -0.02, hairM); cap.scale.set(1, 0.8, 1); headG.add(cap); }
-    // glasses
-    if (cfg.glasses) {
-      const gm = mat(0x2d2438, { roughness: 0.4 });
-      const l = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.012, 8, 20), gm); l.position.set(-0.09, 0.03, 0.23); headG.add(l);
-      const r = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.012, 8, 20), gm); r.position.set(0.09, 0.03, 0.23); headG.add(r);
-      headG.add(box(0.05, 0.015, 0.015, 0x2d2438, 0, 0.03, 0.235, 0.005));
-      const lensM = new THREE.MeshStandardMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.25 });
-      [[-0.09], [0.09]].forEach(p => { const c = new THREE.Mesh(new THREE.CircleGeometry(0.068, 16), lensM); c.position.set(p[0], 0.03, 0.232); headG.add(c); });
-    }
-    // outfit extras (hidden by default)
-    P.cap = sphere(0.265, 0, 0, 0.05, -0.01, mat(0x2f4f8f)); P.cap.scale.set(1, 0.75, 1); P.cap.visible = false; headG.add(P.cap);
+    const hairM = mat(cfg.hair); P.hair = [];
+    if (cfg.curly) { for (let i = 0; i < 26; i++) { const a = Math.random() * Math.PI * 2, el = Math.random() * 1.1 + 0.25; const r = 0.22; const h = sphere(0.075 + Math.random() * 0.03, 0, r * Math.cos(el) * Math.sin(a), r * Math.sin(el) + 0.02, r * Math.cos(el) * Math.cos(a) - 0.03, hairM); headG.add(h); P.hair.push(h); } }
+    else { const cap = sphere(0.25, 0, 0, 0.04, -0.02, hairM); cap.scale.set(1, 0.8, 1); headG.add(cap); P.hair.push(cap); }
+    if (cfg.glasses) { const gm = mat(cfg.frames || 0x2d2438, { roughness: 0.4 }); P.frameMat = gm; const l = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.012, 8, 20), gm); l.position.set(-0.09, 0.03, 0.23); headG.add(l); const r = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.012, 8, 20), gm); r.position.set(0.09, 0.03, 0.23); headG.add(r); headG.add(box(0.05, 0.015, 0.015, 0, 0, 0.03, 0.235, 0.005, gm)); const lensM = new THREE.MeshStandardMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.25 }); [[-0.09], [0.09]].forEach(p => { const c = new THREE.Mesh(new THREE.CircleGeometry(0.068, 16), lensM); c.position.set(p[0], 0.03, 0.232); headG.add(c); }); }
+    P.cap = sphere(0.265, 0, 0, 0.05, -0.01, mat(cfg.capColor || 0x2f4f8f)); P.cap.scale.set(1, 0.75, 1); P.cap.visible = false; headG.add(P.cap); P.capMat = P.cap.material;
     P.mask = box(0.2, 0.11, 0.06, 0x5f8fd6, 0, -0.07, 0.22, 0.04); P.mask.visible = false; headG.add(P.mask);
     P.gown = box(0.6, 0.72, 0.4, 0x3f6f6a, 0, 1.24, 0, 0.16); P.gown.visible = false; g.add(P.gown);
-    P.coat = new THREE.Group(); const coatM = mat(cfg.coat || 0xe9e9f2); const cb = box(0.58, 0.9, 0.38, 0, 0, 1.12, 0, 0.14, coatM); P.coat.add(cb); const lapel = box(0.14, 0.4, 0.05, 0xcfd3e6, 0, 1.4, 0.19, 0.04); P.coat.add(lapel); P.coat.visible = false; g.add(P.coat); P.coatMat = coatM;
-    g.add(headG); P.head = headG;
-    g.traverse(o => { if (o.isMesh) { o.castShadow = true; } });
-    return { group: g, parts: P, phase: Math.random() * 6, skinColor: cfg.skin };
+    P.coat = new THREE.Group(); const coatM = mat(cfg.coat || 0xe9e9f2); const cb = box(0.58, 0.9, 0.38, 0, 0, 1.12, 0, 0.14, coatM); P.coat.add(cb); P.coat.add(box(0.14, 0.4, 0.05, 0xcfd3e6, 0, 1.4, 0.19, 0.04)); P.coat.visible = false; g.add(P.coat); P.coatMat = coatM;
+    if (cfg.steth) { const s = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.015, 8, 24, Math.PI), mat(0x23222e)); s.position.set(0, 1.5, 0.12); s.rotation.x = 0.3; s.rotation.z = Math.PI; g.add(s); const disc = cyl(0.04, 0.04, 0.02, 0xf2c14e, 0.18, 1.3, 0.2); g.add(disc); }
+    g.add(headG); P.head = headG; g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    return { group: g, parts: P, phase: Math.random() * 6, skinColor: cfg.skin, hairColor: cfg.hair };
   }
-
   function setHumanOutfit(rig, outfit) {
-    const P = rig.parts;
-    P.coat.visible = outfit === "clinic";
-    P.cap.visible = outfit === "scrubs" || outfit === "surgical";
-    P.mask.visible = outfit === "scrubs" || outfit === "surgical";
-    P.gown.visible = outfit === "surgical";
-    const gloves = outfit === "surgical";
-    P.lHand.material.color.set(gloves ? 0xbfd3ff : rig.skinColor); P.rHand.material.color.set(gloves ? 0xbfd3ff : rig.skinColor);
-    const covers = outfit !== "clinic";
-    P.lShoe.material.color.set(covers ? 0x5f8fd6 : 0x23222e); P.rShoe.material.color.set(covers ? 0x5f8fd6 : 0x23222e);
-    // curls peek out under the cap: hide most hair when capped
-    P.head.children.forEach(c => { if (c.geometry && c.geometry.type === "SphereGeometry" && c.material.color.getHex() === 0x1b1420) c.visible = !P.cap.visible; });
+    const P = rig.parts; P.coat.visible = outfit === "clinic"; P.cap.visible = outfit === "scrubs" || outfit === "surgical"; P.mask.visible = outfit === "scrubs" || outfit === "surgical"; P.gown.visible = outfit === "surgical";
+    const gloves = outfit === "surgical"; P.lHand.material.color.set(gloves ? 0xbfd3ff : rig.skinColor); P.rHand.material.color.set(gloves ? 0xbfd3ff : rig.skinColor);
+    const covers = outfit !== "clinic"; P.lShoe.material.color.set(covers ? 0x5f8fd6 : 0x23222e); P.rShoe.material.color.set(covers ? 0x5f8fd6 : 0x23222e);
+    P.hair.forEach(h => h.visible = !P.cap.visible);
   }
-
   function animateHuman(rig, dt, moving, speedFactor = 1) {
-    const P = rig.parts;
-    if (moving) rig.phase += dt * 9 * speedFactor;
-    else rig.phase += dt * 1.5;
+    const P = rig.parts; rig.phase += dt * (moving ? 9 * speedFactor : 1.5);
     const s = moving ? Math.sin(rig.phase) : 0, bob = moving ? Math.abs(Math.sin(rig.phase)) * 0.045 : Math.sin(rig.phase) * 0.008;
-    P.lLeg.rotation.x = s * 0.7; P.rLeg.rotation.x = -s * 0.7;
-    P.lArm.rotation.x = -s * 0.55; P.rArm.rotation.x = s * 0.55;
+    P.lLeg.rotation.x = s * 0.7; P.rLeg.rotation.x = -s * 0.7; P.lArm.rotation.x = -s * 0.55; P.rArm.rotation.x = s * 0.55;
     P.lArm.rotation.z = 0.1 + (moving ? 0 : Math.sin(rig.phase) * 0.02); P.rArm.rotation.z = -0.1 - (moving ? 0 : Math.sin(rig.phase) * 0.02);
-    rig.group.position.y = bob;
-    P.head.rotation.y = moving ? Math.sin(rig.phase * 0.5) * 0.08 : Math.sin(rig.phase * 0.7) * 0.06;
+    rig.group.position.y = bob; P.head.rotation.y = moving ? Math.sin(rig.phase * 0.5) * 0.08 : Math.sin(rig.phase * 0.7) * 0.06;
   }
 
   function makePet(species, color) {
     const g = new THREE.Group(); const P = { species }; const m = mat(color), dark = mat(0x2d2438), pink = mat(0xffb7c5);
-    if (species === "dog" || species === "cat") {
-      const cat = species === "cat";
-      const body = sphere(cat ? 0.22 : 0.3, 0, 0, cat ? 0.33 : 0.46, 0, m); body.scale.set(cat ? 1.5 : 1.45, 0.9, 0.85); g.add(body); P.body = body;
-      const headG = new THREE.Group(); headG.position.set(0, cat ? 0.5 : 0.68, cat ? 0.3 : 0.42);
-      headG.add(sphere(cat ? 0.17 : 0.22, 0, 0, 0, 0, m));
-      const muzzle = sphere(cat ? 0.09 : 0.13, 0, 0, -0.04, cat ? 0.13 : 0.18, mat(0xfff1e6)); muzzle.scale.set(1.2, 0.9, 1); headG.add(muzzle);
-      headG.add(sphere(cat ? 0.03 : 0.045, 0, 0, -0.02, cat ? 0.22 : 0.3, dark));
+    if (species === "dog" || species === "cat" || species === "rabbit") {
+      const cat = species === "cat", rab = species === "rabbit";
+      const body = sphere(cat ? 0.22 : rab ? 0.24 : 0.3, 0, 0, cat ? 0.33 : rab ? 0.3 : 0.46, 0, m); body.scale.set(cat ? 1.5 : rab ? 1.3 : 1.45, 0.9, 0.85); g.add(body); P.body = body;
+      const headG = new THREE.Group(); headG.position.set(0, cat ? 0.5 : rab ? 0.5 : 0.68, cat ? 0.3 : rab ? 0.28 : 0.42);
+      headG.add(sphere(cat ? 0.17 : rab ? 0.17 : 0.22, 0, 0, 0, 0, m));
+      const muzzle = sphere(cat ? 0.09 : rab ? 0.08 : 0.13, 0, 0, -0.04, cat ? 0.13 : rab ? 0.12 : 0.18, mat(0xfff1e6)); muzzle.scale.set(1.2, 0.9, 1); headG.add(muzzle);
+      headG.add(sphere(cat ? 0.03 : 0.045, 0, 0, -0.02, cat ? 0.22 : rab ? 0.2 : 0.3, rab ? pink : dark));
       headG.add(sphere(0.03, 0, -0.08, 0.05, cat ? 0.14 : 0.18, dark)); headG.add(sphere(0.03, 0, 0.08, 0.05, cat ? 0.14 : 0.18, dark));
-      if (cat) { const e1 = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.14, 10), m); e1.position.set(-0.1, 0.18, 0); const e2 = e1.clone(); e2.position.x = 0.1; headG.add(e1, e2); const i1 = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.08, 8), pink); i1.position.set(-0.1, 0.17, 0.02); const i2 = i1.clone(); i2.position.x = 0.1; headG.add(i1, i2); }
-      else { const e1 = sphere(0.08, 0, -0.2, 0.02, 0, m); e1.scale.set(0.6, 1.4, 0.7); const e2 = e1.clone(); e2.position.x = 0.2; headG.add(e1, e2); }
+      if (cat) { const e1 = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.14, 10), m); e1.position.set(-0.1, 0.18, 0); const e2 = e1.clone(); e2.position.x = 0.1; headG.add(e1, e2); const i1 = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.08, 8), pink); i1.position.set(-0.1, 0.17, 0.02); const i2 = i1.clone(); i2.position.x = 0.1; headG.add(i1, i2); P.ears = [e1, e2]; }
+      else if (rab) { const e1 = sphere(0.06, 0, -0.08, 0.28, -0.02, m); e1.scale.set(0.6, 2.6, 0.6); const e2 = e1.clone(); e2.position.x = 0.08; const in1 = sphere(0.035, 0, -0.08, 0.28, 0.0, pink); in1.scale.set(0.5, 2.2, 0.5); const in2 = in1.clone(); in2.position.x = 0.08; headG.add(e1, e2, in1, in2); P.ears = [e1, e2]; }
+      else { const e1 = sphere(0.08, 0, -0.2, 0.02, 0, m); e1.scale.set(0.6, 1.4, 0.7); const e2 = e1.clone(); e2.position.x = 0.2; headG.add(e1, e2); P.ears = [e1, e2]; }
       g.add(headG); P.head = headG;
-      const legs = []; [[-0.14, 0.22], [0.14, 0.22], [-0.14, -0.22], [0.14, -0.22]].forEach(p => { const piv = new THREE.Group(); piv.position.set(p[0] * (cat ? 0.8 : 1), cat ? 0.28 : 0.38, p[1] * (cat ? 0.9 : 1.1)); piv.add(cyl(0.05, 0.05, cat ? 0.28 : 0.38, 0, 0, cat ? -0.14 : -0.19, 0, m)); piv.add(sphere(0.06, 0, 0, cat ? -0.28 : -0.38, 0.02, m)); g.add(piv); legs.push(piv); }); P.legs = legs;
-      const tail = new THREE.Group(); tail.position.set(0, cat ? 0.42 : 0.6, cat ? -0.32 : -0.42);
-      const t = cyl(0.03, cat ? 0.03 : 0.02, cat ? 0.45 : 0.35, 0, 0, cat ? 0.2 : 0.15, cat ? -0.1 : -0.12, m); t.rotation.x = cat ? -0.4 : -0.9; tail.add(t); g.add(tail); P.tail = tail;
-      if (!cat) { const collar = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.03, 8, 20), mat(0xff5f7a)); collar.position.set(0, 0.6, 0.3); collar.rotation.x = Math.PI / 2 + 0.3; g.add(collar); }
+      const legs = []; [[-0.14, 0.22], [0.14, 0.22], [-0.14, -0.22], [0.14, -0.22]].forEach(p => { const piv = new THREE.Group(); piv.position.set(p[0] * (cat || rab ? 0.8 : 1), cat || rab ? 0.28 : 0.38, p[1] * (cat ? 0.9 : rab ? 0.8 : 1.1)); piv.add(cyl(0.05, 0.05, cat || rab ? 0.28 : 0.38, 0, 0, cat || rab ? -0.14 : -0.19, 0, m)); piv.add(sphere(0.06, 0, 0, cat || rab ? -0.28 : -0.38, 0.02, m)); g.add(piv); legs.push(piv); }); P.legs = legs;
+      const tail = new THREE.Group(); tail.position.set(0, cat ? 0.42 : rab ? 0.38 : 0.6, cat ? -0.32 : rab ? -0.3 : -0.42);
+      if (rab) tail.add(sphere(0.07, 0, 0, 0, -0.03, mat(0xfff1e6))); else { const t = cyl(0.03, cat ? 0.03 : 0.02, cat ? 0.45 : 0.35, 0, 0, cat ? 0.2 : 0.15, cat ? -0.1 : -0.12, m); t.rotation.x = cat ? -0.4 : -0.9; tail.add(t); }
+      g.add(tail); P.tail = tail;
+      if (species === "dog") { const collar = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.03, 8, 20), mat(0xff5f7a)); collar.position.set(0, 0.6, 0.3); collar.rotation.x = Math.PI / 2 + 0.3; g.add(collar); }
+    } else if (species === "tortoise") {
+      const shell = sphere(0.3, 0, 0, 0.22, 0, mat(0x5a6b3a)); shell.scale.set(1.2, 0.7, 1); g.add(shell); P.body = shell;
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const sc = sphere(0.07, 0, Math.cos(a) * 0.2, 0.36, Math.sin(a) * 0.17, mat(0x8a9b5a)); sc.scale.set(1, 0.4, 1); g.add(sc); }
+      const headG = new THREE.Group(); headG.position.set(0, 0.2, 0.36); headG.add(sphere(0.09, 0, 0, 0, 0.05, mat(0x8a9b5a))); headG.add(sphere(0.02, 0, -0.04, 0.03, 0.12, dark)); headG.add(sphere(0.02, 0, 0.04, 0.03, 0.12, dark)); g.add(headG); P.head = headG;
+      P.legs = []; [[-0.25, 0.2], [0.25, 0.2], [-0.25, -0.2], [0.25, -0.2]].forEach(p => { const piv = new THREE.Group(); piv.position.set(p[0], 0.12, p[1]); piv.add(cyl(0.05, 0.06, 0.14, 0, 0, -0.05, 0, mat(0x8a9b5a))); g.add(piv); P.legs.push(piv); });
+      P.tail = new THREE.Group(); g.add(P.tail);
     } else {
       const body = sphere(0.13, 0, 0, 0.26, 0, m); body.scale.set(0.9, 1.1, 1.3); g.add(body); P.body = body;
       const headG = new THREE.Group(); headG.position.set(0, 0.42, 0.1); headG.add(sphere(0.09, 0, 0, 0, 0, m));
       const beak = new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.08, 10), mat(0xf5c542)); beak.rotation.x = Math.PI / 2; beak.position.set(0, -0.01, 0.11); headG.add(beak);
-      headG.add(sphere(0.018, 0, -0.045, 0.025, 0.07, dark)); headG.add(sphere(0.018, 0, 0.045, 0.025, 0.07, dark));
-      headG.add(sphere(0.03, 0, -0.045, -0.02, 0.07, mat(0xffb7a5))); headG.add(sphere(0.03, 0, 0.045, -0.02, 0.07, mat(0xffb7a5)));
-      const crest = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 8), mat(0xfff3a0)); crest.position.set(0, 0.12, -0.02); crest.rotation.x = -0.5; headG.add(crest);
-      g.add(headG); P.head = headG;
+      headG.add(sphere(0.018, 0, -0.045, 0.025, 0.07, dark)); headG.add(sphere(0.018, 0, 0.045, 0.025, 0.07, dark)); headG.add(sphere(0.03, 0, -0.045, -0.02, 0.07, mat(0xffb7a5))); headG.add(sphere(0.03, 0, 0.045, -0.02, 0.07, mat(0xffb7a5)));
+      const crest = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 8), mat(0xfff3a0)); crest.position.set(0, 0.12, -0.02); crest.rotation.x = -0.5; headG.add(crest); g.add(headG); P.head = headG;
       const w1 = sphere(0.07, 0, -0.12, 0.27, -0.02, mat(0x7fd1c7)); w1.scale.set(0.4, 1, 1.6); const w2 = w1.clone(); w2.position.x = 0.12; g.add(w1, w2); P.wings = [w1, w2];
       const tail = box(0.08, 0.02, 0.2, 0x7fd1c7, 0, 0.22, -0.22, 0.01); tail.rotation.x = 0.3; g.add(tail); P.tail = tail;
-      [-0.04, 0.04].forEach(x => { g.add(cyl(0.01, 0.01, 0.14, 0, x, 0.08, 0.02, mat(0xf5c542))); g.add(box(0.06, 0.01, 0.07, 0xf5c542, x, 0.005, 0.04, 0.005)); });
-      P.legs = [];
-      // carrier cage (visible while being carried)
-      const cage = new THREE.Group(); const cageM = new THREE.MeshStandardMaterial({ color: 0x6b6f8f, transparent: true, opacity: 0.55 });
-      cage.add(cyl(0.3, 0.3, 0.03, 0, 0, 0.0, 0, mat(0x5f8fd6))); cage.add(cyl(0.3, 0.3, 0.03, 0, 0, 0.6, 0, mat(0x5f8fd6)));
-      for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; cage.add(cyl(0.008, 0.008, 0.6, 0, Math.cos(a) * 0.29, 0.3, Math.sin(a) * 0.29, cageM)); }
-      const handle = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 6, 16), mat(0x5f8fd6)); handle.position.y = 0.68; cage.add(handle);
-      cage.visible = false; g.add(cage); P.cage = cage;
+      [-0.04, 0.04].forEach(x => { g.add(cyl(0.01, 0.01, 0.14, 0, x, 0.08, 0.02, mat(0xf5c542))); g.add(box(0.06, 0.01, 0.07, 0xf5c542, x, 0.005, 0.04, 0.005)); }); P.legs = [];
+      const cage = new THREE.Group(); const cageM = new THREE.MeshStandardMaterial({ color: 0xd9d4e8, transparent: true, opacity: 0.55 }); cage.add(cyl(0.3, 0.3, 0.03, 0, 0, 0.0, 0, mat(0x5f8fd6))); cage.add(cyl(0.3, 0.3, 0.03, 0, 0, 0.6, 0, mat(0x5f8fd6))); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; cage.add(cyl(0.008, 0.008, 0.6, 0, Math.cos(a) * 0.29, 0.3, Math.sin(a) * 0.29, cageM)); } const handle = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 6, 16), mat(0x5f8fd6)); handle.position.y = 0.68; cage.add(handle); cage.visible = false; g.add(cage); P.cage = cage;
     }
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
     return { group: g, parts: P, phase: Math.random() * 6, species };
   }
-
   function animatePet(rig, dt, moving, mood = "calm") {
-    const P = rig.parts; rig.phase += dt * (moving ? 10 : 2.2) * (mood === "angry" ? 1.6 : 1);
-    const s = Math.sin(rig.phase);
+    const P = rig.parts; rig.phase += dt * (moving ? 10 : 2.2) * (mood === "angry" ? 1.6 : 1); const s = Math.sin(rig.phase);
     if (P.legs && P.legs.length) P.legs.forEach((l, i) => l.rotation.x = moving ? s * 0.6 * (i % 2 ? 1 : -1) * (i < 2 ? 1 : -1) : 0);
-    if (P.body) P.body.scale.y = (rig.species === "bird" ? 1.1 : 0.9) + Math.sin(rig.phase * 0.6) * 0.03;
-    if (P.tail) { if (rig.species === "bird") P.tail.rotation.x = 0.3 + s * 0.1; else P.tail.rotation.y = s * (mood === "angry" ? 1.0 : 0.6); }
+    if (P.body) P.body.scale.y = (rig.species === "bird" ? 1.1 : rig.species === "tortoise" ? 0.7 : 0.9) + Math.sin(rig.phase * 0.6) * 0.03;
+    if (P.tail) { if (rig.species === "bird") P.tail.rotation.x = 0.3 + s * 0.1; else P.tail.rotation.y = s * (mood === "angry" ? 1.0 : mood === "tense" ? 0.2 : 0.6); }
     if (P.wings) P.wings.forEach((w, i) => w.rotation.z = (i ? -1 : 1) * (mood === "angry" ? Math.abs(s) * 0.8 : 0.1));
-    if (P.head) { P.head.rotation.y = Math.sin(rig.phase * 0.4) * 0.25; P.head.rotation.x = mood === "angry" ? -0.2 : Math.sin(rig.phase * 0.3) * 0.08; }
-    if (mood === "angry" && P.body) rig.group.position.x += Math.sin(rig.phase * 3) * 0.002;
+    if (P.ears) P.ears.forEach((e, i) => { if (rig.species === "cat") e.rotation.x = mood === "tense" || mood === "angry" ? -1.1 : 0; else if (rig.species === "rabbit") e.rotation.x = mood === "tense" ? -0.9 : Math.sin(rig.phase * 0.5) * 0.1; });
+    if (P.head) { P.head.rotation.y = Math.sin(rig.phase * 0.4) * 0.25; P.head.rotation.x = mood === "angry" ? -0.2 : mood === "tense" ? 0.15 : Math.sin(rig.phase * 0.3) * 0.08; }
+    if (rig.sleeping) { rig.group.scale.y = 0.6; if (P.head) P.head.rotation.x = 0.5; } else rig.group.scale.y = 1;
   }
 
   /* ---------- NPC movement ---------- */
+  function moveAlong(n, dt) {
+    if (!n.path || !n.path.length) return false;
+    const tgt = n.path[0], pos = n.rig.group.position; const dx = tgt[0] - pos.x, dz = tgt[1] - pos.z; const d = Math.hypot(dx, dz); const step = n.speed * dt;
+    if (d < step) { pos.x = tgt[0]; pos.z = tgt[1]; n.path.shift(); if (!n.path.length && n.onArrive) { const cb = n.onArrive; n.onArrive = null; cb(); } }
+    else { pos.x += dx / d * step; pos.z += dz / d * step; n.rig.group.rotation.y = lerpAngle(n.rig.group.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 10)); }
+    return true;
+  }
   function npcUpdate(dt) {
     for (const n of npcs) {
-      if (!n.path || !n.path.length) { animateHuman(n.rig, dt, false); if (n.pet) animatePet(n.pet, dt, false, n.petMood); continue; }
-      const tgt = n.path[0], pos = n.rig.group.position; const dx = tgt[0] - pos.x, dz = tgt[1] - pos.z; const d = Math.hypot(dx, dz);
-      const step = n.speed * dt;
-      if (d < step) { pos.x = tgt[0]; pos.z = tgt[1]; n.path.shift(); if (!n.path.length && n.onArrive) { const cb = n.onArrive; n.onArrive = null; cb(); } }
-      else { pos.x += dx / d * step; pos.z += dz / d * step; const ty = Math.atan2(dx, dz); n.rig.group.rotation.y = lerpAngle(n.rig.group.rotation.y, ty, Math.min(1, dt * 10)); }
-      animateHuman(n.rig, dt, true, 0.9);
-      if (n.pet && n.petFollow) {
-        const pr = n.pet.group; const off = n.pet.species === "bird" ? [0.45, 0.0] : [0.55, 0.1];
-        const ang = n.rig.group.rotation.y; const tx = pos.x + Math.cos(ang) * off[0] - Math.sin(ang) * off[1], tz = pos.z - Math.sin(ang) * off[0] - Math.cos(ang) * off[1];
-        pr.position.x += (tx - pr.position.x) * Math.min(1, dt * 6); pr.position.z += (tz - pr.position.z) * Math.min(1, dt * 6);
-        if (n.pet.species === "bird") { pr.position.y = 0.55 + Math.sin(n.rig.phase) * 0.02; n.pet.parts.cage.visible = true; }
-        pr.rotation.y = lerpAngle(pr.rotation.y, ang, Math.min(1, dt * 6));
-        animatePet(n.pet, dt, true, n.petMood);
+      const moving = moveAlong(n, dt);
+      animateHuman(n.rig, dt, moving, 0.9);
+      if (n.pet) {
+        if (n.petFollow) {
+          const pr = n.pet.group, pos = n.rig.group.position; const off = n.pet.species === "bird" ? [0.45, 0.0] : [0.55, 0.1]; const ang = n.rig.group.rotation.y;
+          const tx = pos.x + Math.cos(ang) * off[0] - Math.sin(ang) * off[1], tz = pos.z - Math.sin(ang) * off[0] - Math.cos(ang) * off[1];
+          pr.position.x += (tx - pr.position.x) * Math.min(1, dt * 6); pr.position.z += (tz - pr.position.z) * Math.min(1, dt * 6);
+          if (n.pet.species === "bird") { pr.position.y = 0.55 + Math.sin(n.rig.phase) * 0.02; n.pet.parts.cage.visible = true; }
+          pr.rotation.y = lerpAngle(pr.rotation.y, ang, Math.min(1, dt * 6));
+        }
+        animatePet(n.pet, dt, moving && n.petFollow, n.petMood);
       }
     }
+    // clinic cat
+    if (cat) { const moving = moveAlong(cat, dt); animatePet(cat.rig, dt, moving, "calm"); if (!moving && !cat.rig.sleeping && cat.restT > 0) { cat.restT -= dt; if (cat.restT <= 0) cat.rig.sleeping = true; } }
+    // aquarium fish
+    if (props.aquarium) props.aquarium.children.forEach(f => { if (f.userData.fish) { f.userData.fish.ph += dt; f.position.x = f.userData.fish.base + Math.sin(f.userData.fish.ph) * 0.2; f.rotation.y = Math.cos(f.userData.fish.ph) > 0 ? 0 : Math.PI; } });
   }
   function lerpAngle(a, b, t) { let d = ((b - a + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI; return a + d * t; }
 
-  /* ---------- player & collisions ---------- */
+  /* ---------- collisions ---------- */
   function collide(pos, radius) {
     const all = colliders.concat(walls.filter(w => w.aabb).map(w => w.aabb));
     for (const b of all) {
-      const cx = Math.max(b.minX, Math.min(pos.x, b.maxX)), cz = Math.max(b.minZ, Math.min(pos.z, b.maxZ));
-      const dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
-      if (d2 < radius * radius) {
-        if (d2 > 1e-6) { const d = Math.sqrt(d2); pos.x += dx / d * (radius - d); pos.z += dz / d * (radius - d); }
-        else { // inside: push along least axis
-          const px = Math.min(pos.x - b.minX, b.maxX - pos.x), pz = Math.min(pos.z - b.minZ, b.maxZ - pos.z);
-          if (px < pz) pos.x += (pos.x - b.minX < b.maxX - pos.x ? -1 : 1) * (px + radius); else pos.z += (pos.z - b.minZ < b.maxZ - pos.z ? -1 : 1) * (pz + radius);
-        }
-      }
+      const cx = Math.max(b.minX, Math.min(pos.x, b.maxX)), cz = Math.max(b.minZ, Math.min(pos.z, b.maxZ)); const dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
+      if (d2 < radius * radius) { if (d2 > 1e-6) { const d = Math.sqrt(d2); pos.x += dx / d * (radius - d); pos.z += dz / d * (radius - d); } else { const px = Math.min(pos.x - b.minX, b.maxX - pos.x), pz = Math.min(pos.z - b.minZ, b.maxZ - pos.z); if (px < pz) pos.x += (pos.x - b.minX < b.maxX - pos.x ? -1 : 1) * (px + radius); else pos.z += (pos.z - b.minZ < b.maxZ - pos.z ? -1 : 1) * (pz + radius); } }
     }
-    // keep inside world
-    pos.x = Math.max(-28, Math.min(28, pos.x)); pos.z = Math.max(-28, Math.min(28, pos.z));
+    pos.x = Math.max(-40, Math.min(40, pos.x)); pos.z = Math.max(-26, Math.min(30, pos.z));
   }
-  function roomAt(x, z) { for (const k in ROOMS) { const r = ROOMS[k]; if (x >= r.x[0] && x <= r.x[1] && z >= r.z[0] && z <= r.z[1]) return k; } return x > -16 && x < 16 && z < -9.5 && z > -16 ? "outside" : null; }
+  function roomAt(x, z) { for (const k in ROOMS) { const r = ROOMS[k]; if (x >= r.x[0] && x <= r.x[1] && z >= r.z[0] && z <= r.z[1]) return k; } return z < -12 ? "outside" : null; }
 
   /* ---------- public ---------- */
   function init(canvas) {
-    scene = new THREE.Scene(); scene.background = new THREE.Color(0x0f1222); scene.fog = new THREE.Fog(0x0f1222, 28, 55);
-    camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 100);
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0x0f1222); scene.fog = new THREE.Fog(0x0f1222, 34, 70);
+    camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 160);
     const mobile = (matchMedia && matchMedia("(pointer:coarse)").matches) || Math.min(innerWidth, innerHeight) < 600;
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: "high-performance" }); renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2)); renderer.setSize(innerWidth, innerHeight);
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: "high-performance", preserveDrawingBuffer: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 2)); renderer.setSize(innerWidth, innerHeight);
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = mobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap; renderer.outputEncoding = THREE.sRGBEncoding;
-    const hemi = new THREE.HemisphereLight(0xdfe6ff, 0x1a1a2e, 0.85); scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xfff1c0, 0.7); sun.position.set(-12, 22, 14); sun.castShadow = true; sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -22; sun.shadow.camera.right = 22; sun.shadow.camera.top = 22; sun.shadow.camera.bottom = -22; sun.shadow.bias = -0.0008; scene.add(sun);
+    hemi = new THREE.HemisphereLight(0xdfe6ff, 0x1a1a2e, 0.85); scene.add(hemi);
+    sun = new THREE.DirectionalLight(0xfff1c0, 0.7); sun.position.set(-12, 22, 14); sun.castShadow = true; sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -30; sun.shadow.camera.right = 30; sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30; sun.shadow.bias = -0.0008; scene.add(sun);
+    torch = new THREE.PointLight(0xffe3a0, 0, 7, 2); scene.add(torch);
     buildRooms(); buildFurniture();
-    player = makeHuman({ skin: 0x9a5f3a, hair: 0x1b1420, shirt: 0x2f4f8f, pants: 0x24304f, curly: true, glasses: true, coat: theme.coat });
-    player.group.position.set(0, 0, -3); scene.add(player.group); setHumanOutfit(player, "clinic");
+    player = makeHuman({ skin: 0x9a5f3a, hair: 0x1b1420, shirt: 0x2f4f8f, pants: 0x24304f, curly: true, glasses: true, coat: theme.coat, steth: true });
+    player.group.position.set(-5, 0, -4.5); scene.add(player.group); setHumanOutfit(player, "clinic");
+    // clinic cat
+    const crig = makePet("cat", 0x3a3a3a); crig.group.position.set(1.5, 0, -10.8); scene.add(crig.group); crig.sleeping = true;
+    cat = { rig: crig, path: [], speed: 1.6, onArrive: null, restT: 0, spots: [[1.5, -10.8], [-8.5, -4], [-11, -9], [-16, 9], [-1, -0.5], [1.5, -10.8]] };
     clock = new THREE.Clock();
-    const onResize = () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); camDist = innerWidth < innerHeight ? 1.25 : camDist; };
+    const onResize = () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); if (innerWidth < innerHeight) camDist = Math.max(camDist, 1.25); };
     window.addEventListener("resize", onResize); window.addEventListener("orientationchange", () => setTimeout(onResize, 300)); onResize();
-    window.addEventListener("wheel", (e) => { camDist = Math.max(0.6, Math.min(1.6, camDist + e.deltaY * 0.0008)); }, { passive: true });
+    window.addEventListener("wheel", (e) => { camDist = Math.max(0.6, Math.min(1.7, camDist + e.deltaY * 0.0008)); }, { passive: true });
+    // first-person look controls
+    canvas.addEventListener("mousemove", (e) => { if (camMode !== "first") return; if (document.pointerLockElement === canvas || e.buttons === 1) { yaw -= e.movementX * 0.0025; pitch = Math.max(-1.2, Math.min(1.0, pitch - e.movementY * 0.0025)); } });
+    canvas.addEventListener("click", () => { if (camMode === "first" && canvas.requestPointerLock && !document.pointerLockElement) { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { } } });
+    let lt = null; canvas.addEventListener("touchstart", (e) => { if (camMode === "first" && e.touches.length) lt = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }, { passive: true });
+    canvas.addEventListener("touchmove", (e) => { if (camMode !== "first" || !lt || !e.touches.length) return; const t = e.touches[0]; yaw -= (t.clientX - lt.x) * 0.006; pitch = Math.max(-1.2, Math.min(1.0, pitch - (t.clientY - lt.y) * 0.006)); lt = { x: t.clientX, y: t.clientY }; }, { passive: true });
+  }
+
+  function setCamMode(m) {
+    camMode = m; if (m === "first") { yaw = player.group.rotation.y + Math.PI; pitch = -0.05; player.group.visible = false; } else { player.group.visible = true; if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock(); }
+    return camMode;
   }
 
   function update(input, opts) {
     const dt = Math.min(0.05, clock.getDelta());
-    const pos = player.group.position; const prev = { x: pos.x, z: pos.z };
-    let moving = false;
+    const pos = player.group.position; const prev = { x: pos.x, z: pos.z }; let moving = false;
     if (!opts.frozen && (input.x || input.z)) {
       const len = Math.hypot(input.x, input.z) || 1; const sp = (input.run ? 6.2 : 4.0) * dt;
-      pos.x += input.x / len * sp; pos.z += input.z / len * sp; moving = true;
-      const ty = Math.atan2(input.x, input.z); player.group.rotation.y = lerpAngle(player.group.rotation.y, ty, Math.min(1, dt * 12));
+      let mx = input.x / len, mz = input.z / len;
+      if (camMode === "first") { // move relative to look direction (forward = -z when yaw = PI)
+        const f = { x: Math.sin(yaw), z: Math.cos(yaw) }; const r = { x: Math.cos(yaw), z: -Math.sin(yaw) };
+        const fx = f.x * -mz + r.x * mx, fz = f.z * -mz + r.z * mx; mx = fx; mz = fz;
+      }
+      pos.x += mx * sp; pos.z += mz * sp; moving = true;
+      player.group.rotation.y = lerpAngle(player.group.rotation.y, Math.atan2(mx, mz), Math.min(1, dt * 12));
     }
     collide(pos, 0.35);
     if (opts.gate && opts.gate(pos)) { pos.x = prev.x; pos.z = prev.z; }
     animateHuman(player, dt, moving, input.run ? 1.3 : 1);
+    // co-op second player
+    if (player2 && opts.input2) { const p2 = player2.group.position; const i2 = opts.input2; let m2 = false; if (!opts.frozen && (i2.x || i2.z)) { const l = Math.hypot(i2.x, i2.z) || 1; p2.x += i2.x / l * 4 * dt; p2.z += i2.z / l * 4 * dt; m2 = true; player2.group.rotation.y = lerpAngle(player2.group.rotation.y, Math.atan2(i2.x, i2.z), Math.min(1, dt * 12)); } collide(p2, 0.35); animateHuman(player2, dt, m2); }
     npcUpdate(dt);
-    // camera follow
-    const target = new THREE.Vector3(pos.x, 1.0, pos.z);
-    const desired = new THREE.Vector3(pos.x, 11 * camDist + 1.5, pos.z + 9 * camDist + 1);
-    camera.position.lerp(desired, Math.min(1, dt * 4)); camera.lookAt(target);
-    // fade walls between camera and player
-    for (const m of fadeables) { const want = (m.position.z > pos.z + 0.5 && Math.abs(m.position.x - pos.x) < 9) ? 0.14 : 1; m.material.opacity += (want - m.material.opacity) * Math.min(1, dt * 8); m.material.transparent = m.material.opacity < 0.995; m.castShadow = m.material.opacity > 0.5; }
-    for (const l of labels) l.material.opacity = 0.9;
-    if (ring.visible) { ring.scale.setScalar(1 + Math.sin(performance.now() * 0.005) * 0.08); }
+    // camera
+    if (camMode === "first") {
+      camera.position.set(pos.x, 1.62 + (moving ? Math.abs(Math.sin(player.phase)) * 0.03 : 0), pos.z);
+      const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+      camera.lookAt(camera.position.clone().add(dir));
+      for (const m of fadeables) { if (m.material.opacity < 1) { m.material.opacity = 1; m.material.transparent = false; } }
+    } else {
+      const target = new THREE.Vector3(pos.x, 1.0, pos.z); const desired = new THREE.Vector3(pos.x, 11 * camDist + 1.5, pos.z + 9 * camDist + 1);
+      camera.position.lerp(desired, Math.min(1, dt * 4)); camera.lookAt(target);
+      for (const m of fadeables) { const want = (m.position.z > pos.z + 0.5 && Math.abs(m.position.x - pos.x) < 10) ? 0.14 : 1; m.material.opacity += (want - m.material.opacity) * Math.min(1, dt * 8); m.material.transparent = m.material.opacity < 0.995; m.castShadow = m.material.opacity > 0.5; }
+    }
+    // day/night + weather
+    const targetNight = opts.night ? 1 : 0; nightAmount += (targetNight - nightAmount) * Math.min(1, dt * 0.8);
+    hemi.intensity = 0.85 - nightAmount * 0.45; sun.intensity = 0.7 - nightAmount * 0.45; torch.intensity = nightAmount * 1.4; torch.position.set(pos.x, 2.2, pos.z + 0.5);
+    windowMats.forEach(m => m.emissiveIntensity = 0.4 + nightAmount * 0.8);
+    if (searchlight) { searchlight.rotation.z = 0.5 + Math.sin(performance.now() * 0.0003) * 0.35; searchlight.rotation.x = Math.sin(performance.now() * 0.0002) * 0.3; }
+    if (rain && rain.visible) { const a = rain.geometry.attributes.position; for (let i = 0; i < a.count; i++) { let y = a.getY(i) - dt * 12; if (y < 0) y = 14; a.setY(i, y); } a.needsUpdate = true; }
+    if (ring.visible) ring.scale.setScalar(1 + Math.sin(performance.now() * 0.005) * 0.08);
     renderer.render(scene, camera);
     return { dt, moving, pos };
   }
 
   function setRing(pos) { if (!pos) { ring.visible = false; return; } ring.visible = true; ring.position.x = pos.x; ring.position.z = pos.z; }
   function addNPC(cfg) {
-    const rig = makeHuman({ skin: cfg.skin, hair: cfg.hair, shirt: cfg.shirt, pants: cfg.pants, curly: cfg.curly, glasses: cfg.glasses });
-    rig.group.position.set(cfg.x, 0, cfg.z); scene.add(rig.group);
+    const rig = makeHuman({ skin: cfg.skin, hair: cfg.hair, shirt: cfg.shirt, pants: cfg.pants, curly: cfg.curly, glasses: cfg.glasses, coat: cfg.coat }); rig.group.position.set(cfg.x, 0, cfg.z); if (cfg.rotY !== undefined) rig.group.rotation.y = cfg.rotY; scene.add(rig.group);
+    if (cfg.outfit) setHumanOutfit(rig, cfg.outfit);
     let pet = null; if (cfg.pet) { pet = makePet(cfg.pet.species, cfg.pet.color); pet.group.position.set(cfg.x + 0.6, 0, cfg.z); scene.add(pet.group); }
     const n = { rig, pet, petFollow: true, path: [], speed: 2.4, onArrive: null, petMood: "calm" }; npcs.push(n); return n;
   }
@@ -429,14 +483,25 @@ const World = (() => {
   function placePet(n, x, y, z, rotY = 0) { n.petFollow = false; n.pet.group.position.set(x, y, z); n.pet.group.rotation.y = rotY; if (n.pet.parts.cage) n.pet.parts.cage.visible = false; }
   function playerPos() { return player.group.position; }
   function applyTheme(t) {
-    Object.assign(theme, t);
-    themeMats.wallClones.forEach(m => m.color.set(theme.wall)); themeMats.wall.color.set(theme.wall);
+    Object.assign(theme, t); themeMats.wallClones.forEach(m => m.color.set(theme.wall)); themeMats.wall.color.set(theme.wall);
     themeMats.accent.forEach(m => m.color.set(theme.accent)); themeMats.trim.forEach(m => m.color.set(theme.trim));
-    if (t.floor) { for (const k in themeMats.floors) if (k !== "corridor") themeMats.floors[k].color.set(t.floor); }
+    if (t.floor) { for (const k in themeMats.floors) if (k !== "corridor" && !lockedRooms[k]) { themeMats.floors[k].map = tileTexture(t.floor, Math.max(0, t.floor - 0x060608), 4); themeMats.floors[k].needsUpdate = true; } }
     if (t.coat && player) player.parts.coatMat.color.set(t.coat);
     scene.traverse(o => { if (o.userData && o.userData.decor) o.visible = theme.decor !== false; });
   }
-  function setSign(text) { if (signSprite) signSprite.userData.setText(text.toUpperCase()); }
+  function applyAvatar(a) { if (!player) return; if (a.scrub) player.parts.shirtMat.color.set(a.scrub); if (a.cap) player.parts.capMat.color.set(a.cap); if (a.frames && player.parts.frameMat) player.parts.frameMat.color.set(a.frames); }
+  function setSign(text) { if (signSprite) signSprite.userData.setText(text.toUpperCase()); if (props.floorLogo) props.floorLogo.userData.setText(text); }
+  function setWeather(w) { weather = w; if (rain) rain.visible = w === "rain"; }
+  function catWander() { if (!cat) return; cat.rig.sleeping = false; const spot = cat.spots[Math.floor(Math.random() * cat.spots.length)]; const p = cat.rig.group.position; cat.path = [[p.x, -0.5 < p.z && p.z < 1.5 ? p.z : (p.z < -2 ? -0.5 : 0.5)], [spot[0], spot[1] < -2 || spot[1] > 1.5 ? (spot[1] < -2 ? -0.5 : 0.5) : spot[1]], spot]; cat.restT = 6; }
+  function catPos() { return cat ? cat.rig.group.position : null; }
+  function enableCoop(on) { if (on && !player2) { player2 = makeHuman({ skin: 0xe0ac69, hair: 0x4a2c1a, shirt: 0x4fb3a9, pants: 0x24304f, curly: false, glasses: false }); player2.group.position.set(-3, 0, -4.5); scene.add(player2.group); setHumanOutfit(player2, "scrubs"); } if (!on && player2) { scene.remove(player2.group); player2 = null; } }
+  function player2Pos() { return player2 ? player2.group.position : null; }
+  function screenshot() { renderer.render(scene, camera); try { return renderer.domElement.toDataURL("image/png"); } catch (e) { return null; } }
+  function showThankCards(n) { if (!props.thankWall) return; props.thankWall.children.forEach((c, i) => c.visible = i < n); }
+  function addStaffNPC(role) {
+    const posts = { receptionist: { x: -5, z: -5.6, rotY: Math.PI, shirt: 0x7c6fcf, outfit: "clinic" }, nurse: { x: 7.4, z: -6, rotY: -Math.PI / 2, shirt: 0x4fb3a9, outfit: "scrubs" }, assistant: { x: 8, z: 7.6, rotY: -Math.PI / 2, shirt: 0x4fb3a9, outfit: "surgical" }, shopkeeper: { x: -17, z: -5.6, rotY: Math.PI, shirt: 0xe07a5f, outfit: "clinic" }, cleaner: { x: -9, z: -0.3, rotY: 0, shirt: 0x5f8fd6, outfit: "clinic" } };
+    const p = posts[role]; if (!p) return null; const n = addNPC({ x: p.x, z: p.z, rotY: p.rotY, skin: [0xf1c27d, 0xc68642, 0x8d5524][Math.floor(Math.random() * 3)], hair: 0x1b1420, shirt: p.shirt, pants: 0x24304f, curly: Math.random() < 0.5, glasses: Math.random() < 0.4, coat: 0xe9e9f2, outfit: p.outfit }); n.isStaff = role; return n;
+  }
 
-  return { init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, setSign, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; } };
+  return { init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, applyAvatar, setSign, setLocked, setWeather, setCamMode, catWander, catPos, enableCoop, player2Pos, screenshot, showThankCards, addStaffNPC, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get camMode() { return camMode; }, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; }, get locked() { return lockedRooms; } };
 })();

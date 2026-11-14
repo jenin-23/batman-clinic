@@ -353,7 +353,18 @@ const ACHIEVEMENTS = [
   { id: "bookworm", name: "Bookworm", desc: "Read 5 references in the office.", icon: "book" },
   { id: "decorator", name: "Interior Designer", desc: "Customise your clinic.", icon: "palette" },
   { id: "shifts3", name: "Dedicated", desc: "Complete 3 shifts.", icon: "moon" },
-  { id: "blocked", name: "Rules Are Rules", desc: "Get stopped at the OR door for not being scrubbed in — and learn why.", icon: "block" }
+  { id: "blocked", name: "Rules Are Rules", desc: "Get stopped at the OR door for not being scrubbed in — and learn why.", icon: "block" },
+  { id: "catfriend", name: "Mishmish Approves", desc: "Pet the clinic cat.", icon: "cat" },
+  { id: "boss", name: "Team Builder", desc: "Hire your first staff member.", icon: "user" },
+  { id: "investor", name: "Investor", desc: "Buy a piece of equipment.", icon: "coin" },
+  { id: "expansion", name: "Growing Practice", desc: "Open a new room.", icon: "home" },
+  { id: "detective", name: "Detective", desc: "Solve a mystery case on the differential board.", icon: "flask" },
+  { id: "dentist", name: "Say Aah", desc: "Complete a dental with no errors.", icon: "tooth" },
+  { id: "isolation", name: "Barrier Nurse", desc: "Treat an infectious case in isolation.", icon: "bed" },
+  { id: "farmvet", name: "Country Vet", desc: "Answer a farm call.", icon: "van" },
+  { id: "camp", name: "Herd Immunity", desc: "Run a vaccination camp.", icon: "drop" },
+  { id: "accredited", name: "Accredited", desc: "Pass the board inspection.", icon: "check" },
+  { id: "certified", name: "Diplomate", desc: "Pass the board certification exam.", icon: "trophy" }
 ];
 
 const LEVELS = [
@@ -366,3 +377,280 @@ const LEVELS = [
 ];
 
 const OWNER_NAMES = ["Omar", "Lina", "Yousef", "Hala", "Khaled", "Rana", "Sami", "Dana", "Faris", "Maya", "Tariq", "Salma"];
+
+/* ============================================================
+   v2 CONTENT
+   ============================================================ */
+
+/* --- Exotic species (ward expansion) --- */
+SPECIES.rabbit = { label: "Rabbit", icon: "rabbit", get emoji() { return icon("rabbit", 18, "sp"); }, soundFn: "chirp",
+  vitals: { temp: [38.5, 40.0], hr: [180, 250], rr: [30, 60], crt: "< 2 s", mm: "pink" },
+  vitalsNote: "Rabbits cannot vomit and must NEVER be fasted before anaesthesia. Gut sounds should be heard on auscultation; silence means GI stasis.",
+  fasting: "No fasting — rabbits cannot vomit and fasting triggers gut stasis. Remove food 30–60 min before only to clear the mouth.",
+  handling: ["Support the hindquarters at all times; wrap in a towel ('bunny burrito')", "Hold by the ears", "Let it kick freely", "Flip onto its back (trancing)"],
+  bestHandling: "Support the hindquarters at all times; wrap in a towel ('bunny burrito')",
+  handlingWhy: "A rabbit's spine is fragile relative to its powerful hind legs — a kick without support can fracture the lumbar spine. Never lift by the ears; trancing is a fear response, not relaxation.",
+  etTube: "Blind or endoscope-guided intubation with a small uncuffed tube (2–3 mm) or a V-gel supraglottic device; rabbits are obligate nasal breathers.",
+  names: ["Thumper", "Mochi", "Snow", "Bunbun", "Clover"], breeds: ["Netherland Dwarf", "Lop", "Lionhead", "Rex"], weight: [1.2, 3.0] };
+SPECIES.tortoise = { label: "Tortoise", icon: "tortoise", get emoji() { return icon("tortoise", 18, "sp"); }, soundFn: "click",
+  vitals: { temp: [26, 32], hr: [20, 40], rr: [4, 10], crt: "n/a", mm: "pink" },
+  vitalsNote: "Ectotherm: the 'normal' body temperature is whatever the preferred optimum temperature zone (POTZ) provides, 26–32 °C for Mediterranean tortoises. Heart rate is read with a Doppler over the thoracic inlet.",
+  fasting: "Fast 24–48 h for large species; always warm to POTZ before any drug is given or it will not be metabolised.",
+  handling: ["Hold firmly with both hands either side of the shell, low over a table", "Hold by one leg", "Tip it onto its back and spin", "Carry it high up by the head"],
+  bestHandling: "Hold firmly with both hands either side of the shell, low over a table",
+  handlingWhy: "Tortoises are stronger than they look and will push off; dropping one cracks the shell. Keep it low over a surface and never pull on the limbs or head.",
+  etTube: "Uncuffed tube; tortoises have no diaphragm and breathe by limb/girdle movement, so IPPV is needed throughout anaesthesia.",
+  names: ["Sheldon", "Zeno", "Pebble", "Tank"], breeds: ["Greek tortoise", "Hermann's tortoise", "Sulcata (juvenile)"], weight: [0.4, 2.5] };
+
+/* --- Drugs (textbook adult doses; always verify against a formulary) --- */
+const DRUGS = [
+  { id: "meloxicam", name: "Meloxicam", cls: "NSAID", conc: 5, unit: "mg/mL", form: "injection 5 mg/mL", dose: { dog: 0.2, cat: 0.1, rabbit: 0.6, bird: 0.5, tortoise: 0.2 }, route: "SC", note: "Dog: 0.2 mg/kg loading then 0.1 mg/kg daily. Cat: single 0.1 mg/kg dose. Contraindicated in dehydration, renal disease, GI ulceration, and together with steroids or another NSAID." },
+  { id: "carprofen", name: "Carprofen", cls: "NSAID", conc: 50, unit: "mg/mL", form: "injection 50 mg/mL", dose: { dog: 4.4 }, route: "SC", note: "Dogs only (4.4 mg/kg once daily or 2.2 twice daily). Not licensed for repeated use in cats." },
+  { id: "amoxiclav", name: "Amoxicillin-clavulanate", cls: "Antibiotic", conc: 50, unit: "mg/mL", form: "oral suspension 50 mg/mL", dose: { dog: 12.5, cat: 12.5, bird: 125 }, route: "PO q12h", note: "Broad-spectrum first-line for skin and bite wounds. Never use penicillins in rabbits, guinea pigs or hamsters — fatal dysbiosis." },
+  { id: "cefazolin", name: "Cefazolin", cls: "Antibiotic", conc: 100, unit: "mg/mL", form: "reconstituted 100 mg/mL", dose: { dog: 22, cat: 22 }, route: "IV at induction, repeat q90 min", note: "Perioperative prophylaxis for clean-contaminated surgery: give within 60 min before the first incision." },
+  { id: "bupren", name: "Buprenorphine", cls: "Opioid analgesic", conc: 0.3, unit: "mg/mL", form: "injection 0.3 mg/mL", dose: { dog: 0.02, cat: 0.02, rabbit: 0.03, bird: 0.5 }, route: "IV/IM (cat: oral transmucosal)", note: "Partial μ-agonist; 6–8 h duration; excellent in cats by the buccal route." },
+  { id: "methadone", name: "Methadone", cls: "Opioid analgesic", conc: 10, unit: "mg/mL", form: "injection 10 mg/mL", dose: { dog: 0.3, cat: 0.2 }, route: "IM/IV", note: "Full μ-agonist for moderate–severe surgical pain; part of the premedication for OHE, gastrotomy and fracture repair." },
+  { id: "dexmed", name: "Dexmedetomidine", cls: "α2-agonist sedative", conc: 0.5, unit: "mg/mL", form: "injection 0.5 mg/mL", dose: { dog: 0.005, cat: 0.01 }, route: "IM", note: "Profound sedation and analgesia; causes bradycardia and vasoconstriction — avoid in cardiac disease, shock, the very young or old. Reversible with atipamezole." },
+  { id: "propofol", name: "Propofol", cls: "Induction agent", conc: 10, unit: "mg/mL", form: "emulsion 10 mg/mL", dose: { dog: 4, cat: 6 }, route: "IV slowly to effect", note: "Give over 60–90 s to effect; apnoea is common if bolused. Shake, use within 24 h of opening." },
+  { id: "alfax", name: "Alfaxalone", cls: "Induction agent", conc: 10, unit: "mg/mL", form: "injection 10 mg/mL", dose: { dog: 2, cat: 4, rabbit: 3, tortoise: 10, bird: 10 }, route: "IV (IM in exotics)", note: "Smooth induction, good cardiovascular stability; can be given IM in cats, rabbits and reptiles." },
+  { id: "atropine", name: "Atropine", cls: "Anticholinergic / emergency", conc: 0.54, unit: "mg/mL", form: "injection 0.54 mg/mL", dose: { dog: 0.02, cat: 0.02 }, route: "IV/IM", note: "Treats bradycardia under anaesthesia. Avoid in dexmedetomidine-induced bradycardia (reverse the α2 instead)." },
+  { id: "adrenaline", name: "Adrenaline (epinephrine)", cls: "Emergency", conc: 1, unit: "mg/mL", form: "1:1000 = 1 mg/mL", dose: { dog: 0.01, cat: 0.01 }, route: "IV every other CPR cycle", note: "Low-dose 0.01 mg/kg IV during CPR; chest compressions 100–120/min, 1 breath per 6 s (RECOVER guidelines)." },
+  { id: "maropitant", name: "Maropitant", cls: "Anti-emetic", conc: 10, unit: "mg/mL", form: "injection 10 mg/mL", dose: { dog: 1, cat: 1 }, route: "SC q24h", note: "NK1 antagonist; prevents vomiting and reduces peri-operative nausea. Stings — give cold or IV." },
+  { id: "enro", name: "Enrofloxacin", cls: "Antibiotic (fluoroquinolone)", conc: 50, unit: "mg/mL", form: "injection 50 mg/mL", dose: { dog: 5, cat: 5, rabbit: 10, bird: 15, tortoise: 5 }, route: "SC/PO", note: "Cats: never exceed 5 mg/kg/day — retinal degeneration and blindness. Avoid in growing puppies (cartilage)." },
+  { id: "metoclop", name: "Metoclopramide", cls: "Prokinetic", conc: 5, unit: "mg/mL", form: "injection 5 mg/mL", dose: { rabbit: 0.5, dog: 0.3 }, route: "SC q8h", note: "Key drug for rabbit GI stasis together with fluids, syringe feeding and analgesia." },
+  { id: "permethrin", name: "Permethrin spot-on", cls: "Ectoparasiticide", conc: 0, unit: "", form: "dog spot-on", dose: { dog: 1 }, route: "topical", note: "TOXIC TO CATS — tremors, seizures, death. Never dispense dog permethrin products to a household that also has cats sleeping with the dog." }
+];
+
+/* --- Lab reference ranges --- */
+const LAB = {
+  dog: { PCV: [37, 55, "%"], TP: [5.5, 7.5, "g/dL"], Glucose: [70, 120, "mg/dL"], BUN: [7, 27, "mg/dL"], Creatinine: [0.5, 1.8, "mg/dL"], ALT: [10, 100, "U/L"], WBC: [6, 17, "×10³/µL"], Platelets: [200, 500, "×10³/µL"], Potassium: [3.5, 5.8, "mmol/L"] },
+  cat: { PCV: [30, 45, "%"], TP: [6.0, 8.0, "g/dL"], Glucose: [70, 150, "mg/dL"], BUN: [16, 36, "mg/dL"], Creatinine: [0.8, 2.4, "mg/dL"], ALT: [12, 130, "U/L"], WBC: [5.5, 19.5, "×10³/µL"], Platelets: [175, 500, "×10³/µL"], Potassium: [3.5, 5.8, "mmol/L"] },
+  bird: { PCV: [40, 55, "%"], TP: [3, 5, "g/dL"], Glucose: [200, 400, "mg/dL"], "Uric acid": [2, 10, "mg/dL"], AST: [100, 350, "U/L"], WBC: [5, 15, "×10³/µL"] },
+  rabbit: { PCV: [33, 50, "%"], TP: [5.4, 7.5, "g/dL"], Glucose: [75, 155, "mg/dL"], BUN: [13, 29, "mg/dL"], Creatinine: [0.5, 2.5, "mg/dL"], WBC: [5, 12, "×10³/µL"] },
+  tortoise: { PCV: [20, 35, "%"], TP: [3, 6, "g/dL"], Glucose: [60, 130, "mg/dL"], "Uric acid": [1, 8, "mg/dL"], AST: [50, 250, "U/L"] }
+};
+/* lab scenarios: which analytes are off and what it means */
+const LAB_SCENARIOS = {
+  normal: { changes: {}, meaning: "All values within reference range — ASA I; proceed with the standard anaesthetic plan.", options: ["Normal panel — proceed as planned", "Anaemia — transfuse first", "Kidney failure — cancel surgery"], correct: 0 },
+  dehydrated: { changes: { PCV: 1.15, TP: 1.15, BUN: 1.4 }, meaning: "Raised PCV, total protein and BUN together = haemoconcentration from dehydration (pre-renal azotaemia). Rehydrate with IV crystalloids for several hours before anaesthesia.", options: ["Dehydration (pre-renal) — IV fluids before anaesthesia", "Polycythaemia — phlebotomy", "Normal — proceed"], correct: 0 },
+  anaemia: { changes: { PCV: 0.6, TP: 0.9 }, meaning: "Low PCV = anaemia. Below ~20 % the patient needs a transfusion before anaesthesia; find the cause (blood loss, haemolysis, chronic disease, fleas in kittens).", options: ["Anaemia — investigate and consider transfusion before surgery", "Dehydration — give fluids", "Normal variation"], correct: 0 },
+  renal: { changes: { BUN: 2.2, Creatinine: 2.4, PCV: 0.85 }, meaning: "Raised BUN and creatinine with a normal/low PCV and dilute urine = renal azotaemia. ASA III–IV: fluids, avoid NSAIDs, reduce drug doses, consider postponing elective surgery.", options: ["Renal disease — ASA III, avoid NSAIDs, fluids, postpone elective surgery", "Dehydration — proceed after a bolus", "Liver disease — give antibiotics"], correct: 0 },
+  infection: { changes: { WBC: 2.3, Glucose: 0.8 }, meaning: "Marked leukocytosis (neutrophilia with left shift) = inflammation/infection — typical for pyometra or an abscess. Start IV fluids and antibiotics; surgery is still indicated (source control).", options: ["Inflammatory leukogram — stabilise and proceed to source control surgery", "Leukaemia — refer oncology", "Lab error — repeat"], correct: 0 },
+  hepatic: { changes: { ALT: 4, TP: 0.85, Glucose: 0.75 }, meaning: "Very high ALT with low protein and glucose points to hepatic dysfunction: choose drugs that do not rely on liver metabolism, check clotting before surgery.", options: ["Hepatopathy — check clotting, adjust anaesthetic drugs", "Pancreatitis — fast for 48 h", "Normal for breed"], correct: 0 }
+};
+
+/* --- Dental (modified Triadan numbering) --- */
+const DENTAL = {
+  dog: { quadrants: { 1: "Upper right (100s)", 2: "Upper left (200s)", 3: "Lower left (300s)", 4: "Lower right (400s)" }, teeth: { upper: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], lower: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] }, names: { 1: "1st incisor", 2: "2nd incisor", 3: "3rd incisor", 4: "canine", 5: "1st premolar", 6: "2nd premolar", 7: "3rd premolar", 8: "4th premolar (upper carnassial)", 9: "1st molar (lower carnassial)", 10: "2nd molar", 11: "3rd molar" } },
+  cat: { quadrants: { 1: "Upper right (100s)", 2: "Upper left (200s)", 3: "Lower left (300s)", 4: "Lower right (400s)" }, teeth: { upper: [1, 2, 3, 4, 6, 7, 8, 9], lower: [1, 2, 3, 4, 7, 8, 9] }, names: { 1: "1st incisor", 2: "2nd incisor", 3: "3rd incisor", 4: "canine", 6: "2nd premolar", 7: "3rd premolar", 8: "4th premolar (upper carnassial)", 9: "1st molar" } },
+  stages: ["Stage 0 — clinically normal", "Stage 1 — gingivitis only, no attachment loss (reversible with scaling + home care)", "Stage 2 — early periodontitis, < 25 % attachment loss", "Stage 3 — moderate periodontitis, 25–50 % attachment loss", "Stage 4 — advanced periodontitis, > 50 % loss; extraction usually indicated"],
+  lesions: { calculus: { label: "Calculus & gingivitis", action: "scale", why: "Supragingival and subgingival scaling with an ultrasonic scaler, then polish to remove the micro-scratches that re-attract plaque." }, fracture: { label: "Complicated crown fracture (pulp exposed)", action: "extract", why: "An exposed pulp is painful and will abscess; options are root canal (referral) or surgical extraction — never 'leave it and see'." }, forl: { label: "Tooth resorption (feline resorptive lesion)", action: "extract", why: "Progressive, very painful lesion in cats; extraction (or crown amputation for type 2 with root replacement) is the treatment." }, mobile: { label: "Grade 3 mobility, stage 4 periodontitis", action: "extract", why: "More than 50 % attachment loss and marked mobility: the tooth cannot be saved; extract and close the gingiva with absorbable suture." }, healthy: { label: "Healthy", action: "leave", why: "A healthy tooth with no probing depth is left alone — unnecessary extraction is malpractice." } }
+};
+
+/* --- Microscope fields --- */
+const CYTOLOGY = {
+  yeast: { label: "Malassezia yeast (peanut / footprint shapes)", dx: "Yeast otitis externa — topical antifungal (e.g. miconazole-based ear drops) + cleaning.", draw: "yeast" },
+  cocci: { label: "Cocci in clusters (Staphylococcus)", dx: "Bacterial otitis/pyoderma — topical antibacterial, culture if recurrent.", draw: "cocci" },
+  rods: { label: "Rod-shaped bacteria (Pseudomonas, E. coli)", dx: "Rods in an ear = culture and sensitivity before choosing an antibiotic; often resistant.", draw: "rods" },
+  mites: { label: "Otodectes cynotis (ear mites) with eggs", dx: "Ear mites — treat all in-contact animals with a systemic isoxazoline or topical acaricide.", draw: "mites" },
+  eggs: { label: "Toxocara eggs on faecal float (thick-shelled, round)", dx: "Roundworm infection — deworm with pyrantel/fenbendazole, repeat in 2–3 weeks; zoonotic, advise hygiene.", draw: "eggs" },
+  demodex: { label: "Demodex canis (cigar-shaped mites) on skin scrape", dx: "Demodicosis — isoxazoline treatment, check for underlying immunosuppression.", draw: "demodex" }
+};
+/* --- ECG rhythms --- */
+const ECG = {
+  sinus: { label: "Normal sinus rhythm", action: "Continue monitoring.", draw: "sinus" },
+  rsa: { label: "Respiratory sinus arrhythmia (normal in dogs)", action: "No treatment — rate varies with breathing; normal in dogs, abnormal in cats.", draw: "rsa" },
+  brady: { label: "Sinus bradycardia", action: "Lighten the anaesthetic plane, check temperature; atropine/glycopyrrolate if MAP is falling (unless from an α2 agonist — reverse it instead).", draw: "brady" },
+  vpc: { label: "Ventricular premature complexes (wide, bizarre QRS)", action: "Check oxygenation and depth; if runs > 160 bpm or multiform: lidocaine 2 mg/kg IV (dog). Common after splenic surgery and GDV.", draw: "vpc" },
+  av2: { label: "Second-degree AV block (dropped QRS after a P wave)", action: "Often vagal or α2-induced; atropine response test; stop surgery if haemodynamically significant.", draw: "av2" },
+  vfib: { label: "Ventricular fibrillation — no pulse", action: "Start CPR immediately: compressions 100–120/min, defibrillate 4–6 J/kg, adrenaline low-dose after the 2nd cycle.", draw: "vfib" }
+};
+
+/* --- New cases --- */
+CASES.push(
+  { id: "heat_dog", species: "dog", level: 2, outcome: "checkup", emergency: true, complaint: "Collapsed after running in the midday heat — panting hard, drooling.", findings: "T 41.6 °C, HR 170, RR panting, MM brick-red, CRT < 1 s, dull mentation.", options: ["Heat stroke — active cooling to 39.5 °C (tepid water + fan), IV fluids, monitor for DIC/AKI for 48 h", "Ice bath until 37 °C", "Send home to rest"], correct: 0, why: "Cool actively but stop at 39.5 °C to avoid rebound hypothermia; never ice-water (vasoconstriction traps heat). Heat stroke patients need 24–72 h monitoring for kidney injury and clotting disorders.", fee: 120, season: "heatwave" },
+  { id: "parvo_pup", species: "dog", level: 2, outcome: "checkup", emergency: true, isolation: true, complaint: "Puppy with foul bloody diarrhoea and vomiting since yesterday, unvaccinated.", findings: "12-week puppy, 8 % dehydrated, T 39.8 °C, HR 160, painful abdomen, neutropenia on in-house CBC. Parvo SNAP positive.", options: ["Parvovirus — ISOLATE, barrier nursing, IV fluids, anti-emetics, antibiotics for sepsis, nutrition", "Vaccinate now and send home", "Treat as dietary upset"], correct: 0, why: "Parvo is highly contagious and survives in the environment for months. The patient goes to isolation with dedicated PPE; everything that touches it is disinfected (bleach 1:30 or accelerated hydrogen peroxide). Survival with intensive care is 80–90 %.", fee: 260, season: "parvo" },
+  { id: "tick_dog", species: "dog", level: 2, outcome: "checkup", complaint: "Lethargic, off food, dark urine after a hike; owner removed ticks.", findings: "T 40.1 °C, pale MM, enlarged lymph nodes, platelets low on smear.", options: ["Tick-borne disease (Ehrlichia/Babesia) — blood smear & PCR, doxycycline / imidocarb, tick prevention for all pets", "Vaccine reaction — antihistamine", "Nothing — ticks were removed"], correct: 0, why: "Fever, thrombocytopenia and pallor after tick exposure = test for Ehrlichia, Anaplasma and Babesia. Treatment differs (doxycycline vs imidocarb), so confirm before treating.", fee: 110, season: "ticks" },
+  { id: "pyometra", species: "dog", level: 3, outcome: "surgery", procedure: "pyometra", emergency: true, complaint: "Older intact female, drinking a lot, vomiting, purulent discharge from the vulva 4 weeks after heat.", findings: "T 39.9 °C, HR 140, depressed, distended painful abdomen, PU/PD. WBC 38 ×10³. Ultrasound: fluid-filled uterus.", options: ["Pyometra — IV fluids, antibiotics, emergency ovariohysterectomy", "Antibiotics only and recheck next week", "Induce heat with hormones"], correct: 0, why: "Pyometra is a life-threatening uterine infection; the uterus can rupture. Stabilise for a few hours with fluids and antibiotics, then OHE the same day. The friable uterus must be handled gently.", fee: 420, lab: "infection" },
+  { id: "stones_dog", species: "dog", level: 4, outcome: "surgery", procedure: "cystotomy", complaint: "Straining to urinate, blood in urine, recurrent for months.", findings: "Painful distended bladder, haematuria; male. Radiograph: multiple radio-opaque calculi in the bladder.", options: ["Radiograph, then cystotomy to remove the stones; send stones for analysis; dietary prevention", "Antibiotics alone", "Squeeze the bladder to express them"], correct: 0, why: "Struvite and calcium oxalate stones are radio-opaque. Cystotomy removes them; analysing the stones guides the diet that prevents recurrence. Always check the urethra for stones too.", xray: { view: "dog", finding: "bladder_stones", label: "Multiple radio-opaque cystic calculi" }, fee: 380 },
+  { id: "spleen_dog", species: "dog", level: 5, outcome: "surgery", procedure: "splenectomy", emergency: true, complaint: "Old large-breed dog, sudden weakness and pale gums, collapsed.", findings: "Pale MM, CRT 3 s, HR 160, weak pulses, distended abdomen with fluid wave. PCV 22 %. Ultrasound: splenic mass with free fluid.", options: ["Haemoabdomen from a splenic mass — stabilise (fluids ± transfusion), emergency splenectomy, histopathology", "Drain the abdomen and send home", "Antibiotics for peritonitis"], correct: 0, why: "A bleeding splenic mass (haemangiosarcoma or haematoma) is a surgical emergency. Watch for ventricular arrhythmias for 24–48 h after splenectomy.", fee: 650, lab: "anaemia" },
+  { id: "rabbit_stasis", species: "rabbit", level: 2, outcome: "checkup", emergency: true, needs: "ward", complaint: "Rabbit hasn't eaten or passed droppings for 24 hours, hunched and grinding teeth.", findings: "Hunched, bruxism, T 38.2 °C (low), HR 240, doughy stomach, no gut sounds, small dry droppings.", options: ["GI stasis — warmth, fluids, syringe feeding, analgesia (meloxicam/buprenorphine), prokinetics, find the cause (teeth, pain, diet)", "Fast for 24 h to rest the gut", "Surgery immediately"], correct: 0, why: "Rabbit gut stasis is an emergency — gut flora die and the rabbit decompensates within 24–48 h. Supportive care reverses most cases; surgery is reserved for confirmed obstruction. Check the molars for spurs.", fee: 140 },
+  { id: "rabbit_teeth", species: "rabbit", level: 3, outcome: "checkup", needs: "dental", complaint: "Rabbit drooling, dropping food, wet chin.", findings: "Molar spurs lacerating the tongue on oral exam, incisors overgrown and misaligned, weight loss.", options: ["Dental disease — molar burring under anaesthesia, incisor trim, hay-based diet", "Clip incisors with nail clippers", "Antibiotics for drooling"], correct: 0, why: "Rabbit teeth grow continuously; a low-fibre diet causes overgrowth. Molar spurs are burred with a dental drill under anaesthesia; clipping shatters teeth.", fee: 160 },
+  { id: "tortoise_rhino", species: "tortoise", level: 3, outcome: "checkup", needs: "ward", complaint: "Tortoise with bubbles from the nose and swollen eyes after a cold winter.", findings: "Nasal discharge, closed swollen eyelids, lethargic, enclosure temperature only 18 °C, no UVB lamp. Weight low for shell length.", options: ["Husbandry disease — correct temperature to POTZ (26–32 °C) + UVB, fluids, nasal flush, antibiotics if bacterial; vitamin A assessment", "Give a dog antibiotic and send home", "Keep it cooler to slow the infection"], correct: 0, why: "Most reptile illness is husbandry: too cold, no UVB, poor diet. Drugs don't work in a cold reptile because metabolism is temperature-dependent. Hypovitaminosis A causes the swollen eyelids.", fee: 120 },
+  { id: "dental_dog", species: "dog", level: 3, outcome: "dental", needs: "dental", complaint: "Bad breath, dropping food, red gums.", findings: "Heavy calculus, stage 3 periodontitis, a fractured upper 4th premolar with pulp exposure, loose lower incisor.", options: ["Dental under anaesthesia: full-mouth radiographs, scale & polish, extract the fractured carnassial and the mobile incisor", "Anaesthesia-free scaling", "Antibiotics only"], correct: 0, why: "Anaesthesia-free scaling is cosmetic and dangerous; disease is below the gumline. Dental radiographs find hidden root pathology.", fee: 320 },
+  { id: "dental_cat", species: "cat", level: 3, outcome: "dental", needs: "dental", complaint: "Cat chattering its jaw when eating, pawing at the mouth.", findings: "Gingivitis, tooth resorption lesions on 307 and 407, calculus.", options: ["Dental radiographs, scale & polish, extract the resorptive lesions", "Steroids for the gums", "Soft food only"], correct: 0, why: "Feline tooth resorption is extremely painful (jaw chattering is the tell-tale sign). Radiographs decide extraction vs crown amputation.", fee: 300 },
+  { id: "blocked_cat", species: "cat", level: 3, outcome: "checkup", emergency: true, complaint: "Male cat straining in the litter tray, crying, nothing comes out.", findings: "Large, hard, painful bladder; HR 120 (bradycardia!), weak, T 36.8 °C. Potassium 8.1 mmol/L.", options: ["Urethral obstruction — ECG, treat hyperkalaemia (calcium gluconate, insulin/dextrose), sedate and unblock with a urinary catheter, fluids", "Send home with antibiotics", "Express the bladder forcefully"], correct: 0, why: "A blocked tom is a true emergency — hyperkalaemia stops the heart (bradycardia, absent P waves). Stabilise the potassium first, then relieve the obstruction. Never squeeze a blocked bladder: it ruptures.", fee: 350, lab: "renal" },
+  { id: "mystery_addison", species: "dog", level: 3, outcome: "checkup", mystery: true, complaint: "Young female dog, vague waxing-and-waning illness: vomiting, weakness, 'just not right' for weeks.", findings: "Weak, HR 60 (too slow for a sick dog), mild dehydration. Needs tests.", options: ["Hypoadrenocorticism (Addison's) — confirm with ACTH stimulation, treat with fluids and steroid/mineralocorticoid", "Pancreatitis", "Behavioural"], correct: 0, why: "The 'great pretender': waxing-waning GI signs, bradycardia in a sick dog and a Na:K ratio < 27 on bloods point to Addison's. ACTH stimulation test confirms.", fee: 200, ddx: { symptoms: ["Intermittent vomiting", "Weakness", "Bradycardia", "Weight loss"], tests: { cbc: "No stress leukogram (lymphocytes normal — unusual in a sick dog)", chem: "Na 132, K 6.4 → Na:K ratio 20.6; mild azotaemia", xray: "Microcardia", ultrasound: "Small adrenal glands", cytology: "Unremarkable", urinalysis: "USG 1.012 (dilute despite dehydration)" }, needed: ["cbc", "chem"], dx: ["Addison's disease", "Pancreatitis", "Kidney failure", "Foreign body"], correct: 0 } },
+  { id: "mystery_fb_cat", species: "cat", level: 3, outcome: "surgery", procedure: "gastrotomy", mystery: true, complaint: "Cat vomiting intermittently for a week, plays with hair ties.", findings: "Mild abdominal discomfort, slightly dehydrated. Needs tests.", options: ["Linear/gastric foreign body — imaging then surgery", "Hairballs — laxative", "Dietary indiscretion"], correct: 0, why: "Hair ties and string are classic feline foreign bodies; a linear foreign body can plicate the intestine. Imaging first, surgery to remove.", xray: { view: "cat", finding: "foreign_body", label: "Gastric foreign body with plication pattern" }, fee: 380, ddx: { symptoms: ["Intermittent vomiting", "Reduced appetite", "Mild abdominal pain"], tests: { cbc: "Mild dehydration pattern", chem: "Mild hypokalaemia from vomiting", xray: "Bunched, plicated intestines; radio-opaque object in the stomach", ultrasound: "Hyperechoic shadowing object in the stomach, plicated bowel", cytology: "Unremarkable", urinalysis: "Concentrated urine" }, needed: ["xray"], dx: ["Foreign body", "Hairball", "Inflammatory bowel disease", "Pancreatitis"], correct: 0 } },
+  { id: "farm_goat", species: "dog", level: 4, outcome: "checkup", farm: true, complaint: "FARM CALL — goat lame on a front foot, hot swollen hoof.", findings: "Severe lameness, heat and pain over the sole, black pus when the sole is pared.", options: ["Foot abscess — pare out the sole to drain, flush, bandage, NSAID; check the rest of the flock's feet", "Amputate the leg", "Wait for it to burst"], correct: 0, why: "Hoof abscesses drain through the sole with a hoof knife; once drained the relief is immediate. Foot bathing the flock prevents footrot spread.", fee: 150 },
+  { id: "farm_horse", species: "dog", level: 5, outcome: "checkup", farm: true, emergency: true, complaint: "FARM CALL — horse rolling and pawing, sweating, off feed since morning.", findings: "HR 56, no gut sounds in two quadrants, MM tacky, mild distension. Nasogastric tube: 4 L reflux.", options: ["Colic — analgesia (flunixin), nasogastric decompression, rectal exam, IV fluids; refer for surgery if pain is uncontrolled", "Walk it for 6 hours", "Give oral oil and leave"], correct: 0, why: "Reflux on the stomach tube means decompression is life-saving (horses cannot vomit). Heart rate above 60 and uncontrolled pain are referral criteria for surgical colic.", fee: 260 }
+);
+
+/* --- New procedures --- */
+PROCEDURES.pyometra = { name: "Emergency ovariohysterectomy (pyometra)", species: ["dog", "cat"], level: 3, duration: "45–75 min", approach: null,
+  intro: "Like an elective spay but the uterus is distended, friable and full of pus: handle gently, pack off, and never let it rupture into the abdomen.",
+  steps: [
+    { text: "Drape widely — the incision runs from umbilicus to pubis for a distended uterus.", tool: "towel", choices: ["towel", "kelly", "snook"], why: "Four quarter drapes and clamps; a long incision needs a wide sterile field." },
+    { text: "Long ventral midline skin incision.", tool: "scalpel", choices: ["scalpel", "mayo", "metz"], why: "You need room to lift the uterus out without tearing it." },
+    { text: "Open the linea alba and place a self-retaining retractor.", tool: "balfour", choices: ["balfour", "allis", "adson"], why: "Exposure matters more than ever — a rupture would spill pus into the abdomen." },
+    { text: "Pack moistened laparotomy sponges around the uterus before exteriorising it.", tool: "gauze", choices: ["gauze", "suction", "cautery"], why: "Packing isolates the friable uterus from the rest of the abdomen in case it leaks." },
+    { text: "Clamp and ligate the ovarian pedicles (triple clamp, transfixing ligatures).", tool: "carmalt", choices: ["carmalt", "adson", "towel"], why: "Vessels are enlarged and the tissue oedematous: use heavier suture (0 or 2-0) and double ligatures." },
+    { text: "Ligate the uterine body just cranial to the cervix with two transfixing ligatures; transect; do NOT milk pus toward the cervix.", tool: "absorb", choices: ["absorb", "nylon", "metz"], why: "The stump is lavaged but not oversewn into the lumen; culture the pus." },
+    { text: "Change gloves and instruments; lavage the abdomen with warm sterile saline.", tool: "saline", choices: ["saline", "cautery", "allis"], why: "Anything that touched the uterus is now contaminated." },
+    { text: "Close linea alba, subcutis and skin.", tool: "needle", choices: ["needle", "kelly", "suction"], why: "Continue IV fluids and antibiotics post-op; most patients are dramatically better within 24 h." }
+  ] };
+PROCEDURES.cystotomy = { name: "Cystotomy (bladder stone removal)", species: ["dog", "cat"], level: 4, duration: "40–60 min",
+  intro: "The bladder is opened on its ventral surface, the stones removed, and the urethra flushed to make sure none remain.",
+  steps: [
+    { text: "Caudal ventral midline incision (parapreputial in male dogs).", tool: "scalpel", choices: ["scalpel", "snook", "mayo"], why: "In male dogs the incision curves around the prepuce." },
+    { text: "Exteriorise the bladder and pack it off with moistened sponges.", tool: "gauze", choices: ["gauze", "balfour", "cautery"], why: "Urine is contaminated — isolate the bladder from the abdomen." },
+    { text: "Place stay sutures and incise the ventral bladder wall away from the ureters.", tool: "scalpel", choices: ["scalpel", "carmalt", "allis"], why: "Stay sutures lift the wall; the ventral surface avoids the trigone and ureteral openings." },
+    { text: "Remove the stones with a spoon or forceps; flush the urethra normograde and retrograde with saline.", tool: "saline", choices: ["saline", "suction", "nylon"], why: "Stones hide in the urethra — flushing both ways plus a post-op radiograph confirms none remain. Send stones for analysis." },
+    { text: "Close the bladder in a single or double appositional layer with absorbable monofilament (do not penetrate the mucosa).", tool: "absorb", choices: ["absorb", "nylon", "towel"], why: "Suture in the lumen becomes a nidus for new stones; 3-0/4-0 poliglecaprone or PDS." },
+    { text: "Lavage, close linea alba, subcutis and skin.", tool: "needle", choices: ["needle", "kelly", "snook"], why: "Dietary dissolution/prevention plan based on stone analysis." }
+  ] };
+PROCEDURES.splenectomy = { name: "Splenectomy (bleeding splenic mass)", species: ["dog"], level: 5, duration: "45–90 min",
+  intro: "The whole spleen is removed by ligating or sealing the hilar vessels. The patient is unstable — speed and haemostasis are everything.",
+  steps: [
+    { text: "Xiphoid-to-pubis ventral midline incision.", tool: "scalpel", choices: ["scalpel", "metz", "snook"], why: "Maximum exposure; suction ready for the haemoabdomen." },
+    { text: "Suction the free blood and exteriorise the spleen gently onto moistened sponges.", tool: "suction", choices: ["suction", "cautery", "nylon"], why: "Poole suction tip; avoid rupturing the mass further." },
+    { text: "Clamp and ligate the hilar splenic vessels close to the spleen (preserve the short gastric and left gastroepiploic supply to the stomach).", tool: "carmalt", choices: ["carmalt", "adson", "towel"], why: "Ligate vessel by vessel at the hilus (or use a vessel-sealing device) to avoid devascularising the stomach." },
+    { text: "Double-ligate each pedicle with absorbable suture and transect.", tool: "absorb", choices: ["absorb", "nylon", "gauze"], why: "Large vessels get double ligatures; check every stump before releasing." },
+    { text: "Explore the liver and abdomen for metastases; biopsy anything suspicious.", tool: "allis", choices: ["allis", "snook", "balfour"], why: "Haemangiosarcoma commonly spreads to the liver — staging changes the prognosis you give the owner." },
+    { text: "Lavage, count sponges, close in three layers.", tool: "needle", choices: ["needle", "kelly", "suction"], why: "ECG monitoring for 24–48 h: ventricular arrhythmias are common after splenectomy." }
+  ] };
+PROCEDURES.robert_jones = { name: "Robert Jones bandage (fracture first-aid)", species: ["dog", "cat"], level: 2, duration: "15 min", nonsterile: true,
+  intro: "A thick, padded bandage that immobilises a fracture distal to the elbow or stifle until definitive repair.",
+  steps: [
+    { text: "Place adhesive tape stirrups on the paw.", tool: "bandage", choices: ["bandage", "scalpel", "towel"], why: "Stirrups stop the bandage sliding off the limb." },
+    { text: "Apply thick layers of cotton wool padding from toes to above the joint proximal to the fracture.", tool: "bandage", choices: ["bandage", "gauze", "saline"], why: "The padding is what gives rigidity once compressed; include the joint above and below." },
+    { text: "Compress firmly with conforming gauze, then an outer cohesive layer; leave the two middle toes visible.", tool: "bandage", choices: ["bandage", "nylon", "clipper"], why: "The toes let the owner check for swelling or coldness daily. A good Robert Jones 'thumps' like a ripe melon." }
+  ] };
+PROCEDURES.hoof = { name: "Hoof abscess drainage (goat)", species: ["dog"], level: 4, duration: "15 min", nonsterile: true,
+  intro: "Field procedure: find the black tract in the sole, pare it open, drain and protect.",
+  steps: [
+    { text: "Clean the foot and locate the painful point with hoof testers.", tool: "saline", choices: ["saline", "cautery", "carmalt"], why: "Pain on pressure localises the abscess." },
+    { text: "Pare the sole with a hoof knife until the black tract opens and pus drains.", tool: "scalpel", choices: ["scalpel", "metz", "snook"], why: "Open a cone-shaped hole wide enough not to seal over." },
+    { text: "Flush, apply poultice and a waterproof bandage; NSAID; recheck in 3 days.", tool: "bandage", choices: ["bandage", "nylon", "towel"], why: "Tetanus cover for horses; check the rest of the herd." }
+  ] };
+/* approach choices for elective procedures */
+PROCEDURES.ohe.approaches = [{ id: "midline", label: "Ventral midline", why: "Standard approach; best access to both ovaries and the uterine body; essential if pyometra or pregnancy is suspected." }, { id: "flank", label: "Left flank (cats)", why: "Common in the UK for cats: small incision, easy to monitor without turning the cat over; harder to reach the right ovary and not suitable for pregnant or pyometra cases.", species: ["cat"] }];
+PROCEDURES.castration.approaches = [{ id: "closed", label: "Closed (tunic intact)", why: "The vaginal tunic is ligated with the cord — no communication with the abdomen, preferred in small dogs and cats." }, { id: "open", label: "Open (tunic incised)", why: "The tunic is opened so each structure is ligated individually; better control in large dogs with big cords; the tunic is then closed." }];
+
+/* --- Owner personalities --- */
+const OWNER_TYPES = {
+  anxious: { label: "anxious", intro: (p) => `“Is ${p.name} going to be okay? I read it could be something terrible…”`, options: [["Explain calmly what you'll check and give a realistic plan", 2], ["Tell them not to worry, it's nothing", -1], ["List every possible worst case", -2]], why: "Anxious owners need structure and honesty, not false reassurance or a lecture of worst cases." },
+  budget: { label: "budget-conscious", intro: (p) => `“Doctor, I love ${p.name} but money is tight this month. What do we really need?”`, options: [["Offer a tiered plan: essential now, optional later, with costs", 2], ["Insist on the full work-up or nothing", -2], ["Skip diagnostics entirely", -1]], why: "Tiered, transparent options keep care going and keep the client. Hiding costs or shaming them loses both." },
+  google: { label: "'Dr Google'", intro: (p) => `“I already know what it is — the internet says ${p.name} needs antibiotics. Just give them.”`, options: [["Acknowledge their research, explain what the exam shows and why the plan differs", 2], ["Agree and prescribe to avoid an argument", -2], ["Dismiss the internet entirely", -1]], why: "Respect the effort, correct the facts, and anchor the plan in your exam findings. Prescribing antibiotics on demand drives resistance." },
+  breeder: { label: "experienced breeder", intro: (p) => `“I've bred this line for 20 years. I just need the paperwork done properly.”`, options: [["Be efficient and precise; confirm details and document thoroughly", 2], ["Over-explain the basics", -1], ["Cut corners because they know what they're doing", -2]], why: "Experienced clients value competence and speed — but your clinical standards never drop for anyone." },
+  calm: { label: "easy-going", intro: (p) => `“Whatever ${p.name} needs, doctor — you're the expert.”`, options: [["Explain the plan clearly anyway and confirm consent", 2], ["Just do it without explaining", -1], ["Add unnecessary extras since they'll say yes", -2]], why: "Trust is not a reason to skip informed consent, and never a reason to upsell." }
+};
+
+/* --- Daily goals pool --- */
+const GOAL_POOL = [
+  { id: "see4", text: "See 4 patients", key: "patients", target: 4, reward: 60 },
+  { id: "noerr", text: "Finish the day with no handling errors", key: "handlingErrorsZero", target: 1, reward: 80 },
+  { id: "surg1", text: "Complete a surgery", key: "surgeries", target: 1, reward: 90, level: 3 },
+  { id: "flawless", text: "A flawless surgery (no instrument errors)", key: "flawless", target: 1, reward: 150, level: 3 },
+  { id: "sell5", text: "Sell 5 shop items", key: "sales", target: 5, reward: 50 },
+  { id: "xray2", text: "Read 2 radiographs", key: "xrays", target: 2, reward: 60, level: 2 },
+  { id: "dose3", text: "Calculate 3 drug doses correctly", key: "doses", target: 3, reward: 70 },
+  { id: "read2", text: "Read 2 references in the library", key: "refs", target: 2, reward: 40 },
+  { id: "rep", text: "End the day with reputation ≥ 4.0", key: "repHigh", target: 1, reward: 100 },
+  { id: "wait", text: "No patient waits more than 8 minutes", key: "noLongWait", target: 1, reward: 80 },
+  { id: "lab2", text: "Interpret 2 lab panels correctly", key: "labs", target: 2, reward: 70 },
+  { id: "emerg", text: "Treat an emergency in time", key: "emergencies", target: 1, reward: 120, level: 2 }
+];
+
+/* --- Staff roles --- */
+const STAFF_ROLES = {
+  receptionist: { label: "Receptionist", desc: "Registers arriving patients automatically (you still review the file). Greets and calms anxious owners.", wage: { junior: 25, senior: 40 } },
+  nurse: { label: "Veterinary nurse", desc: "Runs routine checkups (vaccines, nail trims) in the exam room without you; a junior nurse occasionally mis-records weight.", wage: { junior: 35, senior: 60 } },
+  assistant: { label: "Surgical assistant", desc: "Scrubs in with you: fewer anaesthetic events, instruments handed faster, swab counts double-checked.", wage: { junior: 40, senior: 70 } },
+  shopkeeper: { label: "Shop assistant", desc: "Sells to walk-in shop customers while you work.", wage: { junior: 20, senior: 30 } },
+  cleaner: { label: "Cleaner", desc: "Keeps the hygiene score high — fewer post-op infections and a better inspection result.", wage: { junior: 18, senior: 28 } }
+};
+const STAFF_NAMES = ["Nadia", "Bilal", "Rawan", "Hamza", "Leen", "Zaid", "Aya", "Karim", "Dima", "Laith"];
+
+/* --- Equipment & expansions --- */
+const EQUIPMENT = [
+  { id: "ultrasound", name: "Ultrasound machine", price: 900, desc: "Unlocks the ultrasound mini-game and abdominal cases (pyometra, splenic mass, foreign bodies).", icon: "monitor" },
+  { id: "analyser", name: "In-house blood analyser", price: 700, desc: "Lab panels return instantly; unlocks lab-reading quizzes and ASA refinement.", icon: "tray" },
+  { id: "monitor2", name: "Multiparameter anaesthesia monitor", price: 600, desc: "Capnography + invasive BP: anaesthetic events are announced earlier (easier to manage).", icon: "monitor" },
+  { id: "dentalmachine", name: "Dental unit & intra-oral X-ray", price: 1200, desc: "Needed to use the Dental Suite.", icon: "scalpel", needs: "dental" },
+  { id: "van", name: "Mobile vet van", price: 1500, desc: "Unlocks farm calls and the vaccination-camp event.", icon: "home" }
+];
+const EXPANSIONS = [
+  { id: "dental", name: "Dental Suite", price: 2500, desc: "A new room east of the staff room: dental cases for dogs, cats and rabbits.", icon: "scalpel" },
+  { id: "ward", name: "Exotics & Isolation Ward", price: 3000, desc: "A new room with heated kennels and an isolation bay: rabbits, tortoises and infectious cases (parvo).", icon: "bed" }
+];
+
+/* --- World events (one active per in-game week) --- */
+const EVENTS = [
+  { id: "heatwave", name: "Heatwave week", desc: "Temperatures over 40 °C — expect heat-stroke emergencies. Advise owners: walk at dawn/dusk, water always, never leave pets in cars.", weather: "clear", caseBias: "heatwave" },
+  { id: "parvo", name: "Parvovirus outbreak", desc: "Cases in the neighbourhood. Isolation protocol: gloves + gown for suspect patients, dedicated kennels, bleach disinfection. Unvaccinated puppies are at risk.", weather: "rain", caseBias: "parvo" },
+  { id: "ticks", name: "Tick season", desc: "Warm, wet weather brings ticks: tick-borne disease cases rise; every discharge should include prevention advice.", weather: "rain", caseBias: "ticks" },
+  { id: "shortage", name: "Supply shortage", desc: "The suture supplier is out of monofilament this week — braided absorbable suture is accepted as an alternative on ligatures, but it carries slightly more infection risk.", weather: "clear", shortage: "absorb" },
+  { id: "eid", name: "Holiday rush", desc: "Families travelling: boarding checks, vaccination certificates, and more walk-ins than usual. Rush hours are busier.", weather: "clear", rush: 1.5 },
+  { id: "calm", name: "Quiet week", desc: "A calm week — a good time to study, restock and train staff.", weather: "clear", rush: 0.8 }
+];
+
+/* --- Story arcs --- */
+const STORY = [
+  { id: "rival", day: 4, title: "A rival opens across the street", text: "“PawFect Clinic” opens opposite with a flashy sign and discount vaccines. Fewer walk-ins until your reputation climbs above 4 stars — then clients come back for quality.", effect: "rival" },
+  { id: "charity", day: 6, title: "The shelter asks for help", text: "The city animal shelter asks you to spay stray cats at cost (no fee, +reputation, +XP) a few times a week. You can accept or decline each time one arrives.", effect: "charity" },
+  { id: "inspector", day: 8, title: "Veterinary board inspection", text: "An inspector arrives unannounced and audits your sterile technique with five questions. Pass and you earn the 'Accredited' badge and a reputation boost; fail and reputation drops.", effect: "inspector" },
+  { id: "referral", day: 12, title: "You are the specialist now", text: "Neighbouring clinics start referring their difficult surgical cases to you: higher fees, harder cases, more anaesthetic events.", effect: "referral" },
+  { id: "board", day: 16, title: "Board certification", text: "You are eligible to sit the board exam (20 questions drawn from everything in the game). Pass to unlock Prestige mode.", effect: "board" }
+];
+
+/* --- Inspector / board quiz bank (asepsis + anaesthesia + pharmacology + anatomy) --- */
+const QUIZ_BANK = [
+  { q: "Which antiseptic combination is superior for preventing surgical-site infection?", a: ["Chlorhexidine-alcohol", "Povidone-iodine alone", "Plain water", "Hydrogen peroxide"], c: 0, topic: "asepsis" },
+  { q: "When do cap and mask go on relative to the surgical hand scrub?", a: ["Before the scrub", "After the scrub", "Only during the incision", "It doesn't matter"], c: 0, topic: "asepsis" },
+  { q: "Where should the patient be clipped?", a: ["In the prep room, never in theatre", "On the operating table", "In the waiting room", "Anywhere convenient"], c: 0, topic: "asepsis" },
+  { q: "Which part of a sterile gown is considered sterile?", a: ["Chest to waist, sleeves to 5 cm above the elbow", "The whole gown", "Only the gloves", "The back ties"], c: 0, topic: "asepsis" },
+  { q: "Steam autoclave standard cycle?", a: ["121 °C for 15 min (or 134 °C for 3 min)", "100 °C for 5 min", "70 °C for 60 min", "Dry heat 50 °C"], c: 0, topic: "asepsis" },
+  { q: "Target SpO₂ under anaesthesia?", a: ["≥ 95 %", "≥ 80 %", "≥ 70 %", "≥ 60 %"], c: 0, topic: "anaesthesia" },
+  { q: "Normal end-tidal CO₂ under anaesthesia?", a: ["35–45 mmHg", "10–20 mmHg", "60–80 mmHg", "0–5 mmHg"], c: 0, topic: "anaesthesia" },
+  { q: "Minimum mean arterial pressure to protect organ perfusion?", a: ["60 mmHg", "30 mmHg", "100 mmHg", "120 mmHg"], c: 0, topic: "anaesthesia" },
+  { q: "Why are birds intubated with an UNcuffed tube?", a: ["Complete tracheal rings — a cuff causes pressure necrosis", "Birds have no trachea", "Cuffs are too expensive", "Birds breathe through the skin"], c: 0, topic: "anaesthesia" },
+  { q: "Fasting time for a healthy adult dog before anaesthesia (AAHA 2020)?", a: ["4–6 hours", "24 hours", "48 hours", "None"], c: 0, topic: "anaesthesia" },
+  { q: "Should a rabbit be fasted before surgery?", a: ["No — rabbits cannot vomit and fasting causes gut stasis", "Yes, 12 hours", "Yes, 24 hours", "Only water"], c: 0, topic: "anaesthesia" },
+  { q: "First response to hypotension caused by inhalant anaesthesia?", a: ["Reduce the vaporiser setting", "Increase the vaporiser", "Stop oxygen", "Give adrenaline"], c: 0, topic: "anaesthesia" },
+  { q: "Permethrin spot-on is safe for:", a: ["Dogs only — toxic to cats", "Cats only", "Both dogs and cats", "Birds"], c: 0, topic: "pharmacology" },
+  { q: "Maximum enrofloxacin dose in cats?", a: ["5 mg/kg/day (retinal toxicity above)", "20 mg/kg/day", "50 mg/kg/day", "No limit"], c: 0, topic: "pharmacology" },
+  { q: "Penicillins in rabbits and guinea pigs:", a: ["Contraindicated — fatal dysbiosis", "First-line antibiotic", "Safe at double dose", "Only orally"], c: 0, topic: "pharmacology" },
+  { q: "Volume of a 5 mg/mL drug to give 0.2 mg/kg to a 10 kg dog?", a: ["0.4 mL", "4 mL", "0.04 mL", "1 mL"], c: 0, topic: "pharmacology" },
+  { q: "How many thoracic vertebrae and rib pairs do dogs and cats have?", a: ["13 and 13", "12 and 12", "7 and 7", "18 and 18"], c: 0, topic: "anatomy" },
+  { q: "The fused wrist/hand bone of a bird is the:", a: ["Carpometacarpus", "Tibiotarsus", "Synsacrum", "Furcula"], c: 0, topic: "anatomy" },
+  { q: "Which species keeps a tiny floating clavicle?", a: ["Cat", "Dog", "Horse", "Goat"], c: 0, topic: "anatomy" },
+  { q: "Which instrument is used to retrieve the uterine horn during a spay?", a: ["Snook hook", "Allis forceps", "Backhaus towel clamp", "Poole suction"], c: 0, topic: "instruments" },
+  { q: "Which scissors are correct for cutting suture?", a: ["Mayo scissors", "Metzenbaum scissors", "Iris scissors", "Any"], c: 0, topic: "instruments" },
+  { q: "Heavy forceps with longitudinal serrations for ovarian pedicles:", a: ["Rochester-Carmalt", "Adson", "Kelly", "Olsen-Hegar"], c: 0, topic: "instruments" },
+  { q: "Normal rectal temperature of a cat?", a: ["38.1–39.2 °C", "35–36 °C", "40–42 °C", "36.5–37.5 °C"], c: 0, topic: "vitals" },
+  { q: "Capillary refill time should be:", a: ["Under 2 seconds", "5 seconds", "10 seconds", "Over 3 seconds"], c: 0, topic: "vitals" },
+  { q: "Why must you never squeeze a bird's chest?", a: ["No diaphragm — the sternum must move to breathe", "Birds have hollow bones", "It makes them bite", "It is fine to squeeze gently"], c: 0, topic: "handling" },
+  { q: "Safest restraint for a fractious cat?", a: ["Towel wrap", "Heavy scruffing", "Holding all four legs tightly", "Letting it roam"], c: 0, topic: "handling" },
+  { q: "A blocked tomcat with HR 120 and K⁺ 8 mmol/L — first priority?", a: ["Treat the hyperkalaemia and stabilise the heart", "Express the bladder", "Send home", "Antibiotics"], c: 0, topic: "emergency" },
+  { q: "Stop active cooling of a heat-stroke dog at:", a: ["39.5 °C", "37 °C", "35 °C", "41 °C"], c: 0, topic: "emergency" }
+];
+
+/* --- Textbook pages unlocked by cases --- */
+const TEXTBOOK = {
+  heat_dog: "Heat stroke: core temp > 41 °C; cool with tepid water + airflow, stop at 39.5 °C; monitor for AKI, DIC, GI translocation for 48–72 h.",
+  parvo_pup: "Canine parvovirus: faecal-oral; 3–7 day incubation; neutropenia + haemorrhagic enteritis; isolation, fluids, anti-emetics, antibiotics, early nutrition. Vaccinate at 6–8, 10–12, 14–16 weeks.",
+  pyometra: "Pyometra: 4–8 weeks post-oestrus; open (discharge) or closed (more toxic); PU/PD from E. coli endotoxin; OHE is curative.",
+  stones_dog: "Uroliths: struvite (infection-related, dissolvable by diet) vs calcium oxalate (not dissolvable, surgical). Always analyse the stones.",
+  spleen_dog: "Haemoabdomen: 2/3 of splenic masses in dogs are malignant and 2/3 of those are haemangiosarcoma. Post-op arrhythmia watch 48 h.",
+  rabbit_stasis: "Rabbit GI stasis: pain → ileus → dehydration of gut contents → more pain. Analgesia, warmth, fluids, syringe feeding, prokinetics; identify the trigger.",
+  blocked_cat: "Feline urethral obstruction: hyperkalaemia → bradycardia, spiked T waves, absent P waves. Calcium gluconate protects the heart while insulin/dextrose shifts K⁺.",
+  mystery_addison: "Hypoadrenocorticism: Na:K < 27, lack of stress leukogram, bradycardia in a sick dog, microcardia; ACTH stimulation test; lifelong mineralocorticoid.",
+  dental_dog: "Periodontal disease stages 1–4; dental radiographs find 30–40 % more pathology than visual exam; fractured carnassials with pulp exposure always need treatment.",
+  tortoise_rhino: "Reptile husbandry: POTZ, UVB for vitamin D3 and calcium, hypovitaminosis A (swollen eyelids), weight by Jackson ratio."
+};
+
+/* --- Arabic UI strings (UI chrome; clinical content remains English) --- */
+const I18N = {
+  ar: { "Start shift": "ابدأ الوردية", "End shift": "أنهِ الوردية", "Reception desk": "مكتب الاستقبال", "Shift board": "لوحة الوردية", "Patients": "المرضى", "Interact": "تفاعل", "Help": "مساعدة", "Settings": "الإعدادات", "Close": "إغلاق", "Continue": "متابعة", "Next step": "الخطوة التالية", "Back": "رجوع", "Day": "اليوم", "Reputation": "السمعة", "Money": "المال", "Level": "المستوى", "Staff room": "غرفة الموظفين", "Office": "المكتب", "Shop": "المتجر", "Library": "المكتبة", "Exam room": "غرفة الفحص", "Operating room": "غرفة العمليات", "Pharmacy": "الصيدلية", "Laboratory": "المختبر", "X-ray suite": "غرفة الأشعة", "Prep room": "غرفة التحضير", "Waiting room": "غرفة الانتظار", "Walk to the patient": "امشِ إلى المريض", "Camera": "الكاميرا", "First person": "منظور الشخص الأول", "Third person": "منظور الشخص الثالث", "Language": "اللغة", "Sound": "الصوت", "Photo mode": "وضع التصوير", "Save code": "رمز الحفظ", "Daily goals": "أهداف اليوم", "Hire": "توظيف", "Wage": "الأجر اليومي", "Fire": "إنهاء الخدمة", "Buy": "شراء", "Owned": "مملوك", "Reset all progress": "إعادة تعيين كل التقدم" }
+};
