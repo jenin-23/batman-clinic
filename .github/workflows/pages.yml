@@ -18,6 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Stamp build version
+        run: |
+          B="${GITHUB_SHA::7}"
+          sed -i "s/__BUILD__/$B/g" sw.js js/version.js
+          echo "Build $B"
       - uses: actions/configure-pages@v5
         with:
           enablement: true
