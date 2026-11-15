@@ -26,8 +26,8 @@ function load() { try { const r = localStorage.getItem(SAVE_KEY); if (r) { const
 
 /* ---------------- UI primitives ---------------- */
 function toast(msg, kind = "info", ms = 3200) { const t = document.createElement("div"); t.className = "toast " + kind; t.innerHTML = msg; $("#toasts").appendChild(t); requestAnimationFrame(() => t.classList.add("show")); setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 400); }, ms); if (kind === "warn") Sound.vibrate(40); }
-function openPanel(title, html, opts = {}) { G.panelOpen = true; const p = $("#panel"); p.classList.remove("hidden"); p.classList.toggle("wide", !!opts.wide); p.classList.toggle("side", !!opts.side); $("#panelTitle").innerHTML = title; $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; $("#panelClose").style.display = opts.noClose ? "none" : ""; G.input.x = G.input.z = 0; G.keys = {}; }
-function closePanel() { G.panelOpen = false; $("#panel").classList.add("hidden"); if (G.onPanelClose) { const f = G.onPanelClose; G.onPanelClose = null; f(); } }
+function openPanel(title, html, opts = {}) { G.panelOpen = true; const p = $("#panel"); p.classList.remove("hidden"); p.classList.toggle("wide", !!opts.wide); p.classList.toggle("side", !!opts.side); document.body.classList.add("panel-open"); $("#panelTitle").innerHTML = title; $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; $("#panelClose").style.display = opts.noClose ? "none" : ""; G.input.x = G.input.z = 0; G.keys = {}; }
+function closePanel() { G.panelOpen = false; $("#panel").classList.add("hidden"); document.body.classList.remove("panel-open"); if (G.onPanelClose) { const f = G.onPanelClose; G.onPanelClose = null; f(); } }
 function setBody(html) { $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; }
 function hint(text) { return G.s.settings.hints ? `<div class="hintbox">${icon("help", 16)} <b>Mentor:</b> ${text}</div>` : ""; }
 function confetti() { const c = document.createElement("div"); c.className = "confetti"; for (let i = 0; i < 40; i++) { const s = document.createElement("i"); s.style.left = Math.random() * 100 + "%"; s.style.background = ["#f2c14e", "#7c6fcf", "#5f8fd6", "#e07a5f", "#4fb3a9"][i % 5]; s.style.animationDelay = (Math.random() * 0.6) + "s"; c.appendChild(s); } document.body.appendChild(c); setTimeout(() => c.remove(), 2600); }
@@ -43,13 +43,18 @@ function addXP(n, why) {
 function levelHint(l) { return { 2: "Fractures, emergencies and birds arrive. Take patients to the X-ray Suite and hover the bones. Rabbits appear once you own the Exotics Ward.", 3: "Surgery unlocks: Exam → Prep room checklist → Locker → Sink → Operating Room. Assemble the pack at the autoclave first (or hire a surgical assistant).", 4: "Abdominal surgery: gastrotomy and cystotomy. Longer procedures, more anaesthetic events, a swab count before closing.", 5: "Avian surgery and splenectomy. Referrals start arriving — higher stakes and higher fees.", 6: "Master Surgeon. Sit the board exam in the office to unlock Prestige." }[l] || ""; }
 function award(id) { if (G.s.achievements.includes(id)) return; const a = ACHIEVEMENTS.find(x => x.id === id); if (!a) return; G.s.achievements.push(id); Sound.success(); toast(`${icon(a.icon, 18)} Achievement: <b>${a.name}</b> — ${a.desc}`, "ach", 4200); addXP(25); }
 function earn(n) { G.s.money += n; Sound.cash(); updateHUD(); }
-function rep(delta, why) { const mult = G.s.settings.difficulty === "specialist" && delta < 0 ? 2 : 1; G.s.rep = Math.max(0, Math.min(5, G.s.rep + delta * mult)); if (why && Math.abs(delta) >= 0.1) toast(`${delta > 0 ? "▲" : "▼"} Reputation ${delta > 0 ? "+" : ""}${(delta * mult).toFixed(1)} · ${why}`, delta > 0 ? "good" : "warn", 2600); updateHUD(); }
+function difficultyScale() { const base = Math.max(0, Math.min(1, (G.s.day - 1) / 14)); const f = { student: 0.6, vet: 1, specialist: 1.35 }[G.s.settings.difficulty] || 1; return Math.min(1.4, base * f + (f - 1) * 0.3); }
+function rep(delta, why) {
+  const s = G.s; let d = delta;
+  if (d < 0) { const soft = { student: 0.4, vet: 0.7, specialist: 1.1 }[s.settings.difficulty] || 0.7; d = d * soft * (0.5 + 0.5 * Math.min(1, difficultyScale())); s.dayStats.repLoss = (s.dayStats.repLoss || 0) + Math.abs(d); if (s.dayStats.repLoss > 0.6) d = 0; }
+  s.rep = Math.max(0, Math.min(5, s.rep + d)); if (why && Math.abs(d) >= 0.05) toast(`${d > 0 ? "▲" : "▼"} Reputation ${d > 0 ? "+" : ""}${d.toFixed(2)} · ${why}`, d > 0 ? "good" : "warn", 2600); updateHUD();
+}
 function stat(key, n = 1) { G.s.dayStats[key] = (G.s.dayStats[key] || 0) + n; checkGoals(); }
 
 function starsHTML(r) { let h = ""; for (let i = 1; i <= 5; i++) h += `<span class="star ${r >= i ? "on" : r >= i - 0.5 ? "half" : ""}">${icon("star", 14)}</span>`; return h; }
 function updateHUD() {
   const s = G.s; $("#hudName").textContent = s.clinicName; $("#hudDay").textContent = `${T("Day")} ${s.day}`;
-  updateClockOnly(); $("#hudShift").textContent = s.shiftActive ? "● Shift open" : "○ Closed"; $("#hudShift").className = s.shiftActive ? "on" : "off";
+  updateClockOnly(); $("#hudShift").textContent = s.shiftActive ? (s.closing ? "◐ Closing" : "● Open") : "○ Closed"; $("#hudShift").className = s.shiftActive && !s.closing ? "on" : "off";
   $("#hudMoney").textContent = fmtMoney(s.money); $("#hudLevel").textContent = `Lv ${s.level}${s.story.prestige ? " ★" + s.story.prestige : ""}`;
   const cur = LEVELS.find(l => l.level === s.level), nxt = LEVELS.find(l => l.level === s.level + 1); const pct = nxt ? Math.min(100, (s.xp - cur.xp) / (nxt.xp - cur.xp) * 100) : 100; $("#xpFill").style.width = pct + "%"; $("#hudXP").textContent = nxt ? `${s.xp} / ${nxt.xp} XP` : `${s.xp} XP · MAX`;
   $("#hudRep").innerHTML = starsHTML(s.rep) + ` <span class="repnum">${s.rep.toFixed(1)}</span>`;
@@ -58,6 +63,7 @@ function updateHUD() {
   $("#hudOutfit").innerHTML = { clinic: icon("coat", 16) + " White coat", scrubs: icon("cap", 16) + " Scrubs + cap + mask", surgical: icon("glove", 16) + " Sterile gown + gloves" }[s.outfit];
   const list = G.patients.filter(p => p.status !== "done").map(p => `<li class="${p.emergency ? "emerg" : ""}"><span>${SPECIES[p.species].emoji} <b>${p.name}</b>${p.emergency && p.emergencyLeft > 0 ? ` <em>${Math.ceil(p.emergencyLeft)}s</em>` : ""}</span><span class="st ${p.status}">${statusLabel(p.status)}</span></li>`).join("");
   $("#board").innerHTML = list || "<li class='muted'>No patients right now</li>";
+  if (typeof updateNeeds === "function") updateNeeds();
   const g = s.goals.list || []; $("#goals").innerHTML = g.map(x => `<li class="${x.done ? "done" : ""}">${icon(x.done ? "check" : "tag", 14)} ${x.text}${x.target > 1 ? ` <em>${Math.min(x.progress, x.target)}/${x.target}</em>` : ""}</li>`).join("") || "<li class='muted'>Start a shift to get goals</li>";
   const ev = s.event ? EVENTS.find(e => e.id === s.event.id) : null; $("#eventBanner").innerHTML = ev ? `${icon(ev.weather === "rain" ? "drop" : "sun", 14)} ${ev.name}` : ""; $("#eventBanner").style.display = ev ? "" : "none";
 }
@@ -69,7 +75,7 @@ function clockStr() { const h = Math.floor(G.s.clockMin / 60), m = Math.floor(G.
 const CORR = 0; // corridor z
 const PATH = {
   entry: [[-5, -13.5], [-5, -11], [-5, -8.3]],
-  deskToWait: (i) => [[-6.5, -8.5], [[-10.5, -9.5], [-8.2, -9.6], [-7.2, -9.6], [-11.4, -6.5]][i % 4]],
+  deskToWait: (seat) => [[-6.5, -8.5], [seat.x + (seat.rot ? 0.9 : 0), seat.z + (seat.rot ? 0 : 0.9)]],
   waitToExam: [[-6, -7.5], [-5, -3.2], [-5, CORR], [6.5, CORR], [6.5, -3.2], [6.5, -5.4]],
   examToXray: [[6.5, -3], [6.5, CORR], [13.5, CORR], [13.5, 3], [13.5, 5.1]],
   examToPrep: [[6.5, -3], [6.5, CORR], [0, CORR], [0, 2.8], [0, 4]],
@@ -84,7 +90,11 @@ const PATH = {
   leave: [[-5, -11], [-5, -13.5]],
   entryToDesk: [[-5, -11], [-5, -8.3]]
 };
-const QUEUE_SPOTS = [[-5, -8.3], [-3.9, -9.3], [-6.1, -9.3]];
+const QUEUE_SPOTS = [[-5, -8.3], [-5, -9.5], [-5, -10.7], [-5, -11.6]];
+const SEATS = [{ x: -11.2, z: -10.5, rot: 0 }, { x: -10.5, z: -10.5, rot: 0 }, { x: -9.8, z: -10.5, rot: 0 }, { x: -12.3, z: -7.3, rot: Math.PI / 2 }, { x: -12.3, z: -6.5, rot: Math.PI / 2 }, { x: -12.3, z: -5.7, rot: Math.PI / 2 }, { x: -8.2, z: -10.5, rot: 0 }, { x: -7.2, z: -10.5, rot: 0 }];
+G.seatTaken = {};
+function takeSeat(p) { const i = SEATS.findIndex((st, k) => !G.seatTaken[k]); if (i < 0) return null; G.seatTaken[i] = p.id; p.seat = i; return SEATS[i]; }
+function freeSeat(p) { if (p.seat !== undefined) { delete G.seatTaken[p.seat]; p.seat = undefined; } if (p.npc) p.npc.rig.sitting = false; }
 
 /* ---------------- patients ---------------- */
 function has(eq) { return G.s.equipment.includes(eq); }
@@ -92,7 +102,7 @@ function owns(ex) { return G.s.expansions.includes(ex); }
 function eligibleCases(opts = {}) {
   const ev = G.s.event ? EVENTS.find(e => e.id === G.s.event.id) : null;
   return CASES.filter(c => {
-    if (c.level > G.s.level) return false; if (c.species === "bird" && G.s.level < 2) return false;
+    if (c.level > G.s.level) return false; if (c.species === "bird" && G.s.level < 2) return false; if (c.emergency && G.s.day < 3 && !opts.any) return false;
     if (c.needs && !owns(c.needs)) return false; if ((c.species === "rabbit" || c.species === "tortoise") && !owns("ward")) return false;
     if (c.outcome === "dental" && !has("dentalmachine")) return false; if (c.farm) return false; if (c.mystery && !opts.mystery) return false;
     if (["pyometra", "spleen_dog"].includes(c.id) && !has("ultrasound")) return false; if (c.season && (!ev || ev.caseBias !== c.season)) return false;
@@ -107,7 +117,7 @@ function spawnPatient(force) {
   const known = G.s.clients.filter(k => k.pets.some(pt => pt.species === c.species)); const returning = !force && known.length && Math.random() < 0.4 ? pick(known) : null;
   const petRec = returning ? pick(returning.pets.filter(pt => pt.species === c.species)) : null;
   const stray = !force && !returning && Math.random() < 0.08 && G.s.level >= 2;
-  const p = { id: G.patientSeq++, caseDef: c, species: c.species, status: "arriving", record: [], mistakes: 0, examDone: {}, vitals: null, intake: null, emergency: !!c.emergency, emergencyLeft: c.emergency ? (G.s.settings.difficulty === "student" ? 300 : G.s.settings.difficulty === "specialist" ? 150 : 210) : 0, arrivedAt: G.s.clockMin, stray, mystery: !!c.mystery,
+  const p = { id: G.patientSeq++, caseDef: c, species: c.species, status: "arriving", record: [], mistakes: 0, examDone: {}, vitals: null, intake: null, emergency: !!c.emergency, emergencyLeft: c.emergency ? Math.round(360 - difficultyScale() * 120) : 0, arrivedAt: G.s.clockMin, arrivedReal: performance.now(), stray, mystery: !!c.mystery,
     name: petRec ? petRec.name : pick(sp.names.concat(G.s.customNames)), ownerName: stray ? "Good Samaritan" : returning ? returning.ownerName : pick(OWNER_NAMES), breed: petRec ? petRec.breed : pick(sp.breeds), sex: petRec ? petRec.sex : pick(["male", "female"]),
     weight: petRec ? petRec.weight : +(c.species === "bird" ? rnd(sp.weight[0], sp.weight[1]).toFixed(3) : rnd(sp.weight[0], sp.weight[1]).toFixed(1)), personality: returning ? returning.personality : pick(Object.keys(OWNER_TYPES)), client: returning || null, petRec, fear: petRec ? petRec.fear : 0.3 };
   p.age = petRec ? ageLabel(petRec.ageMonths + (G.s.day - petRec.lastDay)) : (c.id.includes("vax_cat") ? "10 weeks" : c.id === "spay_dog" ? "7 months" : c.id === "parvo_pup" ? "12 weeks" : c.id === "spleen_dog" || c.id === "pyometra" ? `${Math.floor(rnd(8, 12))} years` : `${Math.floor(rnd(1, 9))} years`);
@@ -117,10 +127,10 @@ function spawnPatient(force) {
   p.rx = c.outcome === "surgery" ? "meloxicam" : { lac_dog: "amoxiclav", limp_cat: "meloxicam", limp_dog: "meloxicam", rabbit_stasis: "metoclop", parvo_pup: "maropitant", blocked_cat: "bupren", tick_dog: "enro", ear_dog: null }[c.id] || null;
   const skinTones = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac], shirts = [0x7c6fcf, 0x5f8fd6, 0xe07a5f, 0xf2c14e, 0x4fb3a9, 0xb4557a, 0x3a3f66], pants = [0x24304f, 0x3a3a4e, 0x5a3e2b];
   const petColors = { dog: [0xd9a066, 0x5b4636, 0xf5e6c8, 0x8c8c8c, 0xe8d5b5], cat: [0xf2a35e, 0x3a3a3a, 0xf7f3ec, 0xa9a9a9, 0xc7b299], bird: [0x7fd1c7, 0xfff3a0, 0x9fd7ff, 0xb7e3a3], rabbit: [0xf7f3ec, 0xc7b299, 0x5b4636, 0x8c8c8c], tortoise: [0x8a9b5a] };
-  p.npcCfg = returning && returning.cfg ? returning.cfg : { skin: pick(skinTones), hair: pick([0x1b1420, 0x4a2c1a, 0x8b5a2b, 0xd9b38c]), shirt: pick(shirts), pants: pick(pants), curly: Math.random() < 0.4, glasses: Math.random() < 0.3, pet: { species: c.species, color: petRec ? petRec.color : pick(petColors[c.species]) } };
+  p.npcCfg = Object.assign({}, returning && returning.cfg ? returning.cfg : { skin: pick(skinTones), hair: pick([0x1b1420, 0x4a2c1a, 0x8b5a2b, 0xd9b38c]), shirt: pick(shirts), pants: pick(pants), curly: Math.random() < 0.4, glasses: Math.random() < 0.3 }, { pet: { species: c.species, color: petRec ? petRec.color : pick(petColors[c.species]) } });
   p.npc = World.addNPC(Object.assign({ x: -5, z: -16 }, p.npcCfg));
   G.patients.push(p);
-  const q = G.patients.filter(x => ["arriving", "at_desk"].includes(x.status)).length - 1; const spot = QUEUE_SPOTS[Math.min(q, 2)];
+  const q = G.patients.filter(x => ["arriving", "at_desk"].includes(x.status)).length - 1; const spot = QUEUE_SPOTS[Math.min(q, 3)];
   p.npc.path = [[-5, -11], [-5, -9.3], spot]; p.npc.speed = p.emergency ? 3.4 : 2.2; p.npc.onArrive = () => { p.status = "at_desk"; updateHUD(); };
   setTimeout(() => Sound.door(), 900); setTimeout(() => { Sound.bell(); Sound.vibrate(25); toast(`${icon("bell", 18)} ${p.emergency ? "<b>EMERGENCY</b> — " : ""}${p.ownerName} arrives with ${p.name} the ${p.breed}${returning ? " (regular client)" : stray ? " (stray — no owner)" : " (new patient)"}`, p.emergency ? "warn" : "info", 4000); setTimeout(() => Sound.pet(p.species), 500); }, 1600);
   if (p.emergency) Sound.alarm();
@@ -129,7 +139,7 @@ function spawnPatient(force) {
 }
 function ageLabel(m) { return m < 12 ? `${m} months` : `${Math.floor(m / 12)} years`; }
 function walkNPC(p, path, status, onArrive) { p.status = status; p.npc.petFollow = true; p.npc.pet.group.position.y = 0; if (p.npc.pet.parts.cage) p.npc.pet.parts.cage.visible = p.species === "bird"; p.npc.path = path.slice(); p.npc.onArrive = () => { if (onArrive) onArrive(); updateHUD(); }; updateHUD(); }
-function reflowQueue() { const q = G.patients.filter(x => ["arriving", "at_desk"].includes(x.status)); q.forEach((p, i) => { const sp = QUEUE_SPOTS[Math.min(i, 2)]; if (p.status === "at_desk") { p.status = "arriving"; p.npc.path = [sp]; p.npc.onArrive = () => { p.status = "at_desk"; updateHUD(); }; } else if (p.npc.path.length) p.npc.path[p.npc.path.length - 1] = sp; }); updateHUD(); }
+function reflowQueue() { const q = G.patients.filter(x => ["arriving", "at_desk"].includes(x.status)); q.forEach((p, i) => { const sp = QUEUE_SPOTS[Math.min(i, 3)]; if (p.status === "at_desk") { p.status = "arriving"; p.npc.path = [sp]; p.npc.onArrive = () => { p.status = "at_desk"; updateHUD(); }; } else if (p.npc.path.length) p.npc.path[p.npc.path.length - 1] = sp; }); updateHUD(); }
 function patientAt(status) { return G.patients.find(p => p.status === status); }
 function feeFor(p) { let f = p.fee || p.caseDef.fee; f *= 0.8 + G.s.rep * 0.08; if (p.referral) f *= 1.5; if (p.stray || p.charity) f = 0; if (p.night) f *= 1.5; return Math.round(f); }
 
@@ -166,6 +176,10 @@ const INTERACT = [
   { id: "printer", pos: { x: -19.5, z: 10.5 }, r: 1.1, label: () => "Printer — print case files", action: () => uiCases() },
   { id: "bookshelf", pos: { x: -19.8, z: 7 }, r: 1.4, label: () => "Bookshelf — references, textbook & quiz", action: () => uiLibrary() },
   { id: "thankWall", pos: { x: -17, z: 10.9 }, r: 1.3, label: () => "Thank-you wall & collections", action: () => uiCollections() },
+  { id: "homeDoor", pos: { x: -10, z: -25.2 }, r: 1.7, label: () => G.s.shiftActive ? (G.s.closing && !G.patients.filter(p => p.status !== "done").length ? "Home — finish the day & go in" : "Home — the clinic is still open") : "Home — go in and rest", action: () => { if (!G.s.shiftActive) return goHome(); if (G.s.closing && !G.patients.filter(p => p.status !== "done").length) return endShift(); toast(G.s.closing ? "Patients are still inside the clinic." : "Close the clinic doors first (shift board), then come home.", "warn"); } },
+  { id: "mapBoard", pos: { x: 3.5, z: -12.6 }, r: 1.3, label: () => "City map", action: () => uiMap() },
+  { id: "parkBench", pos: { x: 12, z: -30.2 }, r: 1.5, label: () => "Garden bench — sit a moment (+energy)", action: () => { award("explorer"); if (G.s.benchDay === G.s.day) return think("Nice out here. Back to work."); G.s.benchDay = G.s.day; energy(12); Sound.chirp(); think("Fresh air. I needed that."); toast("You rest on the bench for a few minutes. Energy +12 %.", "good"); } },
+  { id: "busStop", pos: { x: 24, z: -13.2 }, r: 1.5, label: () => "Bus stop — trips (coming soon)", action: () => toast("The bus to the vet school and the shelter is on the roadmap.", "info") },
   { id: "van", pos: { x: 9, z: -18.6 }, r: 2.2, label: () => has("van") ? "Mobile vet van — farm calls" : "Mobile vet van (buy in the office)", action: () => uiVan() }
 ];
 function dynamicInteractables() {
@@ -173,7 +187,7 @@ function dynamicInteractables() {
   const cp = World.catPos(); if (cp) list.push({ id: "cat", pos: { x: cp.x, z: cp.z }, r: 1.1, label: () => `Pet ${G.s.clinicPet.name}`, action: () => petClinicPet() });
   return list;
 }
-function callToExam(p) { if (patientAt("exam_ready") || patientAt("to_exam")) return toast("The exam room is occupied.", "warn"); Sound.click(); const waited = G.s.clockMin - p.arrivedAt; if (waited > 8) { G.s.dayStats.longWait = 1; rep(-0.1, `${p.name} waited ${Math.round(waited)} min`); } walkNPC(p, PATH.waitToExam, "to_exam", () => { World.placePet(p.npc, 6.5, 1.0, -7, Math.PI / 2); p.npc.rig.group.position.set(7.4, 0, -6.1); p.npc.rig.group.rotation.y = -Math.PI / 2; p.status = "exam_ready"; Sound.pet(p.species); toast(`${p.name} is on the exam table.`, "info"); }); }
+function callToExam(p) { if (patientAt("exam_ready") || patientAt("to_exam")) return toast("The exam room is occupied.", "warn"); Sound.click(); freeSeat(p); if (p.npc.pet) p.npc.pet.sleeping = false; const waitedS = (performance.now() - (p.arrivedReal || performance.now())) / 1000; const limit = 240 - difficultyScale() * 90; if (waitedS > limit) { G.s.dayStats.longWait = 1; rep(-0.08, `${p.name} waited too long`); } else if (waitedS < 60) addXP(5, "seen promptly"); walkNPC(p, PATH.waitToExam, "to_exam", () => { World.placePet(p.npc, 6.5, 1.0, -7, Math.PI / 2); p.npc.rig.group.position.set(7.4, 0, -6.1); p.npc.rig.group.rotation.y = -Math.PI / 2; p.status = "exam_ready"; Sound.pet(p.species); toast(`${p.name} is on the exam table.`, "info"); }); }
 
 /* ---------------- SHIFT ---------------- */
 function uiShiftBoard() {
@@ -183,14 +197,14 @@ function uiShiftBoard() {
   openPanel(`${icon("clock", 20)} ${T("Shift board")}`, `
     <div class="cols"><div>
       <h4>Shift</h4>${ev ? `<div class="alarmbox"><b>${ev.name}</b> — ${ev.desc}</div>` : ""}
-      ${s.shiftActive ? `<p>Shift is open. ${active ? `<b>${active}</b> patient(s) still inside — finish them or they'll be rescheduled.` : "No patients inside."}</p><p class="muted">End-of-day costs: wages ${wages} JD + rent & utilities ${costs} JD.</p><button class="btn warn" onclick="endShift()">${T("End shift")}</button>`
+      ${s.shiftActive ? (s.closing ? `<p><b>Doors closed.</b> ${active ? `<b>${active}</b> patient(s) still inside — finish them, then go home.` : "Clinic is empty — time to go home."}</p><p class="muted">End-of-day costs: wages ${wages} JD + rent & utilities ${costs} JD.</p><div class="btnrow">${active ? `<button class="btn warn" onclick="endShift(true)">Reschedule remaining & go home</button><button class="btn" onclick="reopenDoors()">Reopen doors</button>` : `<button class="btn primary" onclick="endShift()">${icon('home', 16)} Finish day & go home</button>`}</div>` : `<p>Shift is open. ${active ? `<b>${active}</b> patient(s) inside.` : "No patients inside."}</p><p class="muted">Closing the doors stops new clients; everyone already inside is still treated.</p><button class="btn warn" onclick="closeDoors()">${icon('door', 16)} Close the doors</button>`)
         : `<p>Open the doors and patients start arriving. Arrival rate depends on your reputation (${s.rep.toFixed(1)} ★) and the week's event.</p><button class="btn primary" onclick="startShift()">${T("Start shift")} (Day ${s.day})</button>${s.weekly.week !== isoWeek() ? `<button class="btn" onclick="startWeekly()">Weekly challenge shift</button>` : `<p class="muted">Weekly challenge done — best ${s.weekly.best} XP.</p>`}`}
       <h4>${T("Daily goals")}</h4><ul class="plain goals">${(s.goals.list || []).map(g => `<li class="${g.done ? "done" : ""}">${icon(g.done ? "check" : "tag", 14)} ${g.text} <em>+${g.reward} JD</em></li>`).join("") || "<li class='muted'>Goals are drawn when the shift starts.</li>"}</ul>
       <p><b>Level ${s.level}</b> — ${LEVELS.find(l => l.level === s.level).unlock}<br>${nxt ? `Next: Lv ${nxt.level} at ${nxt.xp} XP → ${nxt.unlock}` : "Max level"}</p>
     </div><div><h4>Achievements (${s.achievements.length}/${ACHIEVEMENTS.length})</h4><div class="achlist">${ach}</div></div></div>`, { wide: true });
 }
 function startShift(weekly) {
-  const s = G.s; s.shiftActive = true; s.clockMin = 9 * 60; G.spawnTimer = 3; G.shopTimer = 25; G.closingWarned = false; s.dayStats = {}; G.weeklyMode = !!weekly;
+  const s = G.s; s.shiftActive = true; s.closing = false; s.clockMin = 9 * 60; G.spawnTimer = 3; G.shopTimer = 25; G.closingWarned = false; s.dayStats = {}; G.weeklyMode = !!weekly;
   // weekly event
   if (!s.event || s.day - s.event.startDay >= 7) { const ev = pick(EVENTS.filter(e => !s.event || e.id !== s.event.id)); s.event = { id: ev.id, startDay: s.day }; toast(`${icon("tag", 18)} <b>${ev.name}</b> — ${ev.desc}`, "info", 7000); }
   applyWeather();
@@ -204,18 +218,23 @@ function startShift(weekly) {
   Sound.success(); toast(`${icon("sun", 18)} Shift started — the clinic is open!`, "good"); closePanel(); updateHUD(); save();
   if (weekly) { G.weeklyQueue = seededCases(isoWeek()); toast("Weekly challenge: the same 5 cases for everyone this week. Earn as much XP as you can.", "info", 5000); }
 }
-function endShift() {
-  const s = G.s; const active = G.patients.filter(p => p.status !== "done"); active.forEach(p => { World.removeNPC(p.npc); p.status = "done"; }); G.patients = []; G.shopCustomer = null;
+function closeDoors() { G.s.closing = true; Sound.door(); toast(`${icon("moon", 18)} Doors closed — no new clients. Finish everyone inside, then go home from the shift board.`, "info", 5000); closePanel(); updateHUD(); save(); }
+function reopenDoors() { G.s.closing = false; toast("Doors open again.", "good"); closePanel(); updateHUD(); }
+function endShift(force) {
+  const s = G.s; const active = G.patients.filter(p => p.status !== "done");
+  if (active.length && !force) { toast(`${active.length} patient(s) still inside — finish them, or reschedule them (−reputation).`, "warn", 4000); return; }
+  active.forEach(p => { World.removeNPC(p.npc); p.status = "done"; }); G.patients = []; G.shopCustomer = null; G.seatTaken = {};
   const wages = staffWages(), costs = runningCosts(); const goalMoney = s.goals.list.filter(g => g.done).reduce((a, g) => a + g.reward, 0);
-  s.money += goalMoney - wages - costs; if (s.money < 0) { s.payrollMissed++; if (s.payrollMissed >= 2 && s.staff.length) { const q = s.staff.pop(); toast(`${q.name} quit — wages unpaid twice.`, "warn", 5000); rep(-0.3, "staff walked out"); rebuildStaffNPCs(); } } else s.payrollMissed = 0;
-  if (active.length) rep(-0.15 * active.length, `${active.length} patient(s) rescheduled`);
+  s.money += goalMoney - wages - costs; if (s.money < 0) { s.payrollMissed++; if (s.payrollMissed >= 2 && s.staff.length) { const q = s.staff.pop(); toast(`${q.name} quit — wages unpaid twice.`, "warn", 5000); rep(-0.2, "staff walked out"); rebuildStaffNPCs(); } } else s.payrollMissed = 0;
+  if (active.length) rep(-0.08 * active.length, `${active.length} patient(s) rescheduled`);
   if (s.rep >= 4) stat("repHigh"); if (!(s.dayStats.handlingErrors)) stat("handlingErrorsZero"); if (!s.dayStats.longWait) stat("noLongWait"); checkGoals();
   const goalMoney2 = s.goals.list.filter(g => g.done).reduce((a, g) => a + g.reward, 0) - goalMoney; s.money += goalMoney2;
-  s.shiftActive = false; s.shiftsDone++; s.day++; if (s.shiftsDone >= 3) award("shifts3"); addXP(30);
+  s.staff.forEach(x => x.days++); s.rep = Math.min(5, s.rep + (s.rep < 3.5 ? 0.04 : 0)); // slow natural recovery
+  s.shiftActive = false; s.closing = false; s.shiftsDone++; s.day++; if (s.shiftsDone >= 3) award("shifts3"); addXP(30);
   if (G.weeklyMode) { const xp = s.dayStats.xp || 0; if (xp > s.weekly.best) s.weekly.best = xp; s.weekly.week = isoWeek(); G.weeklyMode = false; }
   Sound.music.stop(); World.setWeather("clear");
-  setBody(`<h3>${icon("moon", 20)} Shift complete — Day ${s.day - 1}</h3><table class="ref"><tr><td>Patients seen today</td><td>${s.dayStats.patients || 0}</td></tr><tr><td>Goals achieved</td><td>${s.goals.list.filter(g => g.done).length}/3 (+${goalMoney + goalMoney2} JD)</td></tr><tr><td>Staff wages</td><td>−${wages} JD</td></tr><tr><td>Rent & utilities</td><td>−${costs} JD</td></tr><tr><td>Reputation</td><td>${starsHTML(s.rep)} ${s.rep.toFixed(1)}</td></tr><tr><td>Hygiene score</td><td>${s.hygiene}%</td></tr><tr><td>Balance</td><td><b>${fmtMoney(s.money)}</b></td></tr></table>${s.money < 0 ? "<div class='badbox'>You are overdrawn. Sell stock, skip hiring, or take fewer staff — two unpaid paydays and staff leave.</div>" : ""}<p>Energy ${Math.round(s.energy)}% — ${s.clinicPet.feeds >= 2 ? `${s.clinicPet.name} was fed twice today.` : `<b>${s.clinicPet.name} was only fed ${s.clinicPet.feeds} time(s) today</b> (clients notice a hungry clinic pet).`}</p><div class="btnrow"><button class="btn primary" onclick="goHome()">${icon("home", 16)} Go home & rest</button><button class="btn" onclick="shareCard('day')">${icon("share", 16)} Share day card</button></div>`);
-  if (s.clinicPet.feeds < 2) { rep(-0.05 * (2 - s.clinicPet.feeds)); s.clinicPet.missed += 2 - s.clinicPet.feeds; } s.clinicPet.feeds = 0; s.clinicPet.hunger = Math.min(100, s.clinicPet.hunger + 30); s.naps = 0; s.coffees = 0; G.exhausted = false;
+  openPanel(`${icon("moon", 20)} Day ${s.day - 1} complete`, `<table class="ref"><tr><td>Patients seen</td><td>${s.dayStats.patients || 0}</td></tr><tr><td>Goals achieved</td><td>${s.goals.list.filter(g => g.done).length}/3 (+${goalMoney + goalMoney2} JD)</td></tr><tr><td>Staff wages</td><td>−${wages} JD</td></tr><tr><td>Rent & utilities</td><td>−${costs} JD</td></tr><tr><td>Reputation</td><td>${starsHTML(s.rep)} ${s.rep.toFixed(1)}</td></tr><tr><td>Hygiene</td><td>${s.hygiene}%</td></tr><tr><td>Balance</td><td><b>${fmtMoney(s.money)}</b></td></tr></table>${s.money < 0 ? "<div class='badbox'>Overdrawn. Two unpaid paydays and staff leave.</div>" : ""}<p>Energy ${Math.round(s.energy)}% — ${s.clinicPet.feeds >= 2 ? `${s.clinicPet.name} was fed twice today.` : `<b>${s.clinicPet.name} was fed ${s.clinicPet.feeds} time(s) today.</b>`}</p><div class="btnrow"><button class="btn primary" onclick="goHome()">${icon("home", 16)} Go home & rest</button><button class="btn" onclick="shareCard('day')">${icon("share", 16)} Share day card</button></div>`, { noClose: true });
+  if (s.clinicPet.feeds < 2) { rep(-0.03 * (2 - s.clinicPet.feeds)); s.clinicPet.missed += 2 - s.clinicPet.feeds; } s.clinicPet.feeds = 0; s.clinicPet.hunger = Math.min(100, s.clinicPet.hunger + 30); s.naps = 0; s.coffees = 0; G.exhausted = false;
   updateHUD(); save();
 }
 function isoWeek() { const d = new Date(); const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day); const y = new Date(Date.UTC(t.getUTCFullYear(), 0, 1)); return `${t.getUTCFullYear()}-W${Math.ceil(((t - y) / 864e5 + 1) / 7)}`; }
@@ -227,7 +246,7 @@ function uiDesk() {
   const d = patientAt("ready_discharge"); if (d) return uiDischarge(d);
   const p = patientAt("at_desk");
   if (!p) { const w = G.patients.filter(x => x.status === "waiting"); return openPanel(`${icon("bell", 20)} Reception`, `<p>${G.s.shiftActive ? "No one is at the desk right now." : "The clinic is closed — open a shift at the shift board by the entrance."}</p>${w.length ? `<p>${w.length} patient(s) in the waiting room. Walk to them and press <kbd>E</kbd> to call them in.</p>` : ""}${hint("Hire a receptionist in the staff room and registration happens automatically while you work.")}`); }
-  if (!p.greeted && !p.stray) { p.greeted = true; return uiOwnerTalk(p, () => uiDesk()); }
+  if (!p.greeted && !p.stray) { p.greeted = true; return (typeof bubbleTalk === "function" ? bubbleTalk(p, () => uiDesk()) : uiOwnerTalk(p, () => uiDesk())); }
   const sp = SPECIES[p.species];
   openPanel(`${icon("bell", 20)} Registration — ${p.ownerName} & ${p.name}`, `
     ${p.emergency ? `<div class="alarmbox"><b>Emergency</b> — triage immediately; time left ${Math.ceil(p.emergencyLeft)} s.</div>` : ""}
@@ -259,8 +278,9 @@ function finishIntake(id) {
   p.record.push(`${clockStr()} — Registered. ${p.sex}, ${p.age}, ${p.weight} kg. Vaccination: ${p.intake.vax}. Triage: ${p.intake.triage}.`);
   award("first_patient"); addXP(10, "patient registered"); Sound.click(); closePanel();
   if (p.emergency) { callToExam(p); toast("Emergency goes straight to the exam room.", "warn"); reflowQueue(); return; }
-  const idx = G.patients.filter(x => x.status === "waiting").length; walkNPC(p, PATH.deskToWait(idx), "waiting", () => Sound.pet(p.species)); reflowQueue();
+  seatPatient(p); reflowQueue();
 }
+function seatPatient(p) { const seat = takeSeat(p) || { x: -9 + Math.random() * 2, z: -8.6, rot: 0, stand: true }; const stands = seat.stand || Math.random() < 0.2; walkNPC(p, PATH.deskToWait(seat), "waiting", () => { Sound.pet(p.species); const r = p.npc.rig.group; if (!stands) { r.position.set(seat.x, 0, seat.z); r.rotation.y = seat.rot === 0 ? 0 : seat.rot; p.npc.rig.sitting = true; const pr = p.npc.pet.group; const off = seat.rot ? { x: 0.75, z: 0.35 } : { x: 0.4, z: 0.75 }; World.placePet(p.npc, seat.x + off.x, 0, seat.z + off.z, seat.rot === 0 ? Math.PI : -Math.PI / 2); if (p.npc.pet.parts.cage) { p.npc.pet.parts.cage.visible = true; pr.position.y = 0; } p.npc.pet.sleeping = p.species !== "bird" && Math.random() < 0.4; } else { r.rotation.y = Math.PI; } }); }
 
 /* ---------------- EXAM ---------------- */
 function genVitals(p) {
@@ -274,14 +294,14 @@ function vitalClass(val, r) { return val < r[0] ? "low" : val > r[1] ? "high" : 
 function uiExam() {
   const p = patientAt("exam_ready"); if (!p) return openPanel(`${icon("steth", 20)} Exam room`, "<p>No patient on the table. Call one from the waiting room.</p>" + hint("A veterinary nurse can run routine checkups here for you."));
   if (!p.vitals) p.vitals = genVitals(p);
-  if (!p.cueChecked) { p.cueChecked = true; const chance = 0.25 + p.fear * 0.5; if (Math.random() < chance || p.species === "bird") return uiBehaviourCue(p); }
+  if (!p.cueChecked) { p.cueChecked = true; const chance = 0.1 + p.fear * 0.35 + difficultyScale() * 0.15 + (p.species === "bird" ? 0.2 : 0); if (Math.random() < chance) return uiBehaviourCue(p); }
   renderExam(p);
 }
 function uiBehaviourCue(p) {
   const cue = { dog: "whale eye, stiff body, a low growl as you reach for the leg", cat: "ears flat, tail thrashing, pupils wide, a hiss", bird: "feathers raised, beak open, lunging at the towel", rabbit: "thumping a hind foot, eyes bulging, trying to bolt", tortoise: "withdrawn tightly into the shell, hissing air" }[p.species];
   p.npc.petMood = "tense"; Sound.petAngry(p.species);
   openPanel(`${icon("warn", 20)} Read the body language`, `<p class="big">${p.name} shows: <b>${cue}</b>.</p><p>What now?</p><button class="btn opt" id="cuePause">Pause, lower your hands, reduce stimulation; prepare the right restraint before continuing</button><button class="btn opt" id="cuePush">Carry on quickly before it gets worse</button>${hint("Animals telegraph a bite or scratch seconds before it happens. Reading the cue and changing the plan is the skill — forcing it is how staff get hurt.")}`, { noClose: true });
-  $("#cuePause").onclick = () => { Sound.success(); addXP(15, "read the body language"); p.npc.petMood = "calm"; p.fear = Math.max(0, p.fear - 0.1); MGpanel("Restraint", (el) => MG.restraint(el, p.species)).then(r => { if (!r.ok) { p.mistakes++; stat("handlingErrors"); } renderExam(p); }); };
+  $("#cuePause").onclick = () => { Sound.success(); addXP(15, "read the body language"); p.npc.petMood = "calm"; p.fear = Math.max(0, p.fear - 0.1); MGpanel("Gentle restraint", (el) => MG.restraint(el, p.species)).then(r => { if (!r.ok) { p.mistakes++; stat("handlingErrors"); } renderExam(p); }); };
   $("#cuePush").onclick = () => uiFightBack(p, () => renderExam(p));
 }
 function MGpanel(title, runner, opts = {}) { openPanel(`${icon(opts.icon || "hand", 20)} ${title}`, `<div id="mgHost"></div>`, { noClose: true, wide: true }); energy(-1); return runner($("#mgHost")).then(r => { if (r && r.ok && G.s.energy < 25 && Math.random() < 0.15) { r.ok = false; r.text += " (fatigue error)"; toast("Fatigue cost you that one — take a break.", "warn"); } return r; }); }
@@ -290,15 +310,15 @@ function renderExam(p) {
   const steps = EXAM_STEPS.map(s => `<div class="step ${done[s.id] ? "done" : ""}" onclick="examStep(${p.id},'${s.id}')"><span class="chk">${done[s.id] ? icon("check", 16) : ""}</span><div><b>${s.label}</b>${done[s.id] ? `<div class="tip">${s.tip}${s.id === "tpr" ? vitalsHTML(p) : ""}${s.id === "history" ? `<div class='tip'>Owner: “${p.caseDef.complaint}”</div>` : ""}${s.id === "ausc" && p.hidden && p.hidden.murmur ? `<div class='tip'><b>Finding:</b> grade II/VI systolic murmur over the left apex — note for the anaesthetic plan (ASA II).</div>` : ""}${s.id === "msk" && p.secondary ? `<div class='tip'><b>Also noted:</b> ${p.secondary}.</div>` : ""}${s.id === "bcs" ? `<div class='tip'>${BCS[p.caseDef.id === "bird_well" ? 1 : p.secondary && p.secondary.includes("overweight") ? 3 : 2]}</div>` : ""}</div>` : ""}</div></div>`).join("");
   openPanel(`${icon("steth", 20)} Physical exam — ${sp.emoji} ${p.name} (${p.breed}, ${p.age}, ${p.weight} kg)${p.emergency ? ` <span class="emerg">EMERGENCY ${Math.ceil(p.emergencyLeft)} s</span>` : ""}`, `
     <div class="cols"><div><h4>Work through the exam in order</h4>${steps}</div>
-    <div><h4>Findings</h4>${allDone ? `<p>${p.caseDef.findings}</p>${p.mystery ? `<button class="btn primary" onclick="uiDDX(${p.id})">${icon("flask", 16)} Open the differential board</button>` : `<h4>Your assessment & plan</h4>${p.caseDef.options.map((o, i) => `<button class="btn opt" onclick="diagnose(${p.id},${i})">${o}</button>`).join("")}`}` : `<p class="muted">Complete every exam step to reveal the findings.</p>${hint("Skipping auscultation means you miss murmurs that change the anaesthetic risk; skipping the skin check misses parasites.")}`}
+    <div><h4>Findings</h4>${allDone ? `<p>${p.caseDef.findings}</p>${p.mystery ? `<button class="btn primary" onclick="uiDDX(${p.id})">${icon("flask", 16)} Open the differential board</button>` : `<h4>Your assessment & plan</h4><p class="muted small">All three are real plans — only one fits these findings.</p>${(p.optOrder || (p.optOrder = p.caseDef.options.map((o, i) => i).sort(() => Math.random() - 0.5))).map(i => `<button class="btn opt" onclick="diagnose(${p.id},${i})">${p.caseDef.options[i]}</button>`).join("")}`}` : `<p class="muted">Complete every exam step to reveal the findings.</p>${hint("Skipping auscultation means you miss murmurs that change the anaesthetic risk; skipping the skin check misses parasites.")}`}
     <h4>Normal ranges — ${sp.label}</h4><table class="ref small"><tr><td>Temp</td><td>${v.temp[0]}–${v.temp[1]} °C</td></tr><tr><td>Heart rate</td><td>${v.hr[0]}–${v.hr[1]} bpm</td></tr><tr><td>Resp. rate</td><td>${v.rr[0]}–${v.rr[1]} /min</td></tr><tr><td>CRT</td><td>${v.crt}</td></tr></table><p class="muted">${sp.vitalsNote}</p></div></div>`, { wide: true });
 }
 function vitalsHTML(p) { const v = SPECIES[p.species].vitals, t = p.vitals; return `<div class="vitals"><span class="${vitalClass(t.temp, v.temp)}">T ${t.temp} °C</span><span class="${vitalClass(t.hr, v.hr)}">HR ${t.hr}</span><span class="${vitalClass(t.rr, v.rr)}">RR ${t.rr}</span><span>CRT ${t.crt}</span><span>MM ${t.mm}</span></div>`; }
-function examStep(id, step) { const p = G.patients.find(x => x.id === id); if (!p || p.examDone[step]) return; p.examDone[step] = true; energy(-0.5); Sound.click(); if (step === "tpr" || step === "ausc") Sound.beep(); if (step === "ausc" && p.hidden && p.hidden.murmur) { p.murmurFound = true; addXP(10, "murmur detected"); } if (step === "msk" && p.secondary) p.secondaryFound = true; renderExam(p); }
+function examStep(id, step) { const p = G.patients.find(x => x.id === id); if (!p || p.examDone[step]) return; if (G.s.settings.examGames !== false && typeof examMinigame === "function") { const mg = examMinigame(p, step); if (mg) return mg.then(() => { p.examDone[step] = true; renderExam(p); }); } p.examDone[step] = true; energy(-0.5); Sound.click(); if (step === "tpr" || step === "ausc") Sound.beep(); if (step === "ausc" && p.hidden && p.hidden.murmur) { p.murmurFound = true; addXP(10, "murmur detected"); } if (step === "msk" && p.secondary) p.secondaryFound = true; renderExam(p); }
 function diagnose(id, i) {
   const p = G.patients.find(x => x.id === id); const c = p.caseDef; const ok = i === c.correct;
   p.record.push(`${clockStr()} — Exam: ${c.findings} TPR ${p.vitals.temp} °C / ${p.vitals.hr} / ${p.vitals.rr}.${p.murmurFound ? " Grade II murmur noted." : ""}${p.secondaryFound ? " Also: " + p.secondary + "." : ""} Plan: "${c.options[i]}" (${ok ? "correct" : "corrected"}).`);
-  if (ok) { G.s.correctDx++; addXP(30, "correct assessment"); if (G.s.correctDx >= 5) award("diagnose5"); Sound.success(); rep(0.05); } else { p.mistakes++; Sound.error(); rep(-0.15, "diagnostic error"); addXP(5); }
+  if (ok) { G.s.correctDx++; addXP(30, "correct assessment"); if (G.s.correctDx >= 5) award("diagnose5"); Sound.success(); rep(0.05); } else { p.mistakes++; Sound.error(); rep(-0.1, "diagnostic error"); addXP(5); }
   if (p.emergency && p.emergencyLeft > 0) { stat("emergencies"); addXP(40, "emergency treated in time"); rep(0.2, "emergency handled"); p.emergency = false; }
   const route = routeFor(p); const next = { desk: "Finish visit → discharge at reception", xray: "Send to X-ray suite", prep: "Admit for surgery → prep room", dental: "Admit for dental → dental suite", ward: "Admit to the ward" }[route];
   setBody(`<div class="${ok ? "goodbox" : "badbox"}"><b>${ok ? "Correct." : "Not quite."}</b> ${c.why}</div><p><b>Plan:</b> ${c.options[c.correct]}</p>${p.hidden && p.hidden.murmur && !p.murmurFound ? `<div class="badbox"><b>Missed:</b> ${p.name} has a heart murmur you did not auscultate. ${c.outcome === "surgery" ? "The anaesthetist will find it — expect more events." : "Note it for next time."}</div>` : ""}${p.rx ? `<p>${icon("drug", 16)} Prescription needed: <b>${DRUGS.find(d => d.id === p.rx).name}</b> — dispense at the pharmacy before discharge.</p>` : ""}<div class="btnrow"><button class="btn primary" onclick="afterExam(${p.id})">${next}</button></div>`);
@@ -306,6 +326,7 @@ function diagnose(id, i) {
 function routeFor(p) { const c = p.caseDef; if (c.xray && G.s.level >= 2) return "xray"; if (c.outcome === "dental") return "dental"; if (c.outcome === "surgery") return "prep"; if (c.isolation && owns("ward")) return "ward"; if ((p.species === "rabbit" || p.species === "tortoise") && c.outcome === "checkup") return "ward"; return "desk"; }
 function afterExam(id) {
   const p = G.patients.find(x => x.id === id); const c = p.caseDef; closePanel(); const route = routeFor(p);
+  if (c.id === "bird_nails" && !p.nailsDone) { p.nailsDone = true; return MGpanel("Nail trim", (el) => MG.nailTrim(el, 4), { icon: "paw" }).then(r => { if (!r.ok) p.mistakes++; else addXP(15, "nails trimmed"); p.record.push(`${clockStr()} — Nail trim (${r.ok ? "clean" : "quick nicked, styptic applied"}).`); closePanel(); afterExam(id); }); }
   if (route === "desk") { p.fee = c.fee; sendToDesk(p, PATH.examToDesk); }
   else if (route === "xray") { walkNPC(p, PATH.examToXray, "to_xray", () => { World.placePet(p.npc, 13.5, 0.95, 6.5, Math.PI / 2); p.npc.rig.group.position.set(15.3, 0, 7.5); p.status = "xray_ready"; toast(`${p.name} is positioned on the X-ray table.`, "info"); }); }
   else if (route === "dental") { walkNPC(p, PATH.examToDental, "to_dental", () => { World.placePet(p.npc, 19.5, 1.0, -7, Math.PI / 2); p.npc.rig.group.position.set(20.5, 0, -5.8); p.status = "dental_ready"; toast(`${p.name} is anaesthetised on the dental table.`, "info"); }); }
@@ -347,7 +368,7 @@ function showXrayPanel(p, xr, decide) {
   wireXrayHover($("#xrHolder"), $("#boneLabel")); hookBoneCollection($("#xrHolder"));
 }
 function hookBoneCollection(el) { el.addEventListener("pointerdown", (e) => { const g = e.target.closest(".bone"); if (g && !G.s.collections.bones.includes(g.dataset.bone)) { G.s.collections.bones.push(g.dataset.bone); if (G.s.collections.bones.length % 10 === 0) toast(`${icon("tag", 16)} Anatomy collection: ${G.s.collections.bones.length} bones`, "xp", 2000); } }); }
-function xrayBandage(id) { const p = G.patients.find(x => x.id === id); p.fee = p.caseDef.fee; closePanel(); runProcedureSteps(p, "robert_jones").then(() => { p.record.push(`${clockStr()} — Robert Jones bandage applied; recheck radiographs in 2–3 weeks.`); closePanel(); sendToDesk(p, PATH.xrayToDesk); }); }
+function xrayBandage(id) { const p = G.patients.find(x => x.id === id); p.fee = p.caseDef.fee; closePanel(); runProcedureSteps(p, "robert_jones").then(() => MGpanel("Bandage wrap", (el) => MG.bandageWrap(el), { icon: "bandage" })).then(r => { if (r && !r.ok) p.mistakes++; p.record.push(`${clockStr()} — Robert Jones bandage applied; recheck radiographs in 2–3 weeks.`); closePanel(); sendToDesk(p, PATH.xrayToDesk); }); }
 function uiViewer() { const last = G.patients.slice().reverse().find(p => p.xray) || null; if (last) return showXrayPanel(last, last.xray, false); openPanel(`${icon("xray", 20)} Viewer — anatomy atlas`, `<p class="muted">Hover any bone. Collected: ${G.s.collections.bones.length}.</p><div class="xrgrid">${["dog", "cat", "bird"].map(s => `<div><h4>${SPECIES[s].label}</h4>${skeletonSVG(s, null, 330, 244)}</div>`).join("")}</div>`, { wide: true }); wireXrayHover($("#panelBody"), $("#boneLabel")); hookBoneCollection($("#panelBody")); }
 
 /* ---------------- PRE-OP ---------------- */
@@ -356,6 +377,7 @@ const PREOP_QUIZ = {
   induce: { dog: ["Cuffed tube, inflate just enough to seal", "Uncuffed tube", "No tube — mask only for surgery"], cat: ["Cuffed tube, lidocaine on larynx, gentle — never over-inflate", "Force the tube quickly before laryngospasm", "Never intubate cats"], bird: ["UNCUFFED tube (complete tracheal rings) or face mask", "Cuffed tube like a dog", "Inflate the cuff fully"], rabbit: ["Small uncuffed tube or V-gel; obligate nasal breathers", "Large cuffed tube", "No airway needed"], tortoise: ["Uncuffed tube + IPPV (no diaphragm)", "Cuffed tube, spontaneous breathing", "Mask only"], correct: 0 },
   scrub: { all: ["Chlorhexidine alternating with alcohol, target pattern from incision outward, ≥ 2–5 min", "Quick wipe with water", "Scrub from the edges inward"], correct: 0 }
 };
+if (typeof PREOP_QUIZ_V2 !== "undefined") Object.assign(PREOP_QUIZ, PREOP_QUIZ_V2);
 function uiPreop() {
   const p = patientAt("preop"); if (!p) return openPanel(`${icon("folder", 20)} Prep table`, "<p>No surgical patient on the prep table.</p>");
   if (!p.preopDone) p.preopDone = []; renderPreop(p);
@@ -368,8 +390,8 @@ function renderPreop(p) {
 function preopStep(id) {
   const p = G.patients.find(x => x.id === id); const i = p.preopDone.length; const s = PREOP_STEPS[i]; if (!s) return;
   const finish = () => { p.preopDone.push(s.id); Sound.click(); if (s.id === "monitor") Sound.beep(); renderPreop(p); };
-  if (s.id === "iv" && !p.ivFight && Math.random() < 0.35 + p.fear * 0.3 && !["bird", "tortoise"].includes(p.species)) { p.ivFight = true; return uiFightBack(p, finish); }
-  if (s.id === "blood") return uiLabPanel(p, finish);
+  if (s.id === "iv" && !p.ivFight && Math.random() < 0.15 + p.fear * 0.3 + difficultyScale() * 0.1 && !["bird", "tortoise"].includes(p.species)) { p.ivFight = true; return uiFightBack(p, finish); }
+  if (s.id === "blood") return (G.s.settings.examGames !== false ? MGpanel("Blood sample", (el) => MG.bloodDraw(el, p.species), { icon: "drop" }) : Promise.resolve({ ok: true })).then(r => { if (!r.ok) p.mistakes++; openPanel(`${icon("flask", 20)} Bloods`, "", { noClose: true }); uiLabPanel(p, finish); });
   if (s.id === "clip") return MGpanel("Clip & vacuum", (el) => MG.clipVacuum(el)).then(r => { if (!r.ok) p.mistakes++; finish(); });
   if (s.id === "scrub") return preopQuiz(p, s, () => MGpanel("Surgical site scrub", (el) => MG.scrubPattern(el)).then(r => { if (!r.ok) { p.mistakes++; p.contam = (p.contam || 0) + 1; } finish(); }));
   if (s.id === "premed") return uiDoseTask(p, "methadone", finish);
@@ -526,24 +548,30 @@ function gate(pos) {
 function tick() {
   requestAnimationFrame(tick);
   const night = G.s.shiftActive && G.s.clockMin >= 18 * 60;
-  const res = World.update(G.input, { frozen: G.panelOpen, gate, night, input2: G.s.settings.coop ? G.input2 : null, speedMult: G.s.energy < 40 ? 0.85 : 1 });
+  if (G.look && (G.look.x || G.look.y)) World.lookDelta(G.look.x * 0.045, G.look.y * 0.03);
+  const res = World.update(G.input, { frozen: G.panelOpen || G.paused, paused: G.paused, gate, night, input2: G.s.settings.coop ? G.input2 : null, speedMult: G.s.energy < 40 ? 0.85 : 1 });
+  if (typeof Bubbles !== "undefined") Bubbles.update();
+  if (G.paused) return;
   const dt = res.dt; const pos = res.pos;
   if (res.moving) { G.stepT = (G.stepT || 0) + dt; if (G.stepT > 0.32) { G.stepT = 0; Sound.step(); } }
   const room = World.roomAt(pos.x, pos.z); if (room !== G.lastRoom) { G.lastRoom = room; $("#hudRoom").textContent = room ? (ROOMS[room] ? ROOMS[room].name : "Outside") : ""; if (room === "or" && G.s.settings.music && Sound.music.on && Sound.music.kind !== "or") Sound.music.start("or"); if (room !== "or" && Sound.music.on && Sound.music.kind === "or") Sound.music.start("lobby"); }
+  if (typeof thoughtTick === "function") thoughtTick(dt);
   if (G.s.shiftActive && !G.panelOpen) {
-    G.s.clockMin += dt; updateClockOnly(); energy(-dt * (0.022 + (G.input.run && res.moving ? 0.03 : 0))); const cp = G.s.clinicPet; cp.hunger = Math.min(100, cp.hunger + dt * 100 / 560); if (cp.hunger > 75 && !G.petHungryToast) { G.petHungryToast = true; toast(`${icon(cp.species, 16)} ${cp.name} is hungry — the bowl is by the pet bed in reception.`, "warn", 4000); World.catMood("sad"); World.catWander([0.6, -10.9]); } if (cp.hunger <= 45) G.petHungryToast = false; if (G.s.energy <= 5 && !G.exhausted) { G.exhausted = true; toast("You're exhausted. Finish the shift and go home to sleep.", "warn", 6000); }
+    G.s.clockMin += dt; updateClockOnly(); energy(-dt * (0.022 + (G.input.run && res.moving ? 0.03 : 0)) * (G.s.fitDay === G.s.day ? 0.75 : 1)); const cp = G.s.clinicPet; cp.hunger = Math.min(100, cp.hunger + dt * 100 / 560); if (cp.hunger > 75 && !G.petHungryToast) { G.petHungryToast = true; toast(`${icon(cp.species, 16)} ${cp.name} is hungry — the bowl is by the pet bed in reception.`, "warn", 4000); World.catMood("sad"); World.catWander([0.6, -10.9]); } if (cp.hunger <= 45) G.petHungryToast = false; if (G.s.energy <= 5 && !G.exhausted) { G.exhausted = true; toast("You're exhausted. Finish the shift and go home to sleep.", "warn", 6000); }
     const ev = G.s.event ? EVENTS.find(e => e.id === G.s.event.id) : null; const rush = (ev && ev.rush) || 1; const rival = G.s.story.rival && G.s.rep < 4 ? 0.65 : 1; const hourRush = (G.s.clockMin > 10 * 60 && G.s.clockMin < 12 * 60) || (G.s.clockMin > 16 * 60 && G.s.clockMin < 17.5 * 60) ? 1.6 : 1;
     const inClinic = G.patients.filter(p => p.status !== "done").length; const waiting = G.patients.filter(p => ["arriving", "at_desk", "waiting"].includes(p.status)).length;
-    G.spawnTimer -= dt * rush * rival * hourRush * (0.7 + G.s.rep * 0.12) * (1 + G.s.day * 0.03);
-    if (G.spawnTimer <= 0) { G.spawnTimer = rnd(38, 65); if (G.weeklyMode && G.weeklyQueue && G.weeklyQueue.length) { if (inClinic < 4) spawnPatient(G.weeklyQueue.shift()); } else if (night) { if (inClinic < 2 && Math.random() < 0.6) { const c = pick(CASES.filter(x => x.emergency && eligibleCases().includes(x))); if (c) { const p = spawnPatient(c); if (p) p.night = true; } } } else if (inClinic < 5 && waiting < 3 && G.s.clockMin < 17.5 * 60) { let c = null; if (G.s.day % 7 === 0 && !G.s.dayStats.mystery) { const m = pick(CASES.filter(x => x.mystery && x.level <= G.s.level)); if (m) { c = m; G.s.dayStats.mystery = 1; } } if (!c && G.s.story.charity && Math.random() < 0.15) { c = CASES.find(x => x.id === "spay_cat"); const p = spawnPatient(c); if (p) { p.charity = true; p.ownerName = "Shelter volunteer"; } } else { const p = spawnPatient(c); if (p && G.s.story.referral && p.caseDef.outcome === "surgery" && Math.random() < 0.4) { p.referral = true; toast("Referral case — higher fee, higher stakes.", "info"); } } } }
+    const ds = difficultyScale(); const maxIn = 2 + Math.round(ds * 3), maxWait = 1 + Math.round(ds * 2) + (G.s.staff.some(x => x.role === "receptionist") ? 1 : 0);
+    if (!G.s.closing) G.spawnTimer -= dt * rush * rival * hourRush * (0.75 + G.s.rep * 0.1) * (0.7 + ds * 0.6);
+    if (G.spawnTimer <= 0 && !G.s.closing) { G.spawnTimer = rnd(75, 120) * (1 - ds * 0.4); if (G.weeklyMode && G.weeklyQueue && G.weeklyQueue.length) { if (inClinic < 4) spawnPatient(G.weeklyQueue.shift()); } else if (night) { if (inClinic < 2 && Math.random() < 0.6) { const c = pick(CASES.filter(x => x.emergency && eligibleCases().includes(x))); if (c) { const p = spawnPatient(c); if (p) p.night = true; } } } else if (inClinic < maxIn && waiting < maxWait && G.s.clockMin < 17.5 * 60) { let c = null; if (G.s.day >= 5 && G.s.day % 7 === 0 && !G.s.dayStats.mystery) { const m = pick(CASES.filter(x => x.mystery && x.level <= G.s.level)); if (m) { c = m; G.s.dayStats.mystery = 1; } } if (!c && G.s.story.charity && Math.random() < 0.15) { c = CASES.find(x => x.id === "spay_cat"); const p = spawnPatient(c); if (p) { p.charity = true; p.ownerName = "Shelter volunteer"; } } else { const p = spawnPatient(c); if (p && G.s.story.referral && p.caseDef.outcome === "surgery" && Math.random() < 0.4) { p.referral = true; toast("Referral case — higher fee, higher stakes.", "info"); } } } }
     G.shopTimer -= dt; if (G.shopTimer <= 0) { G.shopTimer = rnd(60, 110); if (!G.shopCustomer) spawnShopCustomer(); }
     // emergency countdowns
-    G.patients.forEach(p => { if (p.emergency && !["exam_ready"].includes(p.status) && p.emergencyLeft > 0) { p.emergencyLeft -= dt; if (p.emergencyLeft <= 0) { p.emergency = false; p.deteriorated = true; p.mistakes++; rep(-0.4, `${p.name} deteriorated while waiting`); p.record.push(`${clockStr()} — Deteriorated before treatment (delay).`); p.caseDef = Object.assign({}, p.caseDef, { fee: Math.round(p.caseDef.fee * 0.5) }); } else if (Math.floor(p.emergencyLeft) % 30 === 0 && Math.random() < dt * 2) Sound.alarm(); } });
+    G.patients.forEach(p => { if (p.emergency && !["exam_ready"].includes(p.status) && p.emergencyLeft > 0) { p.emergencyLeft -= dt; if (p.emergencyLeft <= 0) { p.emergency = false; p.deteriorated = true; p.mistakes++; rep(-0.25, `${p.name} deteriorated while waiting`); p.record.push(`${clockStr()} — Deteriorated before treatment (delay).`); p.caseDef = Object.assign({}, p.caseDef, { fee: Math.round(p.caseDef.fee * 0.5) }); } else if (Math.floor(p.emergencyLeft) % 30 === 0 && Math.random() < dt * 2) Sound.alarm(); } });
     staffTick(dt);
-    if (G.shopCustomer) { G.shopCustomer.t += dt; if (G.shopCustomer.t > 120) { G.shopCustomer = null; rep(-0.05, "shop customer left unserved"); } }
+    if (G.shopCustomer) { G.shopCustomer.t += dt; if (G.shopCustomer.t > 240) { G.shopCustomer = null; rep(-0.03, "shop customer left unserved"); } }
     if (G.s.clockMin >= 18 * 60 && !G.closingWarned) { G.closingWarned = true; toast(`${icon("moon", 18)} 18:00 — after-hours mode: only emergencies arrive (×1.5 fee). End the shift at the board when ready.`, "info", 6000); if (G.s.settings.music) Sound.music.start("night"); }
     if (Math.random() < dt * 0.02) updateHUD();
   }
+  G.needsT = (G.needsT || 0) + dt; if (G.needsT > 1) { G.needsT = 0; if (typeof updateNeeds === "function") updateNeeds(); }
   G.catTimer -= dt; if (G.catTimer <= 0) { const per = G.s.clinicPet.personality; G.catTimer = per === "playful" ? rnd(15, 30) : per === "lazy" ? rnd(70, 120) : rnd(35, 70); if (G.s.clinicPet.hunger > 75) World.catWander([0.6, -10.9]); else if (per === "curious" && Math.random() < 0.5) { const pp = World.playerPos(); World.catWander([pp.x + 0.8, pp.z + 0.6]); } else World.catWander(); }
   const it = G.panelOpen ? null : nearestInteractable(pos); G.nearest = it;
   const pr = $("#prompt"); if (it) { pr.classList.add("show"); pr.querySelector("span").textContent = it.label(); World.setRing(it.pos); } else { pr.classList.remove("show"); World.setRing(null); }
@@ -556,10 +584,10 @@ function bindInput() {
   const map = { KeyW: "up", ArrowUp: "up", KeyS: "down", ArrowDown: "down", KeyA: "left", ArrowLeft: "left", KeyD: "right", ArrowRight: "right" };
   const map2 = { KeyI: "up2", KeyK: "down2", KeyJ: "left2", KeyL: "right2" };
   const recompute = () => { G.input.x = (G.keys.right ? 1 : 0) - (G.keys.left ? 1 : 0); G.input.z = (G.keys.down ? 1 : 0) - (G.keys.up ? 1 : 0); G.input2.x = (G.keys.right2 ? 1 : 0) - (G.keys.left2 ? 1 : 0); G.input2.z = (G.keys.down2 ? 1 : 0) - (G.keys.up2 ? 1 : 0); };
-  addEventListener("keydown", (e) => { Sound.init(); if (e.target.matches("input,textarea,select")) return; if (map[e.code]) { G.keys[map[e.code]] = true; recompute(); e.preventDefault(); } if (map2[e.code] && G.s.settings.coop) { G.keys[map2[e.code]] = true; recompute(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = true; if (e.code === "KeyE" || e.code === "Space" || e.code === "Enter") { e.preventDefault(); interact(); } if (e.code === "KeyU" && G.s.settings.coop) interact2(); if (e.code === "Escape") { if (G.panelOpen && $("#panelClose").style.display !== "none") closePanel(); } if (e.code === "KeyH") { if (!G.panelOpen) uiHelp(); } if (e.code === "KeyM") toggleMute(); if (e.code === "KeyV") toggleCamera(); if (e.code === "KeyP") photoMode(); if (e.code === "KeyO") { if (!G.panelOpen) uiSettings(); } });
+  addEventListener("keydown", (e) => { Sound.init(); if (e.target.matches("input,textarea,select")) return; if (map[e.code]) { G.keys[map[e.code]] = true; recompute(); e.preventDefault(); } if (map2[e.code] && G.s.settings.coop) { G.keys[map2[e.code]] = true; recompute(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = true; if (e.code === "KeyE" || e.code === "Space" || e.code === "Enter") { e.preventDefault(); interact(); } if (e.code === "KeyU" && G.s.settings.coop) interact2(); if (e.code === "Escape") { if (G.panelOpen) { if ($("#panelClose").style.display !== "none") closePanel(); } else togglePause(); } if (e.code === "KeyH") { if (!G.panelOpen) uiHelp(); } if (e.code === "KeyM") toggleMute(); if (e.code === "KeyV") toggleCamera(); if (e.code === "KeyP") photoMode(); if (e.code === "KeyO") { if (!G.panelOpen) uiSettings(); } });
   addEventListener("keyup", (e) => { if (map[e.code]) { G.keys[map[e.code]] = false; recompute(); } if (map2[e.code]) { G.keys[map2[e.code]] = false; recompute(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = false; });
   addEventListener("blur", () => { G.keys = {}; recompute(); G.input.run = false; });
-  $("#prompt").onclick = interact; $("#panelClose").onclick = closePanel; $("#helpBtn").onclick = () => { if (!G.panelOpen) uiHelp(); }; $("#muteBtn").onclick = toggleMute; $("#camBtn").onclick = toggleCamera; $("#setBtn").onclick = () => { if (!G.panelOpen) uiSettings(); else closePanel(); }; $("#photoBtn").onclick = photoMode;
+  $("#prompt").onclick = interact; $("#panelClose").onclick = closePanel; $("#helpBtn").onclick = () => { if (!G.panelOpen) uiHelp(); }; $("#muteBtn").onclick = toggleMute; $("#camBtn").onclick = toggleCamera; $("#setBtn").onclick = () => { if (!G.panelOpen) uiSettings(); else closePanel(); }; $("#photoBtn").onclick = photoMode; $("#pauseBtn").onclick = togglePause; bindLookStick();
   bindJoystick();
   const pad = $("#dpad"); if (pad) pad.querySelectorAll("button").forEach(b => { const d = b.dataset.d; const on = (e) => { e.preventDefault(); Sound.init(); if (d === "act") return interact(); G.keys[d] = true; recompute(); }; const off = (e) => { e.preventDefault(); G.keys[d] = false; recompute(); }; b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off); b.addEventListener("pointercancel", off); b.addEventListener("pointerleave", off); });
   const act = $("#actBtn"); if (act) act.addEventListener("pointerdown", (e) => { e.preventDefault(); Sound.init(); interact(); });
@@ -579,8 +607,8 @@ function bindJoystick() {
   zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
 }
 function toggleMute() { const m = Sound.toggleMute(); $("#muteBtn").innerHTML = icon(m ? "mute" : "sound", 22); toast(m ? icon("mute", 18) + " Muted" : icon("sound", 18) + " Sound on", "info", 1200); }
-function toggleCamera() { const m = World.setCamMode(World.camMode === "third" ? "first" : "third"); G.s.settings.camMode = m; toast(m === "first" ? `${icon("camera", 18)} First person — ${G.touch ? "drag on the screen to look around" : "move the mouse (click the game to lock the cursor)"}; V switches back.` : `${icon("camera", 18)} Third person.`, "info", 3500); save(); }
-function applySettingsToWorld() { const st = G.s.settings; if (typeof applyControlMode === "function") applyControlMode(); document.documentElement.style.setProperty("--fs", st.textSize); document.documentElement.dir = st.lang === "ar" ? "rtl" : "ltr"; document.body.classList.toggle("rtl", st.lang === "ar"); document.body.classList.toggle("onehand-right", st.oneHand === "right"); World.setCamMode(st.camMode || "third"); World.enableCoop(!!st.coop); World.applyAvatar(st.avatarApplied ? G.s.avatar : G.s.avatar); $("#coopHint").style.display = st.coop ? "" : "none"; }
+function toggleCamera() { const m = World.setCamMode(World.camMode === "third" ? "first" : "third"); G.s.settings.camMode = m; if (typeof updateFPUI === "function") updateFPUI(); toast(m === "first" ? `${icon("camera", 18)} First person — ${G.touch ? "drag on the screen to look around" : "move the mouse (click the game to lock the cursor)"}; V switches back.` : `${icon("camera", 18)} Third person.`, "info", 3500); save(); }
+function applySettingsToWorld() { const st = G.s.settings; if (typeof applyControlMode === "function") applyControlMode(); if (typeof updateFPUI === "function") setTimeout(updateFPUI, 0); document.documentElement.style.setProperty("--fs", st.textSize); document.documentElement.dir = st.lang === "ar" ? "rtl" : "ltr"; document.body.classList.toggle("rtl", st.lang === "ar"); document.body.classList.toggle("onehand-right", st.oneHand === "right"); World.setCamMode(st.camMode || "third"); World.enableCoop(!!st.coop); World.applyAvatar(st.avatarApplied ? G.s.avatar : G.s.avatar); $("#coopHint").style.display = st.coop ? "" : "none"; }
 
 function boot() {
   G.s = load();

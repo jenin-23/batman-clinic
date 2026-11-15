@@ -266,9 +266,36 @@ const World = (() => {
     props.van = new THREE.Group(); props.van.add(box(4.2, 1.6, 2.0, 0xdfe3ee, 0, 1.1, 0, 0.25)); props.van.add(box(1.3, 1.2, 1.9, 0x2a2f4a, 1.9, 0.9, 0, 0.2)); props.van.add(box(1.2, 0.6, 1.92, 0x9fc5ea, 1.7, 1.4, 0, 0.1)); [[-1.3, 0.9], [1.3, 0.9], [-1.3, -0.9], [1.3, -0.9]].forEach(p => { const w = cyl(0.4, 0.4, 0.3, 0x23222e, p[0], 0.4, p[1]); w.rotation.x = Math.PI / 2; props.van.add(w); }); props.van.add(box(2.6, 0.5, 0.05, 0xf2c14e, -0.3, 1.3, 1.02, 0.05)); props.van.position.set(9, 0, -20.5); scene.add(props.van);
     const vanSign = textSprite("Mobile Vet Van", { size: 40, scale: 0.7 }); vanSign.position.set(9, 2.6, -20.5); scene.add(vanSign);
 
+    buildOutdoor();
     // interaction highlight ring
     ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.75, 32), new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.85, side: THREE.DoubleSide })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; ring.visible = false; scene.add(ring);
     setLocked("dental", true); setLocked("ward", true);
+  }
+  function buildOutdoor() {
+    // pavement across the road, zebra crossing
+    floorPlane(-60, -26, 60, -24, 0x2a2d3e); for (let i = 0; i < 6; i++) scene.add(box(0.6, 0.02, 5.6, 0xdfe3ee, -6.5 + i * 0.9, 0.025, -21, 0.01));
+    // apartment building (home) — south of the road
+    const bld = new THREE.Group(); bld.add(box(12, 9, 10, 0x3a3352, 0, 4.5, 0, 0.2)); bld.add(box(12.4, 0.4, 10.4, 0x2a2440, 0, 9.1, 0, 0.1));
+    for (let f = 0; f < 3; f++) for (let i = 0; i < 4; i++) { const win = new THREE.Mesh(roundedBoxGeo(1.2, 1.1, 0.1, 0.04), new THREE.MeshStandardMaterial({ color: 0xffe3a0, emissive: 0xffd978, emissiveIntensity: (f + i) % 3 === 0 ? 0.9 : 0.25 })); win.position.set(-4.2 + i * 2.8, 2.2 + f * 2.6, 5.02); bld.add(win); bld.add(box(1.4, 0.12, 0.3, 0x2a2440, -4.2 + i * 2.8, 1.6 + f * 2.6, 5.1, 0.03)); }
+    const door = box(1.4, 2.3, 0.12, 0x6e4b36, 0, 1.15, 5.02, 0.05); door.add(cyl(0.03, 0.03, 0.12, 0xf2c14e, 0.45, 0, 0.08).rotateX(Math.PI / 2)); door.add(box(0.5, 0.4, 0.02, 0x9fc5ea, 0, 0.6, 0.07, 0.02)); bld.add(door); bld.add(box(2.2, 0.3, 1.2, 0x2a2440, 0, 2.45, 5.5, 0.05));
+    bld.add(box(2.4, 0.2, 1.4, 0x3a3f55, 0, 0.1, 5.6, 0.05)); bld.position.set(-10, 0, -31); scene.add(bld); addCollider(-16, -36, -4, -26);
+    const homeSign = textSprite("Home", { size: 44, scale: 0.6 }); homeSign.position.set(-10, 3.2, -25.5); scene.add(homeSign);
+    // garden — east, south of the road
+    floorPlane(4, -36, 22, -26, 0x2f6b4f); floorPlane(5, -31.5, 21, -30.5, 0x8a7a5a); // path
+    const pond = new THREE.Mesh(new THREE.CircleGeometry(2.4, 32), new THREE.MeshStandardMaterial({ color: 0x2d6fb0, roughness: 0.2, metalness: 0.4, emissive: 0x11304f, emissiveIntensity: 0.4 })); pond.rotation.x = -Math.PI / 2; pond.position.set(16, 0.02, -33.5); scene.add(pond); addCollider(13.6, -35.9, 18.4, -31.1);
+    const lily = cyl(0.3, 0.3, 0.02, 0x3f8f5a, 15.2, 0.04, -33); scene.add(lily); scene.add(cyl(0.25, 0.25, 0.02, 0x3f8f5a, 17, 0.04, -34.2));
+    [[7, -28], [12, -35], [20, -28], [8, -34.5]].forEach(p => { const t = new THREE.Group(); t.add(cyl(0.18, 0.24, 1.6, 0x5a3e2b, 0, 0.8, 0)); t.add(sphere(1.1, 0x2f6b4f, 0, 2.3, 0)); t.add(sphere(0.8, 0x3a7d5c, 0.6, 2.7, 0.3)); t.add(sphere(0.7, 0x2f6b4f, -0.6, 2.6, -0.3)); t.position.set(p[0], 0, p[1]); scene.add(t); addCollider(p[0] - 0.3, p[1] - 0.3, p[0] + 0.3, p[1] + 0.3); });
+    const bench = new THREE.Group(); bench.add(box(1.8, 0.08, 0.5, 0x6e4b36, 0, 0.45, 0, 0.03)); bench.add(box(1.8, 0.4, 0.08, 0x6e4b36, 0, 0.75, -0.22, 0.03)); [[-0.75], [0.75]].forEach(q => { bench.add(box(0.08, 0.45, 0.5, 0x23222e, q[0], 0.22, 0, 0.02)); }); bench.position.set(12, 0, -29.5); scene.add(bench); addCollider(11, -29.8, 13, -29.2); props.parkBench = bench;
+    const flowers = (x, z) => { for (let i = 0; i < 7; i++) { const f = sphere(0.09, [0xff5f7a, 0xf2c14e, 0xdfe3ee, 0xe07a5f][i % 4], x + (Math.random() - .5) * 1.4, 0.3 + Math.random() * 0.1, z + (Math.random() - .5) * 0.6); scene.add(f); scene.add(cyl(0.015, 0.015, 0.3, 0x3f8f5a, f.position.x, 0.15, f.position.z)); } }; flowers(10, -27.2); flowers(18, -27.2); flowers(6.5, -32.5);
+    const gardenSign = textSprite("Garden", { size: 44, scale: 0.6 }); gardenSign.position.set(13, 2.6, -26.5); scene.add(gardenSign);
+    const fence = (x1, x2, z) => { for (let x = x1; x <= x2; x += 0.6) scene.add(cyl(0.03, 0.03, 0.8, 0xdfe3ee, x, 0.4, z)); const r = box(x2 - x1, 0.05, 0.05, 0xdfe3ee, (x1 + x2) / 2, 0.6, z, 0.01); scene.add(r); }; fence(4.2, 10.4, -26.2); fence(13.6, 21.8, -26.2); scene.add(box(0.05, 0.8, 9.6, 0xdfe3ee, 22, 0.4, -31, 0.01)); addCollider(4, -26.4, 10.6, -26); addCollider(13.4, -26.4, 22, -26); addCollider(21.8, -36, 22.2, -26);
+    // pet market — placeholder shell
+    const mk = new THREE.Group(); mk.add(box(10, 5, 8, 0x4a3d33, 0, 2.5, 0, 0.2)); mk.add(box(10.4, 0.4, 8.4, 0x6e4b36, 0, 5.2, 0, 0.1)); mk.add(box(6, 0.3, 1.6, 0xe07a5f, 0, 3.2, 4.4, 0.1)); for (let i = 0; i < 3; i++) mk.add(box(2, 1.6, 0.1, 0x1a1420, -3 + i * 3, 1.6, 4.02, 0.05)); mk.position.set(-29, 0, -31); scene.add(mk); addCollider(-34, -35, -24, -27);
+    const mkSign = textSprite("Pet Market — opening soon", { size: 40, bg: "rgba(40,36,20,0.96)", scale: 0.9 }); mkSign.position.set(-29, 4.2, -26.5); scene.add(mkSign);
+    // bus stop on the clinic side
+    const bs = new THREE.Group(); bs.add(cyl(0.05, 0.05, 2.6, 0x6b6f8f, -1.2, 1.3, 0)); bs.add(cyl(0.05, 0.05, 2.6, 0x6b6f8f, 1.2, 1.3, 0)); bs.add(box(3, 0.1, 1.4, 0x2a2f4a, 0, 2.6, -0.4, 0.04)); const glass = new THREE.Mesh(roundedBoxGeo(2.6, 1.8, 0.05, 0.02), new THREE.MeshStandardMaterial({ color: 0x9fc5ea, transparent: true, opacity: 0.3 })); glass.position.set(0, 1.5, -1.05); bs.add(glass); bs.add(box(2.4, 0.08, 0.4, 0x6e4b36, 0, 0.5, -0.6, 0.03)); bs.add(box(0.6, 0.9, 0.08, 0xf2c14e, 1.0, 2.0, 0.6, 0.04)); bs.position.set(24, 0, -14.5); scene.add(bs); addCollider(22.6, -15.8, 25.4, -13.9); props.busStop = bs;
+    // map board near the entrance
+    const mb = new THREE.Group(); mb.add(cyl(0.04, 0.04, 1.6, 0x6b6f8f, -0.5, 0.8, 0)); mb.add(cyl(0.04, 0.04, 1.6, 0x6b6f8f, 0.5, 0.8, 0)); mb.add(box(1.4, 1.0, 0.08, 0x2a2f4a, 0, 1.6, 0, 0.05)); mb.add(box(1.2, 0.8, 0.09, 0x121630, 0, 1.6, 0.01, 0.04)); [[0, 0.1, 0.5, 0.25, 0xf2c14e], [-0.35, -0.2, 0.25, 0.18, 0x7c6fcf], [0.35, -0.2, 0.25, 0.18, 0x3f8f5a]].forEach(r => mb.add(box(r[2], r[3], 0.1, r[4], r[0], 1.6 + r[1], 0.02, 0.02))); mb.add(sphere(0.04, 0x7ef29a, 0, 1.72, 0.06)); mb.position.set(3.5, 0, -13.3); scene.add(mb); addCollider(2.8, -13.6, 4.2, -13); props.mapBoard = mb;
   }
   function setLocked(key, locked) { lockedRooms[key] = locked; lockedMeshes[key].forEach(m => { m.visible = m.isSprite ? locked : !locked; }); if (themeMats.floors[key]) themeMats.floors[key].color.set(locked ? 0x555555 : 0xffffff); }
 
@@ -309,6 +336,7 @@ const World = (() => {
   }
   function animateHuman(rig, dt, moving, speedFactor = 1) {
     const P = rig.parts; rig.phase += dt * (moving ? 9 * speedFactor : 1.5);
+    if (rig.sitting && !moving) { P.lLeg.rotation.x = -1.45; P.rLeg.rotation.x = -1.45; P.lArm.rotation.x = -0.75; P.rArm.rotation.x = -0.75; P.lArm.rotation.z = 0.15; P.rArm.rotation.z = -0.15; rig.group.position.y = -0.36; P.head.rotation.y = Math.sin(rig.phase * 0.5) * 0.25; return; }
     const s = moving ? Math.sin(rig.phase) : 0, bob = moving ? Math.abs(Math.sin(rig.phase)) * 0.045 : Math.sin(rig.phase) * 0.008;
     P.lLeg.rotation.x = s * 0.7; P.rLeg.rotation.x = -s * 0.7; P.lArm.rotation.x = -s * 0.55; P.rArm.rotation.x = s * 0.55;
     P.lArm.rotation.z = 0.1 + (moving ? 0 : Math.sin(rig.phase) * 0.02); P.rArm.rotation.z = -0.1 - (moving ? 0 : Math.sin(rig.phase) * 0.02);
@@ -434,9 +462,9 @@ const World = (() => {
       const cx = Math.max(b.minX, Math.min(pos.x, b.maxX)), cz = Math.max(b.minZ, Math.min(pos.z, b.maxZ)); const dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
       if (d2 < radius * radius) { if (d2 > 1e-6) { const d = Math.sqrt(d2); pos.x += dx / d * (radius - d); pos.z += dz / d * (radius - d); } else { const px = Math.min(pos.x - b.minX, b.maxX - pos.x), pz = Math.min(pos.z - b.minZ, b.maxZ - pos.z); if (px < pz) pos.x += (pos.x - b.minX < b.maxX - pos.x ? -1 : 1) * (px + radius); else pos.z += (pos.z - b.minZ < b.maxZ - pos.z ? -1 : 1) * (pz + radius); } }
     }
-    pos.x = Math.max(-40, Math.min(40, pos.x)); pos.z = Math.max(-26, Math.min(30, pos.z));
+    pos.x = Math.max(-40, Math.min(40, pos.x)); pos.z = Math.max(-38, Math.min(30, pos.z));
   }
-  function roomAt(x, z) { for (const k in ROOMS) { const r = ROOMS[k]; if (x >= r.x[0] && x <= r.x[1] && z >= r.z[0] && z <= r.z[1]) return k; } return z < -12 ? "outside" : null; }
+  function roomAt(x, z) { for (const k in ROOMS) { const r = ROOMS[k]; if (x >= r.x[0] && x <= r.x[1] && z >= r.z[0] && z <= r.z[1]) return k; } return z < -26 && x > 4 && x < 22 ? "garden" : z < -12 ? "outside" : null; }
 
   /* ---------- public ---------- */
   function init(canvas) {
@@ -465,6 +493,7 @@ const World = (() => {
     const endLook = (e) => { for (const t of e.changedTouches) if (t.identifier === ltId) { ltId = null; lt = null; } }; canvas.addEventListener("touchend", endLook); canvas.addEventListener("touchcancel", endLook);
   }
 
+  function lookDelta(dx, dy) { tYaw -= dx; tPitch = Math.max(-1.2, Math.min(1.0, tPitch - dy)); }
   function setCamMode(m) {
     camMode = m; if (m === "first") { yaw = tYaw = player.group.rotation.y + Math.PI; pitch = tPitch = -0.05; player.group.visible = false; } else { player.group.visible = true; if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock(); }
     return camMode;
@@ -485,10 +514,10 @@ const World = (() => {
     }
     collide(pos, 0.35);
     if (opts.gate && opts.gate(pos)) { pos.x = prev.x; pos.z = prev.z; }
-    animateHuman(player, dt, moving, input.run ? 1.3 : 1);
+    if (!opts.paused) animateHuman(player, dt, moving, input.run ? 1.3 : 1);
     // co-op second player
     if (player2 && opts.input2) { const p2 = player2.group.position; const i2 = opts.input2; let m2 = false; if (!opts.frozen && (i2.x || i2.z)) { const l = Math.hypot(i2.x, i2.z) || 1; p2.x += i2.x / l * 4 * dt; p2.z += i2.z / l * 4 * dt; m2 = true; player2.group.rotation.y = lerpAngle(player2.group.rotation.y, Math.atan2(i2.x, i2.z), Math.min(1, dt * 12)); } collide(p2, 0.35); animateHuman(player2, dt, m2); }
-    npcUpdate(dt);
+    if (!opts.paused) npcUpdate(dt);
     // camera
     if (preview) {
       previewAngle += dt * 0.6; player.group.rotation.y = previewAngle; player.group.position.y = 0; animateHuman(player, dt, false);
@@ -559,5 +588,5 @@ const World = (() => {
     const p = posts[role]; if (!p) return null; const n = addNPC({ x: p.x, z: p.z, rotY: p.rotY, skin: [0xf1c27d, 0xc68642, 0x8d5524][Math.floor(Math.random() * 3)], hair: 0x1b1420, shirt: p.shirt, pants: 0x24304f, curly: Math.random() < 0.5, glasses: Math.random() < 0.4, coat: 0xe9e9f2, outfit: p.outfit }); n.isStaff = role; return n;
   }
 
-  return { init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, applyAvatar, setSign, setLocked, setWeather, setCamMode, catWander, catPos, catMood, routeBetween, setClinicPet, rebuildPlayer, setPreview, enableCoop, player2Pos, screenshot, showThankCards, addStaffNPC, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get camMode() { return camMode; }, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; }, get locked() { return lockedRooms; } };
+  return { init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, applyAvatar, setSign, setLocked, setWeather, setCamMode, lookDelta, catWander, catPos, catMood, routeBetween, setClinicPet, rebuildPlayer, setPreview, enableCoop, player2Pos, screenshot, showThankCards, addStaffNPC, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get camMode() { return camMode; }, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; }, get locked() { return lockedRooms; } };
 })();
