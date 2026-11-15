@@ -340,6 +340,9 @@ const REFERENCES = [
 ];
 
 const ACHIEVEMENTS = [
+  { id: "goodcatch", name: "Second Pair of Eyes", desc: "Catch a pharmacist's dosing slip before it reaches the patient.", icon: "drug" },
+  { id: "walkies", name: "Walkies!", desc: "Walk the clinic pet all the way to the garden.", icon: "paw" },
+  { id: "influencer", name: "Influencer", desc: "Reach 100 followers on the clinic feed.", icon: "heart" },
   { id: "first_patient", name: "First Patient", desc: "Register your first patient at reception.", icon: "bell" },
   { id: "bell10", name: "Bell Ringer", desc: "See 10 patients.", icon: "bell" },
   { id: "diagnose5", name: "Sharp Clinician", desc: "Make 5 correct diagnoses.", icon: "steth" },
@@ -564,14 +567,54 @@ const GOAL_POOL = [
   { id: "lab2", text: "Interpret 2 lab panels correctly", key: "labs", target: 2, reward: 70 },
   { id: "emerg", text: "Treat an emergency in time", key: "emergencies", target: 1, reward: 120, level: 2 }
 ];
+const LIFE_TASKS = [
+  { id: "walk", text: "Walk {pet} to the garden", key: "walk", target: 1, reward: 30, repReward: 0.05, weight: 5 },
+  { id: "feed2", text: "Feed {pet} twice", key: "feeds", target: 2, reward: 25, weight: 2 },
+  { id: "post", text: "Post a photo on the clinic feed", key: "posts", target: 1, reward: 30, repReward: 0.05, weight: 2 },
+  { id: "reply", text: "Reply to your messages", key: "replies", target: 1, reward: 15, weight: 2 }
+];
+const PHONE = {
+  wifeMorning: [
+    { t: "Good luck today habibi ❤️ go save some tails", r: ["Thank you habibti ❤️", "Pray for my surgeries 😅"], a: ["Always 😘", "You'll be amazing. Text me at lunch!"] },
+    { t: "Don't forget groceries on your way home: milk, bread, tomatoes and the good za'atar 🛒", r: ["On it ✅", "Can I add knafeh? 😇"], a: ["Thank youuu", "Only if you finish all your cases 😄"] },
+    { t: "Concrete pour on site today so I'll be late. Eat a real lunch, not just coffee ☕", r: ["Promise 🥪", "Coffee is a food group"], a: ["Good. I'm checking later 👀", "It is NOT 😤 eat something"] },
+    { t: "Did you remember to feed {pet}? I got a very judgmental look this morning 🐾", r: ["Feeding now!", "That's just {pet}'s face 😂"], a: ["Twice today, doctor's orders 😄", "Hahaha true"] },
+    { t: "Reviewing structural drawings all day 😩 trade jobs? You take the beams, I take the puppies", r: ["Deal, I'll check the load paths", "No way, the puppies are mine"], a: ["You'd last 5 minutes 😂", "Selfish 😤❤️"] },
+    { t: "Proud of you, Dr. {dr}. Drink water today 💧", r: ["Proud of you too ❤️", "Drinking now 💧"], a: ["❤️", "Good boy 😄"] },
+    { t: "My mom says hi and asks if you can look at the neighbour's cat this week 😂", r: ["Tell her to book an appointment 😄", "Of course, bring him in"], a: ["She says you're very professional 🙄", "She's already telling everyone 😂"] },
+    { t: "Site inspection passed 🎉 look at our bridge!", img: "bridge", r: ["Beautiful! My genius wife 😍", "Is it holding? 😄"], a: ["Hehe ❤️", "It's holding 1200 tonnes, thank you very much"] },
+    { t: "It's going to be a long day for both of us. Dinner together tonight? 🍲", r: ["Yes please ❤️", "I'll cook!"], a: ["Maqluba it is", "You?? Cook?? 😂 ok I trust you"] }
+  ],
+  wifeMid: [
+    { t: "Lunch? 👀", r: ["Eating now 🥙", "Not yet, busy day"], a: ["Good 😘", "Take 10 minutes habibi, the animals can wait for a sandwich"] },
+    { t: "How's your day going?", r: ["Busy but good", "Long one 😮‍💨"], a: ["That's my doctor 💪", "Hang in there ❤️ almost done"] },
+    { t: "I just saw a dog on the site with a hard hat 😂 thought of you", r: ["Send a photo!", "Safety first 😂"], a: ["He ran away 😭", "Exactly 😂"] }
+  ],
+  milestones: {
+    first_surgery: "Your FIRST surgery?! I told everyone at the site 😭❤️",
+    level: "Level {n}?? My husband the legend 😎",
+    tired: "You sound exhausted. Come home, I made maqluba 🍲",
+    badday: "Bad day? Tomorrow is a new one habibi. Come home ❤️"
+  },
+  clientLines: ["{pet} is home and already stealing socks again 😂 thank you Dr. {dr}!", "Look who's feeling better! {pet} slept on my feet all night 🥹", "Day 3 after surgery and {pet} is back to bossing everyone around. Thank you so much 🙏", "{pet} wanted to say thank you 🐾 (I helped with the typing)", "Cone is annoying but {pet} is eating again! Thank you for everything ❤️"],
+  ads: [
+    { id: "restock20", from: "MedVet Supplies", t: "🛒 20% off all shop restocks — today only!", btn: "Activate discount" },
+    { id: "freefood", from: "Royal Paws Nutrition", t: "🐶 Free sample case for your clinic shop: 3 bags of premium dog food.", btn: "Claim free stock" },
+    { id: "webinar", from: "Vet School CPD", t: "🎓 Free webinar tonight: “Fluid therapy in 20 minutes”.", btn: "Watch now (+40 XP, −8 energy)" },
+    { id: "ecoll", from: "SafeCone Co.", t: "🐾 New soft e-collars. Try 3 free in your shop.", btn: "Claim free stock" }
+  ],
+  captions: ["Another happy patient 🐾", "Behind the scenes at {clinic} 🦇", "Today's team 💜", "Spot the clinic cat 👀", "Clean, calm and ready for patients ✨", "Thank you for trusting us with your family 🙏"],
+  comments: ["So cute!!! 😍", "Best vet in town 🙌", "My cat loves you guys", "Is the clinic cat available for adoption? 😂", "Booked my appointment!", "❤️❤️❤️", "Dr. Ahmad saved my dog last year, forever grateful", "That floor is SPOTLESS", "Wow 👏"]
+};
 
 /* --- Staff roles --- */
 const STAFF_ROLES = {
-  receptionist: { label: "Receptionist", desc: "Registers arriving patients automatically (you still review the file). Greets and calms anxious owners.", wage: { junior: 25, senior: 40 } },
-  nurse: { label: "Veterinary nurse", desc: "Runs routine checkups (vaccines, nail trims) in the exam room without you; a junior nurse occasionally mis-records weight.", wage: { junior: 35, senior: 60 } },
-  assistant: { label: "Surgical assistant", desc: "Scrubs in with you: fewer anaesthetic events, instruments handed faster, swab counts double-checked.", wage: { junior: 40, senior: 70 } },
-  shopkeeper: { label: "Shop assistant", desc: "Sells to walk-in shop customers while you work.", wage: { junior: 20, senior: 30 } },
-  cleaner: { label: "Cleaner", desc: "Keeps the hygiene score high — fewer post-op infections and a better inspection result.", wage: { junior: 18, senior: 28 } }
+  receptionist: { label: "Receptionist", desc: "Registers arriving patients for you.", junior: "Junior: slower, and sometimes forgets to ask about vaccinations (you'll see “unknown” on the file).", senior: "Senior: fast, takes the full history so the exam's History step is already done, and calms anxious owners (they wait longer before getting upset).", wage: { junior: 25, senior: 40 } },
+  nurse: { label: "Veterinary nurse", desc: "Runs routine checkups alone and helps in the exam room.", junior: "Junior: weighs the patient; slower checkups and occasionally mis-records a weight (you must reweigh).", senior: "Senior: records TPR, weight and body condition before you arrive, runs checkups faster and dispenses their medication.", wage: { junior: 35, senior: 60 } },
+  assistant: { label: "Surgical assistant", desc: "Scrubs in with you.", junior: "Junior: hands you the instruments you ask for and helps with the swab count (fewer swabs to count). You still assemble the pack.", senior: "Senior: assembles and autoclaves the pack, does the swab count, cuts anaesthetic events and catches your first wrong instrument each surgery.", wage: { junior: 40, senior: 70 } },
+  pharmacist: { label: "Pharmacist", desc: "Drafts every dose calculation with the working shown — you verify and sign it.", junior: "Junior: sometimes makes a traceable slip (decimal point, wrong concentration, weight in pounds, other species' dose). Approve a wrong draft and the patient gets the wrong dose. Error rate is a game setting, not real-world data.", senior: "Senior: always correct, adds a safety note from the formulary for each drug.", wage: { junior: 30, senior: 55 } },
+  shopkeeper: { label: "Shop assistant", desc: "Sells to walk-in shop customers while you work.", junior: "Junior: sells what the customer asks for.", senior: "Senior: sells faster, recommends an extra item (+20 %), and warns you when stock runs low.", wage: { junior: 20, senior: 30 } },
+  cleaner: { label: "Cleaner", desc: "Walks room to room keeping hygiene up — fewer post-op infections and better inspections.", junior: "Junior: cleans slowly.", senior: "Senior: cleans almost twice as fast and disinfects the OR between surgeries.", wage: { junior: 18, senior: 28 } }
 };
 const STAFF_NAMES = ["Nadia", "Bilal", "Rawan", "Hamza", "Leen", "Zaid", "Aya", "Karim", "Dima", "Laith"];
 
