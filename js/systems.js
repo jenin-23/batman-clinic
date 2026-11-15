@@ -224,3 +224,58 @@ function showUpdateBanner(reg) {
   $("#updLater").onclick = () => { bar.classList.remove("on"); setTimeout(() => bar.remove(), 300); G.updateDeferred = reg; };
   if (G.s) { G.s.seenUpdatePrompt = true; }
 }
+
+/* ---------------- energy, breaks, home ---------------- */
+function energy(d) { const s = G.s; const before = s.energy; s.energy = Math.max(0, Math.min(100, s.energy + d)); if (before >= 40 && s.energy < 40) toast(`${icon("moon", 16)} You're getting tired (${Math.round(s.energy)}%). Coffee or a nap in the staff room helps; below 25 % your hands shake.`, "warn", 5000); if (Math.abs(d) >= 1) updateHUD(); }
+function uiBreak() {
+  const s = G.s;
+  openPanel(`${icon("coin", 20)} Staff room — take a break`, `<p>Energy: <b>${Math.round(s.energy)}%</b>. Working tired causes mistakes; at 0 % you must go home.</p>
+    <div class="btnrow"><button class="btn primary" onclick="takeCoffee()" ${s.coffees >= 3 ? "disabled" : ""}>Coffee +8 % (${3 - s.coffees} left today)</button><button class="btn" onclick="takeNap()" ${s.naps >= 2 ? "disabled" : ""}>Power nap +25 % · 30 min (${2 - s.naps} left)</button><button class="btn" onclick="uiRadio()">${icon("sound", 16)} Radio</button></div>
+    <p class="muted">Real clinics schedule breaks for a reason: fatigue is one of the biggest causes of medical error.</p>`);
+}
+function takeCoffee() { if (G.s.coffees >= 3) return; G.s.coffees++; energy(8); Sound.click(); toast("Coffee. Better.", "good", 1500); uiBreak(); }
+function takeNap() { if (G.s.naps >= 2) return; G.s.naps++; energy(25); G.s.clockMin += 30; Sound.success(); toast("30-minute nap — the receptionist held the fort.", "good", 2500); uiBreak(); updateHUD(); }
+function goHome() {
+  const s = G.s; closePanel(); s.atHome = true; Sound.music.stop();
+  openPanel(`${icon("home", 20)} Home — ${DR()}'s apartment`, `<p class="big">A quiet flat above the pharmacy. ${s.clinicPet.name} ${s.clinicPet.personality === "lazy" ? "is already asleep on the sofa" : "jumps onto the windowsill to watch the city lights"}.</p>
+    <div class="homegrid">
+      <button class="btn opt" onclick="homeAction('sleep')"><b>Sleep 8 hours</b><br><span class="muted">Energy → 100 %. Start Day ${s.day}.</span></button>
+      <button class="btn opt" onclick="homeAction('study')"><b>Study an hour, then sleep</b><br><span class="muted">+30 XP, energy → 90 %.</span></button>
+      <button class="btn opt" onclick="homeAction('cook')"><b>Cook dinner & play with ${s.clinicPet.name}</b><br><span class="muted">+bond with your pet, energy → 95 %.</span></button>
+      <button class="btn opt" onclick="homeAction('jog')"><b>Evening run</b><br><span class="muted">Tomorrow's tiredness comes slower (−25 % drain for the day), energy → 90 %.</span></button>
+    </div><p class="muted">Tip: a backup of your save is one click away in the office — do it before any game update.</p>`, { noClose: true });
+}
+function homeAction(a) { const s = G.s; if (a === "sleep") s.energy = 100; if (a === "study") { s.energy = 90; addXP(30, "evening study"); } if (a === "cook") { s.energy = 95; s.clinicPet.bond += 1; toast(`${s.clinicPet.name} purrs through dinner. Bond +1.`, "good"); } if (a === "jog") { s.energy = 90; s.fitDay = s.day; } s.atHome = false; s.clinicPet.hunger = 60; save(); closePanel(); toast(`${icon("sun", 16)} Day ${s.day}. Energy ${Math.round(s.energy)}%. Remember to feed ${s.clinicPet.name} twice today.`, "info", 5000); updateHUD(); }
+
+/* ---------------- clinic pet ---------------- */
+const PET_PERSONALITIES = { playful: "Playful — roams constantly, greets everyone in the waiting room (clients love it: +rep on discharge).", lazy: "Lazy — sleeps most of the day, wanders rarely; never in the way.", curious: "Curious — follows you around the clinic and supervises surgery from the door.", grumpy: "Grumpy — tolerates you, ignores clients, hisses when hungry; feeds on time or else." };
+function applyClinicPet() { const cp = G.s.clinicPet; World.setClinicPet(cp.species, parseInt(cp.color.slice(1), 16)); }
+function feedPet() { const cp = G.s.clinicPet; if (cp.hunger < 30) return toast(`${cp.name} sniffs the bowl and walks away — not hungry yet.`, "info"); cp.hunger = 0; cp.feeds++; cp.bond += 0.5; G.petHungryToast = false; World.catMood("calm"); World.catWander([0.6, -10.9]); Sound.pet(cp.species); Sound.vibrate(20); toast(`${icon(cp.species, 16)} ${cp.name} eats happily. Fed ${cp.feeds}× today${cp.feeds >= 2 ? " — all done" : " — once more this evening"}.`, "good", 3000); award("petparent"); save(); }
+function petClinicPet() { const cp = G.s.clinicPet; if (cp.personality === "grumpy" && cp.hunger > 60) { Sound.petAngry(cp.species); toast(`${cp.name} hisses — feed first, cuddle later.`, "warn"); return; } Sound.purr(); Sound.vibrate(60); award("catfriend"); cp.bond += 0.2; toast([`${cp.name} purrs and head-bumps your hand.`, `${cp.name} rolls over for a belly rub.`, `${cp.name} blinks slowly at you.`][Math.floor(Math.random() * 3)], "good", 2000); G.catTimer = 3; }
+
+/* ---------------- wardrobe (turntable) ---------------- */
+function applyDoctor() { const d = G.s.doctor; const h = (x) => parseInt(x.slice(1), 16); World.rebuildPlayer({ hairstyle: d.hairstyle, hair: h(d.hair), skin: h(d.skin), glasses: d.glassesStyle !== "none", glassesStyle: d.glassesStyle, frames: h(d.frames), shoes: h(d.shoes), shirt: h(d.scrub), coat: h(d.coat), capColor: h(d.cap) }); World.applyAvatar({ cap: h(d.cap) }); }
+function uiWardrobe(tab = "outfit") {
+  const d = G.s.doctor, cp = G.s.clinicPet; const o = G.s.outfit;
+  const sw = (key, cols) => cols.map(c => `<span class="swatch ${d[key] === c ? "sel" : ""}" style="background:${c}" onclick="setDoctor('${key}','${c}')"></span>`).join("");
+  const chip = (key, val, label) => `<button class="btn small ${d[key] === val ? "primary" : ""}" onclick="setDoctor('${key}','${val}')">${label}</button>`;
+  const pchip = (key, val, label) => `<button class="btn small ${cp[key] === val ? "primary" : ""}" onclick="setClinicPetOpt('${key}','${val}')">${label}</button>`;
+  const tabs = `<div class="tabs"><button class="tab ${tab === "outfit" ? "on" : ""}" onclick="uiWardrobe('outfit')">Outfit</button><button class="tab ${tab === "look" ? "on" : ""}" onclick="uiWardrobe('look')">Appearance</button><button class="tab ${tab === "pet" ? "on" : ""}" onclick="uiWardrobe('pet')">Clinic pet</button></div>`;
+  let body = "";
+  if (tab === "outfit") body = `<p class="muted">You're on the turntable — changes show live.</p><h4>Wear now</h4><div class="btnrow tight"><button class="btn small ${o === "clinic" ? "primary" : ""}" onclick="setOutfitKeep('clinic')">White coat</button><button class="btn small ${o === "scrubs" ? "primary" : ""}" onclick="setOutfitKeep('scrubs')">Scrubs + cap + mask</button></div><p class="muted small">Theatre rule: no clinic clothes beyond the red line; cap and mask go on before the hand scrub.</p><h4>Scrubs of the day</h4><div class="swatches">${sw("scrub", d.scrubsOfDay)}</div><h4>Cap</h4><div class="swatches">${sw("cap", ["#2f4f8f", "#f2c14e", "#7c6fcf", "#e07a5f", "#4fb3a9", "#dfe3ee", "#8a3350"])}</div><h4>Coat</h4><div class="swatches">${sw("coat", ["#e9e9f2", "#cfd8ff", "#f2c14e", "#9ea4c4", "#4fb3a9", "#2a2f4a"])}</div>`;
+  if (tab === "look") body = `<label>Name <input id="docName" value="${d.name}" maxlength="16"></label><button class="btn small" onclick="setDoctor('name', document.getElementById('docName').value)">Save name</button>
+    <h4>Hairstyle</h4><div class="btnrow tight">${["curly", "short", "afro", "buzz", "long", "bun"].map(h => chip("hairstyle", h, h[0].toUpperCase() + h.slice(1))).join("")}</div>
+    <h4>Hair colour</h4><div class="swatches">${sw("hair", ["#1b1420", "#4a2c1a", "#8b5a2b", "#d9b38c", "#9ea4c4", "#8a3350"])}</div>
+    <h4>Skin tone</h4><div class="swatches">${sw("skin", ["#f1c27d", "#e0ac69", "#c68642", "#9a5f3a", "#8d5524", "#5a3a22"])}</div>
+    <h4>Glasses</h4><div class="btnrow tight">${chip("glassesStyle", "round", "Round")}${chip("glassesStyle", "square", "Square")}${chip("glassesStyle", "none", "None")}</div><div class="swatches">${sw("frames", ["#2d2438", "#f2c14e", "#8a3350", "#5f8fd6", "#dfe3ee", "#6e4b36"])}</div>
+    <h4>Shoes</h4><div class="swatches">${sw("shoes", ["#23222e", "#dfe3ee", "#6e4b36", "#f2c14e", "#5f8fd6", "#e07a5f"])}</div>`;
+  if (tab === "pet") body = `<p class="muted">Your clinic companion lives in reception, wanders the building, and needs feeding twice a day at the bowl by the pet bed.</p><label>Name <input id="petName" value="${cp.name}" maxlength="14"></label><button class="btn small" onclick="setClinicPetOpt('name', document.getElementById('petName').value)">Save name</button>
+    <h4>Species</h4><div class="btnrow tight">${["cat", "dog", "rabbit", "bird", "tortoise"].map(sp => pchip("species", sp, SPECIES[sp].label)).join("")}</div>
+    <h4>Colour</h4><div class="swatches">${["#3a3a3a", "#f2a35e", "#f7f3ec", "#a9a9a9", "#c7b299", "#d9a066", "#5b4636", "#7fd1c7", "#fff3a0"].map(c => `<span class="swatch ${cp.color === c ? "sel" : ""}" style="background:${c}" onclick="setClinicPetOpt('color','${c}')"></span>`).join("")}</div>
+    <h4>Personality</h4>${Object.keys(PET_PERSONALITIES).map(k => `<button class="btn opt ${cp.personality === k ? "sel" : ""}" onclick="setClinicPetOpt('personality','${k}')">${PET_PERSONALITIES[k]}</button>`).join("")}<p class="muted">Bond: ${cp.bond.toFixed(1)} · fed today ${cp.feeds}× · missed meals ${cp.missed}</p>`;
+  openPanel(`${icon("locker", 20)} Wardrobe`, tabs + body, { side: true });
+  World.setPreview(true); G.onPanelClose = () => World.setPreview(false);
+}
+function setOutfitKeep(o) { G.s.outfit = o; World.setOutfit(o); Sound.click(); updateHUD(); uiWardrobe("outfit"); save(); }
+function setDoctor(k, v) { if (k === "name") { v = (v || "").trim(); if (!v) return; } G.s.doctor[k] = v; applyDoctor(); Sound.click(); if (k === "name") { toast(`Welcome, ${DR()}.`, "good"); updateHUD(); } award("decorator"); uiWardrobe(k === "scrub" || k === "cap" || k === "coat" ? "outfit" : "look"); save(); }
+function setClinicPetOpt(k, v) { if (k === "name") { v = (v || "").trim(); if (!v) return; } G.s.clinicPet[k] = v; if (k === "species" || k === "color") applyClinicPet(); Sound.click(); uiWardrobe("pet"); save(); }
