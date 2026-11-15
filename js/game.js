@@ -618,4 +618,4 @@ function boot() {
   if (!G.s.seenTutorial) { G.s.seenTutorial = true; save(); uiHelp(); } else dailyBriefing();
   tick();
 }
-window.addEventListener("DOMContentLoaded", boot);
+window.addEventListener("DOMContentLoaded", () => { try { boot(); } catch (e) { console.error(e); const el = document.getElementById("loading"); if (el) el.innerHTML = `<div><h2>Something went wrong while starting</h2><p class="muted">${String(e && e.message || e)}</p><p>Your progress is safe in this browser. Try reloading; if it keeps failing, an update may be half-loaded.</p><div class="btnrow" style="justify-content:center"><button class="btn primary" onclick="location.reload()">Reload</button><button class="btn" onclick="navigator.serviceWorker&&navigator.serviceWorker.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).then(()=>caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k))))).then(()=>location.reload())">Clear cache & reload</button></div></div>`; } });
