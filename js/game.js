@@ -10,13 +10,15 @@ const fmtMoney = (n) => `${Math.round(n)} JD`;
 const T = (s) => (G.s && G.s.settings.lang === "ar" && I18N.ar[s]) || s;
 const DR = () => "Dr. " + ((G.s && G.s.doctor && G.s.doctor.name) || "Ahmad");
 
-const G = { s: null, patients: [], input: { x: 0, z: 0, run: false }, input2: { x: 0, z: 0 }, keys: {}, panelOpen: false, nearest: null, spawnTimer: 0, shopTimer: 0, gateToast: 0, lastRoom: null, patientSeq: 1, nurseTimer: 0, catTimer: 20, staffNPCs: {}, rng: null };
+const G = { gameTime: 0, log: [], s: null, patients: [], input: { x: 0, z: 0, run: false }, input2: { x: 0, z: 0 }, keys: {}, panelOpen: false, nearest: null, spawnTimer: 0, shopTimer: 0, gateToast: 0, lastRoom: null, patientSeq: 1, nurseTimer: 0, catTimer: 20, staffNPCs: {}, rng: null };
 
+/* game clock: advances only while not paused (all gameplay timers read this) */
+function gameNow() { return G.gameTime; }
 function defaultState() {
   return { v: 2, money: 400, xp: 0, level: 1, day: 1, shiftActive: false, clockMin: 9 * 60, patientsSeen: 0, correctDx: 0, surgeries: 0, itemsSold: 0, refsRead: [], shiftsDone: 0, achievements: [], cases: [], clinicName: "Batman Clinic", outfit: "clinic",
     seenTutorial: false, stock: Object.fromEntries(SHOP_ITEMS.map(i => [i.id, 5])), theme: { v: 2, wall: "#2a2f4a", accent: "#f2c14e", trim: "#4b4f7a", floor: null, coat: "#e9e9f2", decor: true },
     rep: 3.0, hygiene: 90, staff: [], equipment: [], expansions: [], clients: [], goals: { day: 0, list: [] }, dayStats: {}, event: null, story: { seen: [], rival: false, charity: false, accredited: false, referral: false, certified: false, prestige: 0 },
-    collections: { bones: [], tools: [], species: [] }, thankCards: 0, settings: { lang: "en", hints: true, difficulty: "vet", textSize: 1, camMode: "third", coop: false, oneHand: "left", music: true, weather: "auto" }, avatar: { scrub: "#2f4f8f", cap: "#2f4f8f", frames: "#2d2438" },
+    collections: { bones: [], tools: [], species: [] }, thankCards: 0, settings: { lang: "en", hints: true, difficulty: "vet", lookSens: 1, headBob: true, textSize: 1, camMode: "third", coop: false, oneHand: "left", music: true, weather: "auto" }, avatar: { scrub: "#2f4f8f", cap: "#2f4f8f", frames: "#2d2438" },
     quiz: { boxes: {}, last: {} }, textbook: [], leaderboard: [], weekly: { week: null, best: 0 }, lastBriefing: null, payrollMissed: 0, customNames: [], news: 0, dosesDone: 0, labsDone: 0,
     energy: 100, naps: 0, coffees: 0, atHome: false, doctor: { name: "Ahmad", hairstyle: "curly", hair: "#1b1420", skin: "#9a5f3a", glassesStyle: "round", frames: "#2d2438", shoes: "#23222e", scrub: "#2f4f8f", cap: "#2f4f8f", coat: "#e9e9f2", scrubsOfDay: ["#2f4f8f", "#3f6f6a", "#5a3e8f", "#b4557a", "#4fb3a9", "#23222e", "#8a3350"] },
     clinicPet: { species: "cat", name: "Mishmish", personality: "curious", color: "#3a3a3a", hunger: 40, feeds: 0, bond: 0, missed: 0 } };
@@ -26,7 +28,7 @@ function load() { try { const r = localStorage.getItem(SAVE_KEY); if (r) { const
 
 /* ---------------- UI primitives ---------------- */
 function toast(msg, kind = "info", ms = 3200) { const t = document.createElement("div"); t.className = "toast " + kind; t.innerHTML = msg; $("#toasts").appendChild(t); requestAnimationFrame(() => t.classList.add("show")); setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 400); }, ms); if (kind === "warn") Sound.vibrate(40); }
-function openPanel(title, html, opts = {}) { G.panelOpen = true; const p = $("#panel"); p.classList.remove("hidden"); p.classList.toggle("wide", !!opts.wide); p.classList.toggle("side", !!opts.side); document.body.classList.add("panel-open"); $("#panelTitle").innerHTML = title; $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; $("#panelClose").style.display = opts.noClose ? "none" : ""; G.input.x = G.input.z = 0; G.keys = {}; }
+function openPanel(title, html, opts = {}) { if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock(); closeMenus(); G.panelOpen = true; const p = $("#panel"); p.classList.remove("hidden"); p.classList.toggle("wide", !!opts.wide); p.classList.toggle("side", !!opts.side); document.body.classList.add("panel-open"); $("#panelTitle").innerHTML = title; $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; $("#panelClose").style.display = opts.noClose ? "none" : ""; G.input.x = G.input.z = 0; G.keys = {}; }
 function closePanel() { G.panelOpen = false; $("#panel").classList.add("hidden"); document.body.classList.remove("panel-open"); if (G.onPanelClose) { const f = G.onPanelClose; G.onPanelClose = null; f(); } }
 function setBody(html) { $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; }
 function hint(text) { return G.s.settings.hints ? `<div class="hintbox">${icon("help", 16)} <b>Mentor:</b> ${text}</div>` : ""; }
@@ -65,9 +67,11 @@ function updateHUD() {
   $("#board").innerHTML = list || "<li class='muted'>No patients right now</li>";
   if (typeof updateNeeds === "function") updateNeeds();
   const g = s.goals.list || []; $("#goals").innerHTML = g.map(x => `<li class="${x.done ? "done" : ""}">${icon(x.done ? "check" : "tag", 14)} ${x.text}${x.target > 1 ? ` <em>${Math.min(x.progress, x.target)}/${x.target}</em>` : ""}</li>`).join("") || "<li class='muted'>Start a shift to get goals</li>";
+  $("#pillDay").textContent = `${T("Day")} ${s.day}`; $("#pillShift").textContent = s.shiftActive ? (s.closing ? "Closing" : "Open") : "Closed"; $("#pillShift").className = "pshift " + (s.shiftActive && !s.closing ? "on" : "off"); $("#pillRep").textContent = `★ ${s.rep.toFixed(1)}`; $("#pillEnergy").style.width = en + "%"; $("#pillEnergy").className = en < 25 ? "low" : en < 45 ? "mid" : "";
+  if (!$("#statusSheet").classList.contains("hidden")) renderActivity();
   const ev = s.event ? EVENTS.find(e => e.id === s.event.id) : null; $("#eventBanner").innerHTML = ev ? `${icon(ev.weather === "rain" ? "drop" : "sun", 14)} ${ev.name}` : ""; $("#eventBanner").style.display = ev ? "" : "none";
 }
-function updateClockOnly() { const h = Math.floor(G.s.clockMin / 60), m = Math.floor(G.s.clockMin % 60); $("#hudClock").textContent = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; }
+function updateClockOnly() { const h = Math.floor(G.s.clockMin / 60), m = Math.floor(G.s.clockMin % 60); const t = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; $("#hudClock").textContent = t; $("#pillClock").textContent = t; }
 function statusLabel(st) { return { arriving: "arriving", at_desk: "at reception", waiting: "waiting room", to_exam: "to exam", exam_ready: "exam table", to_xray: "to X-ray", xray_ready: "X-ray suite", to_prep: "to prep", preop: "pre-op", ready_or: "OR table", recovery: "recovering", to_desk: "to reception", ready_discharge: "ready to pay", leaving: "leaving", nurse: "with the nurse", to_dental: "to dental", dental_ready: "dental table", to_ward: "to ward", ward_ready: "in the ward", farm: "farm call", rx: "needs prescription" }[st] || st; }
 function clockStr() { const h = Math.floor(G.s.clockMin / 60), m = Math.floor(G.s.clockMin % 60); return `Day ${G.s.day} ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`; }
 
@@ -117,7 +121,7 @@ function spawnPatient(force) {
   const known = G.s.clients.filter(k => k.pets.some(pt => pt.species === c.species)); const returning = !force && known.length && Math.random() < 0.4 ? pick(known) : null;
   const petRec = returning ? pick(returning.pets.filter(pt => pt.species === c.species)) : null;
   const stray = !force && !returning && Math.random() < 0.08 && G.s.level >= 2;
-  const p = { id: G.patientSeq++, caseDef: c, species: c.species, status: "arriving", record: [], mistakes: 0, examDone: {}, vitals: null, intake: null, emergency: !!c.emergency, emergencyLeft: c.emergency ? Math.round(360 - difficultyScale() * 120) : 0, arrivedAt: G.s.clockMin, arrivedReal: performance.now(), stray, mystery: !!c.mystery,
+  const p = { arrivedReal: gameNow(), id: G.patientSeq++, caseDef: c, species: c.species, status: "arriving", record: [], mistakes: 0, examDone: {}, vitals: null, intake: null, emergency: !!c.emergency, emergencyLeft: c.emergency ? Math.round(360 - difficultyScale() * 120) : 0, arrivedAt: G.s.clockMin, stray, mystery: !!c.mystery,
     name: petRec ? petRec.name : pick(sp.names.concat(G.s.customNames)), ownerName: stray ? "Good Samaritan" : returning ? returning.ownerName : pick(OWNER_NAMES), breed: petRec ? petRec.breed : pick(sp.breeds), sex: petRec ? petRec.sex : pick(["male", "female"]),
     weight: petRec ? petRec.weight : +(c.species === "bird" ? rnd(sp.weight[0], sp.weight[1]).toFixed(3) : rnd(sp.weight[0], sp.weight[1]).toFixed(1)), personality: returning ? returning.personality : pick(Object.keys(OWNER_TYPES)), client: returning || null, petRec, fear: petRec ? petRec.fear : 0.3 };
   p.age = petRec ? ageLabel(petRec.ageMonths + (G.s.day - petRec.lastDay)) : (c.id.includes("vax_cat") ? "10 weeks" : c.id === "spay_dog" ? "7 months" : c.id === "parvo_pup" ? "12 weeks" : c.id === "spleen_dog" || c.id === "pyometra" ? `${Math.floor(rnd(8, 12))} years` : `${Math.floor(rnd(1, 9))} years`);
@@ -187,7 +191,7 @@ function dynamicInteractables() {
   const cp = World.catPos(); if (cp) list.push({ id: "cat", pos: { x: cp.x, z: cp.z }, r: 1.1, label: () => `Pet ${G.s.clinicPet.name}`, action: () => petClinicPet() });
   return list;
 }
-function callToExam(p) { if (patientAt("exam_ready") || patientAt("to_exam")) return toast("The exam room is occupied.", "warn"); Sound.click(); freeSeat(p); if (p.npc.pet) p.npc.pet.sleeping = false; const waitedS = (performance.now() - (p.arrivedReal || performance.now())) / 1000; const limit = 240 - difficultyScale() * 90; if (waitedS > limit) { G.s.dayStats.longWait = 1; rep(-0.08, `${p.name} waited too long`); } else if (waitedS < 60) addXP(5, "seen promptly"); walkNPC(p, PATH.waitToExam, "to_exam", () => { World.placePet(p.npc, 6.5, 1.0, -7, Math.PI / 2); p.npc.rig.group.position.set(7.4, 0, -6.1); p.npc.rig.group.rotation.y = -Math.PI / 2; p.status = "exam_ready"; Sound.pet(p.species); toast(`${p.name} is on the exam table.`, "info"); }); }
+function callToExam(p) { if (patientAt("exam_ready") || patientAt("to_exam")) return toast("The exam room is occupied.", "warn"); Sound.click(); freeSeat(p); if (p.npc.pet) p.npc.pet.sleeping = false; const waitedS = (gameNow() - (p.arrivedReal || gameNow())) / 1000; const limit = 240 - difficultyScale() * 90; if (waitedS > limit) { G.s.dayStats.longWait = 1; rep(-0.08, `${p.name} waited too long`); } else if (waitedS < 60) addXP(5, "seen promptly"); walkNPC(p, PATH.waitToExam, "to_exam", () => { World.placePet(p.npc, 6.5, 1.0, -7, Math.PI / 2); p.npc.rig.group.position.set(7.4, 0, -6.1); p.npc.rig.group.rotation.y = -Math.PI / 2; p.status = "exam_ready"; Sound.pet(p.species); toast(`${p.name} is on the exam table.`, "info"); }); }
 
 /* ---------------- SHIFT ---------------- */
 function uiShiftBoard() {
@@ -314,7 +318,7 @@ function renderExam(p) {
     <h4>Normal ranges — ${sp.label}</h4><table class="ref small"><tr><td>Temp</td><td>${v.temp[0]}–${v.temp[1]} °C</td></tr><tr><td>Heart rate</td><td>${v.hr[0]}–${v.hr[1]} bpm</td></tr><tr><td>Resp. rate</td><td>${v.rr[0]}–${v.rr[1]} /min</td></tr><tr><td>CRT</td><td>${v.crt}</td></tr></table><p class="muted">${sp.vitalsNote}</p></div></div>`, { wide: true });
 }
 function vitalsHTML(p) { const v = SPECIES[p.species].vitals, t = p.vitals; return `<div class="vitals"><span class="${vitalClass(t.temp, v.temp)}">T ${t.temp} °C</span><span class="${vitalClass(t.hr, v.hr)}">HR ${t.hr}</span><span class="${vitalClass(t.rr, v.rr)}">RR ${t.rr}</span><span>CRT ${t.crt}</span><span>MM ${t.mm}</span></div>`; }
-function examStep(id, step) { const p = G.patients.find(x => x.id === id); if (!p || p.examDone[step]) return; if (G.s.settings.examGames !== false && typeof examMinigame === "function") { const mg = examMinigame(p, step); if (mg) return mg.then(() => { p.examDone[step] = true; renderExam(p); }); } p.examDone[step] = true; energy(-0.5); Sound.click(); if (step === "tpr" || step === "ausc") Sound.beep(); if (step === "ausc" && p.hidden && p.hidden.murmur) { p.murmurFound = true; addXP(10, "murmur detected"); } if (step === "msk" && p.secondary) p.secondaryFound = true; renderExam(p); }
+function examStep(id, step) { const p = G.patients.find(x => x.id === id); if (!p || p.examDone[step]) return; if (G.s.settings.examGames !== false && typeof examMinigame === "function") { const mg = examMinigame(p, step); if (mg) return mg.then(() => { p.examDone[step] = true; if (step === "ausc" && p.hidden && p.hidden.murmur && !p.murmurFound) { p.murmurFound = true; addXP(10, "murmur detected"); } if (step === "msk" && p.secondary) p.secondaryFound = true; renderExam(p); }); } p.examDone[step] = true; energy(-0.5); Sound.click(); if (step === "tpr" || step === "ausc") Sound.beep(); if (step === "ausc" && p.hidden && p.hidden.murmur) { p.murmurFound = true; addXP(10, "murmur detected"); } if (step === "msk" && p.secondary) p.secondaryFound = true; renderExam(p); }
 function diagnose(id, i) {
   const p = G.patients.find(x => x.id === id); const c = p.caseDef; const ok = i === c.correct;
   p.record.push(`${clockStr()} — Exam: ${c.findings} TPR ${p.vitals.temp} °C / ${p.vitals.hr} / ${p.vitals.rr}.${p.murmurFound ? " Grade II murmur noted." : ""}${p.secondaryFound ? " Also: " + p.secondary + "." : ""} Plan: "${c.options[i]}" (${ok ? "correct" : "corrected"}).`);
@@ -403,7 +407,7 @@ function preopQuiz(p, s, finish) {
   setBody(`<h4>${s.label}</h4><p class="big">${s.id === "fasting" ? `How long should a ${SPECIES[p.species].label.toLowerCase()} be fasted?` : s.id === "induce" ? `Which airway for a ${SPECIES[p.species].label.toLowerCase()}?` : "How do you prepare the surgical site?"}</p>${order.map(k => `<button class="btn opt" data-k="${k}">${opts[k]}</button>`).join("")}`);
   document.querySelectorAll("#panelBody .opt").forEach(b => b.onclick = () => { const ok = +b.dataset.k === quiz.correct; if (ok) { Sound.success(); addXP(15, "correct protocol"); } else { Sound.error(); p.mistakes++; } p.record.push(`${clockStr()} — Pre-op: ${s.label} (${ok ? "correct" : "corrected"}).`); setBody(`<div class="${ok ? "goodbox" : "badbox"}"><b>${ok ? "Correct." : "Not quite."}</b> ${typeof s.why === "function" ? s.why(p.species) : s.why}</div><div class="btnrow"><button class="btn primary" id="pq">Continue</button></div>`); $("#pq").onclick = finish; });
 }
-function uiDoseTask(p, drugId, next) { const drug = DRUGS.find(d => d.id === drugId); if (!drug || !drug.dose[p.species]) return next(); MGpanel(`Draw up ${drug.name}`, (el) => MG.dose(el, drug, p.species, p.weight), { icon: "drug" }).then(r => { if (r.ok) { addXP(15, "dose correct"); G.s.dosesDone++; stat("doses"); } else { p.mistakes++; rep(-0.05); } p.record.push(`${clockStr()} — ${drug.name} ${drug.dose[p.species]} mg/kg (${r.ok ? "correct volume" : "dose error corrected"}).`); next(); }); }
+function uiDoseTask(p, drugId, next, retry) { const drug = DRUGS.find(d => d.id === drugId); if (!drug || !drug.dose[p.species]) return next(); MGpanel(`${retry ? "Recalculate" : "Draw up"} ${drug.name}`, (el) => MG.dose(el, drug, p.species, p.weight), { icon: "drug" }).then(r => { if (!r.ok) { if (!retry) { p.mistakes++; rep(-0.05); p.record.push(`${clockStr()} — ${drug.name}: first calculation wrong, redone.`); } return uiDoseTask(p, drugId, next, true); } if (!retry) { addXP(15, "dose correct"); G.s.dosesDone++; stat("doses"); } p.record.push(`${clockStr()} — ${drug.name} ${drug.dose[p.species]} mg/kg → ${(drug.dose[p.species] * p.weight / drug.conc).toFixed(2)} mL (verified).`); next(); }); }
 function toOR(id) { const p = G.patients.find(x => x.id === id); if (!p.packReady && !G.s.staff.some(s => s.role === "assistant")) { toast("Assemble and autoclave the surgical pack first (autoclave, east wall of this room).", "warn", 4000); return; } if (!p.packReady) { p.packReady = true; toast("Your surgical assistant prepared the pack.", "info"); } World.placePet(p.npc, 7, 1.0, 6.5, Math.PI / 2); p.status = "ready_or"; p.record.push(`${clockStr()} — Anaesthetised, intubated, monitored; transferred to theatre.`); closePanel(); toast(`${p.name} is on the operating table. Scrub in!`, "info", 4000); updateHUD(); }
 function uiAutoclave() { const p = patientAt("preop") || patientAt("ready_or"); if (!p) return openPanel(`${icon("tray", 20)} Autoclave`, `<p>No surgery scheduled. Packs are assembled per procedure, wrapped, and steam-sterilised at 121 °C for 15 min (134 °C for 3 min flash). The indicator strip must change colour.</p>`); if (p.packReady) return openPanel(`${icon("tray", 20)} Autoclave`, `<p>The ${PROCEDURES[p.caseDef.procedure].name} pack is sterile and ready.</p>`); MGpanel("Instrument pack", (el) => MG.packAssembly(el, p.caseDef.procedure), { icon: "tray" }).then(r => { p.packReady = true; if (r.ok) addXP(20, "pack complete"); else { p.mistakes++; p.packMissing = true; } closePanel(); }); }
 
@@ -419,7 +423,7 @@ function renderScrub() {
   const i = G.scrubIdx; const html = SCRUB_STEPS.map((s, k) => `<div class="step ${k < i ? "done" : k === i ? "cur" : "lock"}"><span class="chk">${k < i ? icon("check", 16) : k + 1}</span><div><b>${s.label}</b><div class="tip">${s.why}</div></div></div>`).join("");
   const act = i >= SCRUB_STEPS.length ? `<div class="goodbox"><b>Sterile.</b> Walk to the OR table.</div><div class="btnrow"><button class="btn primary" onclick="setOutfit('surgical');award('scrubbed')">Enter theatre</button></div>` : i === 4 ? `<p>Hold to scrub — fingertips first, hands above elbows, all four sides of each finger, then forearms.</p><button class="btn primary hold" id="scrubBtn">Hold to scrub</button><div class="bar"><div id="scrubFill"></div></div>` : `<div class="btnrow"><button class="btn primary" onclick="scrubNext()">${["", "", "", "", "", "Dry hands with sterile towel", "Put on sterile gown", "Closed gloving"][i]}</button></div>`;
   openPanel(`${icon("sink", 20)} Surgical hand scrub`, html + act, { wide: true });
-  if (i === 4) { const btn = $("#scrubBtn"); let prog = 0, timer = null; const start = (e) => { e.preventDefault(); Sound.water(); timer = setInterval(() => { prog += 2.2; $("#scrubFill").style.width = Math.min(100, prog) + "%"; if (prog >= 100) { clearInterval(timer); timer = null; scrubNext(); } }, 60); }; const stop = () => { if (timer) { clearInterval(timer); timer = null; if (prog < 100) { prog = 0; $("#scrubFill").style.width = "0%"; toast("Scrub interrupted — start again.", "warn"); } } }; btn.addEventListener("pointerdown", start); btn.addEventListener("pointerup", stop); btn.addEventListener("pointerleave", stop); btn.addEventListener("pointercancel", stop); }
+  if (i === 4) { const btn = $("#scrubBtn"); let prog = 0, timer = null; const start = (e) => { e.preventDefault(); Sound.water(); timer = setInterval(() => { if (G.paused) return; prog += 2.2; $("#scrubFill").style.width = Math.min(100, prog) + "%"; if (prog >= 100) { clearInterval(timer); timer = null; scrubNext(); } }, 60); }; const stop = () => { if (timer) { clearInterval(timer); timer = null; if (prog < 100) { prog = 0; $("#scrubFill").style.width = "0%"; toast("Scrub interrupted — start again.", "warn"); } } }; btn.addEventListener("pointerdown", start); btn.addEventListener("pointerup", stop); btn.addEventListener("pointerleave", stop); btn.addEventListener("pointercancel", stop); }
 }
 function scrubNext() { G.scrubIdx++; Sound.click(); renderScrub(); }
 
@@ -428,7 +432,7 @@ function uiSurgery() {
   const p = patientAt("ready_or"); if (!p) return openPanel(`${icon("scalpel", 20)} Operating table`, "<p>No anaesthetised patient on the table.</p>");
   if (G.s.outfit !== "surgical") return openPanel(`${icon("scalpel", 20)} Operating table`, `<div class="badbox"><b>You are not sterile.</b> ${G.s.outfit === "clinic" ? "Locker, then sink." : "Complete the hand scrub, gown and gloves at the sink."}</div>`);
   const proc = PROCEDURES[p.caseDef.procedure];
-  p.surg = { step: 0, mistakes: 0, events: 0, vit: { hr: p.species === "bird" ? 320 : p.species === "cat" ? 150 : 95, spo2: 98, etco2: 40, map: 78, temp: p.species === "bird" ? 40.5 : 38.2 }, start: performance.now() };
+  p.surg = { step: 0, mistakes: 0, events: 0, vit: { hr: p.species === "bird" ? 320 : p.species === "cat" ? 150 : 95, spo2: 98, etco2: 40, map: 78, temp: p.species === "bird" ? 40.5 : 38.2 }, start: gameNow() };
   if (G.s.settings.music) Sound.music.start("or"); energy(-6);
   const approach = proc.approaches ? `<h4>Choose the approach</h4>${proc.approaches.filter(a => !a.species || a.species.includes(p.species)).map(a => `<button class="btn opt" onclick="pickApproach(${p.id},'${a.id}')"><b>${a.label}</b><br><span class="muted">${a.why}</span></button>`).join("")}` : `<div class="btnrow"><button class="btn primary" onclick="renderSurgery(${p.id})">Begin — "Scalpel, please."</button></div>`;
   openPanel(`${icon("scalpel", 20)} ${proc.name} — ${p.name}`, `<p class="big">${proc.intro}</p><p><b>Time-out:</b> ${p.name}, ${p.breed}, ${p.weight} kg · ${proc.name} · allergies none · antibiotics given · count done. Est. ${proc.duration}.${p.packMissing ? " <b>Warning:</b> the pack was incomplete — expect delays." : ""}</p>${G.s.staff.some(s => s.role === "assistant") ? `<p class="muted">${icon("user", 14)} Your surgical assistant is scrubbed in: instruments handed faster, fewer surprises.</p>` : ""}${approach}`, { wide: true, noClose: true });
@@ -480,7 +484,7 @@ function ecgEvent(p) {
 }
 function finishSurgery(p) {
   const proc = PROCEDURES[p.caseDef.procedure]; const S = p.surg; G.s.surgeries++; award("first_surgery"); if (S.mistakes === 0) { award("flawless"); stat("flawless"); confetti(); rep(0.2, "flawless surgery"); } else if (S.mistakes >= 3) rep(-0.2, "rough surgery"); stat("surgeries");
-  const mins = Math.round((performance.now() - S.start) / 6000) / 10; const xp = 80 + (S.mistakes === 0 ? 40 : 0) + (p.referral ? 40 : 0); addXP(xp, "surgery complete");
+  const mins = Math.round((gameNow() - S.start) / 6000) / 10; const xp = 80 + (S.mistakes === 0 ? 40 : 0) + (p.referral ? 40 : 0); addXP(xp, "surgery complete");
   p.record.push(`${clockStr()} — ${proc.name} completed in ${mins} min. Errors: ${S.mistakes}. Count correct. Moved to recovery.`); p.surgResult = { mins, mistakes: S.mistakes, proc: proc.name };
   const infect = (G.s.hygiene < 60 ? 0.25 : 0.08) + (p.contam ? 0.1 : 0); if (Math.random() < infect) p.complication = Math.random() < 0.5 ? "seroma" : "infection";
   World.placePet(p.npc, 10, 0.25, 11.3, Math.PI); p.status = "recovery"; p.fee = p.caseDef.fee; if (G.s.settings.music) Sound.music.start("lobby");
@@ -537,6 +541,9 @@ function spawnShopCustomer() { const it = pick(SHOP_ITEMS); G.shopCustomer = { n
 
 /* ---------------- main loop ---------------- */
 function nearestInteractable(pos, forCoop) {
+  if (World.camMode === "first" && !forCoop) { const L = World.getLook(); const fx = Math.sin(L.yaw), fz = Math.cos(L.yaw); let best = null, bs = 1e9;
+    for (const it of INTERACT.concat(dynamicInteractables())) { if (it.room && World.locked[it.room]) continue; const dx = it.pos.x - pos.x, dz = it.pos.z - pos.z, d = Math.hypot(dx, dz); if (d > it.r + 1.0) continue; const ang = d < 0.5 ? 0 : Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / d))); if (ang > 0.5) continue; const sc = ang * 2 + d * 0.25; if (sc < bs) { bs = sc; best = it; } }
+    return best; }
   let best = null, bd = 1e9; for (const it of INTERACT.concat(dynamicInteractables())) { if (forCoop && !it.coop) continue; if (it.room && World.locked[it.room]) continue; const d = Math.hypot(it.pos.x - pos.x, it.pos.z - pos.z); if (d < it.r && d < bd) { bd = d; best = it; } } return best;
 }
 function gate(pos) {
@@ -547,8 +554,8 @@ function gate(pos) {
 }
 function tick() {
   requestAnimationFrame(tick);
+  const nowR = performance.now(); const rd = Math.min(250, nowR - (G.lastReal || nowR)); G.lastReal = nowR; if (!G.paused) G.gameTime += rd;
   const night = G.s.shiftActive && G.s.clockMin >= 18 * 60;
-  if (G.look && (G.look.x || G.look.y)) World.lookDelta(G.look.x * 0.045, G.look.y * 0.03);
   const res = World.update(G.input, { frozen: G.panelOpen || G.paused, paused: G.paused, gate, night, input2: G.s.settings.coop ? G.input2 : null, speedMult: G.s.energy < 40 ? 0.85 : 1 });
   if (typeof Bubbles !== "undefined") Bubbles.update();
   if (G.paused) return;
@@ -574,6 +581,7 @@ function tick() {
   G.needsT = (G.needsT || 0) + dt; if (G.needsT > 1) { G.needsT = 0; if (typeof updateNeeds === "function") updateNeeds(); }
   G.catTimer -= dt; if (G.catTimer <= 0) { const per = G.s.clinicPet.personality; G.catTimer = per === "playful" ? rnd(15, 30) : per === "lazy" ? rnd(70, 120) : rnd(35, 70); if (G.s.clinicPet.hunger > 75) World.catWander([0.6, -10.9]); else if (per === "curious" && Math.random() < 0.5) { const pp = World.playerPos(); World.catWander([pp.x + 0.8, pp.z + 0.6]); } else World.catWander(); }
   const it = G.panelOpen ? null : nearestInteractable(pos); G.nearest = it;
+  if (World.camMode === "first") $("#crosshair").classList.toggle("hit", !!it);
   const pr = $("#prompt"); if (it) { pr.classList.add("show"); pr.querySelector("span").textContent = it.label(); World.setRing(it.pos); } else { pr.classList.remove("show"); World.setRing(null); }
   if (G.s.settings.coop) { const p2 = World.player2Pos(); G.nearest2 = p2 && !G.panelOpen ? nearestInteractable(p2, true) : null; }
 }
@@ -587,7 +595,14 @@ function bindInput() {
   addEventListener("keydown", (e) => { Sound.init(); if (e.target.matches("input,textarea,select")) return; if (map[e.code]) { G.keys[map[e.code]] = true; recompute(); e.preventDefault(); } if (map2[e.code] && G.s.settings.coop) { G.keys[map2[e.code]] = true; recompute(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = true; if (e.code === "KeyE" || e.code === "Space" || e.code === "Enter") { e.preventDefault(); interact(); } if (e.code === "KeyU" && G.s.settings.coop) interact2(); if (e.code === "Escape") { if (G.panelOpen) { if ($("#panelClose").style.display !== "none") closePanel(); } else togglePause(); } if (e.code === "KeyH") { if (!G.panelOpen) uiHelp(); } if (e.code === "KeyM") toggleMute(); if (e.code === "KeyV") toggleCamera(); if (e.code === "KeyP") photoMode(); if (e.code === "KeyO") { if (!G.panelOpen) uiSettings(); } });
   addEventListener("keyup", (e) => { if (map[e.code]) { G.keys[map[e.code]] = false; recompute(); } if (map2[e.code]) { G.keys[map2[e.code]] = false; recompute(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = false; });
   addEventListener("blur", () => { G.keys = {}; recompute(); G.input.run = false; });
-  $("#prompt").onclick = interact; $("#panelClose").onclick = closePanel; $("#helpBtn").onclick = () => { if (!G.panelOpen) uiHelp(); }; $("#muteBtn").onclick = toggleMute; $("#camBtn").onclick = toggleCamera; $("#setBtn").onclick = () => { if (!G.panelOpen) uiSettings(); else closePanel(); }; $("#photoBtn").onclick = photoMode; $("#pauseBtn").onclick = togglePause; bindLookStick();
+  $("#prompt").onclick = interact; $("#panelClose").onclick = closePanel;
+  $("#gearBtn").onclick = (e) => { e.stopPropagation(); const open = $("#gearMenu").classList.contains("hidden"); closeMenus(); $("#gearMenu").classList.toggle("hidden", !open); syncMenuClass(); };
+  $("#gearMenu").addEventListener("click", () => setTimeout(() => { $("#gearMenu").classList.add("hidden"); syncMenuClass(); }, 0));
+  $("#statusPill").onclick = (e) => { e.stopPropagation(); const open = $("#statusSheet").classList.contains("hidden"); closeMenus(); $("#statusSheet").classList.toggle("hidden", !open); syncMenuClass(); if (open) renderActivity(); };
+  $("#sheetClose").onclick = () => { $("#statusSheet").classList.add("hidden"); syncMenuClass(); };
+  $("#mapBtn").onclick = () => { if (!G.panelOpen) uiMap(); };
+  $("#c").addEventListener("pointerdown", closeMenus);
+  $("#helpBtn").onclick = () => { if (!G.panelOpen) uiHelp(); }; $("#muteBtn").onclick = toggleMute; $("#camBtn").onclick = toggleCamera; $("#setBtn").onclick = () => { if (!G.panelOpen) uiSettings(); else closePanel(); }; $("#photoBtn").onclick = photoMode; $("#pauseBtn").onclick = () => togglePause(); bindLookStick();
   bindJoystick();
   const pad = $("#dpad"); if (pad) pad.querySelectorAll("button").forEach(b => { const d = b.dataset.d; const on = (e) => { e.preventDefault(); Sound.init(); if (d === "act") return interact(); G.keys[d] = true; recompute(); }; const off = (e) => { e.preventDefault(); G.keys[d] = false; recompute(); }; b.addEventListener("pointerdown", on); b.addEventListener("pointerup", off); b.addEventListener("pointercancel", off); b.addEventListener("pointerleave", off); });
   const act = $("#actBtn"); if (act) act.addEventListener("pointerdown", (e) => { e.preventDefault(); Sound.init(); interact(); });
@@ -606,9 +621,12 @@ function bindJoystick() {
   const end = (e) => { if (e.pointerId !== active) return; active = null; base.classList.remove("on"); G.input.x = 0; G.input.z = 0; G.input.run = false; knob.style.transform = ""; };
   zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
 }
-function toggleMute() { const m = Sound.toggleMute(); $("#muteBtn").innerHTML = icon(m ? "mute" : "sound", 22); toast(m ? icon("mute", 18) + " Muted" : icon("sound", 18) + " Sound on", "info", 1200); }
+function closeMenus() { const g = $("#gearMenu"), st = $("#statusSheet"); if (g) g.classList.add("hidden"); if (st) st.classList.add("hidden"); document.body.classList.remove("menu-open"); }
+function syncMenuClass() { const open = !$("#gearMenu").classList.contains("hidden") || !$("#statusSheet").classList.contains("hidden"); document.body.classList.toggle("menu-open", open); }
+function renderActivity() { const el = $("#activityLog"); if (!el) return; el.innerHTML = G.log.slice(0, 25).map(l => `<li class="${l.kind}"><em>${l.t}</em> ${l.msg}</li>`).join("") || "<li class='muted'>Nothing yet today.</li>"; }
+function toggleMute() { const m = Sound.toggleMute(); $("#muteBtn .gi").innerHTML = icon(m ? "mute" : "sound", 20); $("#muteBtn .gl").textContent = m ? "Sound off" : "Sound"; toast(m ? icon("mute", 18) + " Muted" : icon("sound", 18) + " Sound on", "info", 1200); }
 function toggleCamera() { const m = World.setCamMode(World.camMode === "third" ? "first" : "third"); G.s.settings.camMode = m; if (typeof updateFPUI === "function") updateFPUI(); toast(m === "first" ? `${icon("camera", 18)} First person — ${G.touch ? "drag on the screen to look around" : "move the mouse (click the game to lock the cursor)"}; V switches back.` : `${icon("camera", 18)} Third person.`, "info", 3500); save(); }
-function applySettingsToWorld() { const st = G.s.settings; if (typeof applyControlMode === "function") applyControlMode(); if (typeof updateFPUI === "function") setTimeout(updateFPUI, 0); document.documentElement.style.setProperty("--fs", st.textSize); document.documentElement.dir = st.lang === "ar" ? "rtl" : "ltr"; document.body.classList.toggle("rtl", st.lang === "ar"); document.body.classList.toggle("onehand-right", st.oneHand === "right"); World.setCamMode(st.camMode || "third"); World.enableCoop(!!st.coop); World.applyAvatar(st.avatarApplied ? G.s.avatar : G.s.avatar); $("#coopHint").style.display = st.coop ? "" : "none"; }
+function applySettingsToWorld() { const st = G.s.settings; World.setLookOptions({ sens: st.lookSens || 1, bob: st.headBob !== false }); if (typeof applyControlMode === "function") applyControlMode(); if (typeof updateFPUI === "function") setTimeout(updateFPUI, 0); document.documentElement.style.setProperty("--fs", st.textSize); document.documentElement.dir = st.lang === "ar" ? "rtl" : "ltr"; document.body.classList.toggle("rtl", st.lang === "ar"); document.body.classList.toggle("onehand-right", st.oneHand === "right"); World.setCamMode(st.camMode || "third"); World.enableCoop(!!st.coop); World.applyAvatar(st.avatarApplied ? G.s.avatar : G.s.avatar); $("#coopHint").style.display = st.coop ? "" : "none"; }
 
 function boot() {
   G.s = load();

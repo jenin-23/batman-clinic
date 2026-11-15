@@ -27,7 +27,7 @@ const World = (() => {
   const themeMats = { wall: null, wallClones: [], accent: [], trim: [], floors: {} };
   const lockedRooms = { dental: true, ward: true };
   const lockedMeshes = { dental: [], ward: [] };
-  let camDist = 1.0, camMode = "third", yaw = Math.PI, pitch = -0.1, tYaw = Math.PI, tPitch = -0.1, nightAmount = 0, weather = "clear", hour = 9;
+  let camDist = 1.0, camMode = "third", yaw = Math.PI, pitch = -0.1, tYaw = Math.PI, tPitch = -0.1, lookSens = 1, headBob = true, nightAmount = 0, weather = "clear", hour = 9;
   const windowMats = [];
 
   /* ---------- helpers ---------- */
@@ -486,16 +486,16 @@ const World = (() => {
     window.addEventListener("resize", onResize); window.addEventListener("orientationchange", () => setTimeout(onResize, 300)); onResize();
     window.addEventListener("wheel", (e) => { camDist = Math.max(0.6, Math.min(1.7, camDist + e.deltaY * 0.0008)); }, { passive: true });
     // first-person look controls
-    canvas.addEventListener("mousemove", (e) => { if (camMode !== "first") return; if (document.pointerLockElement === canvas || e.buttons === 1) { tYaw -= e.movementX * 0.0022; tPitch = Math.max(-1.2, Math.min(1.0, tPitch - e.movementY * 0.0022)); } });
+    canvas.addEventListener("mousemove", (e) => { if (camMode !== "first") return; if (document.pointerLockElement === canvas || e.buttons === 1) { tYaw -= e.movementX * 0.0022 * lookSens; tPitch = Math.max(-1.3, Math.min(1.2, tPitch - e.movementY * 0.0022 * lookSens)); } });
     canvas.addEventListener("click", () => { if (camMode === "first" && canvas.requestPointerLock && !document.pointerLockElement) { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { } } });
-    let lt = null, ltId = null; canvas.addEventListener("touchstart", (e) => { if (camMode !== "first") return; for (const t of e.changedTouches) { if (t.clientX > innerWidth * 0.45 && ltId === null) { ltId = t.identifier; lt = { x: t.clientX, y: t.clientY }; } } }, { passive: true });
-    canvas.addEventListener("touchmove", (e) => { if (camMode !== "first" || ltId === null) return; for (const t of e.changedTouches) { if (t.identifier === ltId) { tYaw -= (t.clientX - lt.x) * 0.0045; tPitch = Math.max(-1.2, Math.min(1.0, tPitch - (t.clientY - lt.y) * 0.0045)); lt = { x: t.clientX, y: t.clientY }; } } }, { passive: true });
-    const endLook = (e) => { for (const t of e.changedTouches) if (t.identifier === ltId) { ltId = null; lt = null; } }; canvas.addEventListener("touchend", endLook); canvas.addEventListener("touchcancel", endLook);
+    // touch look is handled by #lookZone (ux.js) so it never overlaps on-screen buttons
   }
 
-  function lookDelta(dx, dy) { tYaw -= dx; tPitch = Math.max(-1.2, Math.min(1.0, tPitch - dy)); }
+  function lookDelta(dx, dy) { tYaw -= dx * lookSens; tPitch = Math.max(-1.3, Math.min(1.2, tPitch - dy * lookSens)); }
+  function setLookOptions(o) { if (o.sens) lookSens = o.sens; if (o.bob !== undefined) headBob = !!o.bob; }
+  function getLook() { return { yaw, pitch, mode: camMode }; }
   function setCamMode(m) {
-    camMode = m; if (m === "first") { yaw = tYaw = player.group.rotation.y + Math.PI; pitch = tPitch = -0.05; player.group.visible = false; } else { player.group.visible = true; if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock(); }
+    camMode = m; if (m === "first") { yaw = tYaw = player.group.rotation.y; pitch = tPitch = -0.08; player.group.visible = false; camera.fov = 70; } else { player.group.visible = true; camera.fov = 42; if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock(); } camera.updateProjectionMatrix();
     return camMode;
   }
 
@@ -505,12 +505,12 @@ const World = (() => {
     if (!opts.frozen && (input.x || input.z)) {
       const len = Math.hypot(input.x, input.z) || 1; const sp = (input.run ? 6.2 : 4.0) * dt * (opts.speedMult || 1) * Math.min(1, len);
       let mx = input.x / len, mz = input.z / len; if (preview) { mx = 0; mz = 0; moving = false; }
-      if (camMode === "first") { // move relative to look direction (forward = -z when yaw = PI)
-        const f = { x: Math.sin(yaw), z: Math.cos(yaw) }; const r = { x: Math.cos(yaw), z: -Math.sin(yaw) };
+      if (camMode === "first") { // stick up = walk where you look; stick right = step right
+        const f = { x: Math.sin(yaw), z: Math.cos(yaw) }; const r = { x: -Math.cos(yaw), z: Math.sin(yaw) };
         const fx = f.x * -mz + r.x * mx, fz = f.z * -mz + r.z * mx; mx = fx; mz = fz;
       }
       pos.x += mx * sp; pos.z += mz * sp; moving = true;
-      player.group.rotation.y = lerpAngle(player.group.rotation.y, Math.atan2(mx, mz), Math.min(1, dt * 12));
+      if (camMode !== "first") player.group.rotation.y = lerpAngle(player.group.rotation.y, Math.atan2(mx, mz), Math.min(1, dt * 12));
     }
     collide(pos, 0.35);
     if (opts.gate && opts.gate(pos)) { pos.x = prev.x; pos.z = prev.z; }
@@ -524,7 +524,8 @@ const World = (() => {
       const ang = previewAngle + Math.PI; camera.position.lerp(new THREE.Vector3(pos.x + Math.sin(0) * 2.6, 1.5, pos.z + 2.9), Math.min(1, dt * 5)); camera.lookAt(new THREE.Vector3(pos.x, 1.05, pos.z));
       for (const m of fadeables) { const want = (m.position.z > pos.z + 0.5 && Math.abs(m.position.x - pos.x) < 6) ? 0.1 : 1; m.material.opacity += (want - m.material.opacity) * Math.min(1, dt * 8); m.material.transparent = m.material.opacity < 0.995; }
     } else if (camMode === "first") {
-      camera.position.set(pos.x, 1.62 + (moving ? Math.abs(Math.sin(player.phase)) * 0.03 : 0), pos.z);
+      const k = Math.min(1, dt * 28); yaw += (tYaw - yaw) * k; pitch += (tPitch - pitch) * k; player.group.rotation.y = yaw;
+      camera.position.set(pos.x, 1.62 + (moving && headBob ? Math.abs(Math.sin(player.phase)) * 0.035 : 0), pos.z);
       const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
       camera.lookAt(camera.position.clone().add(dir));
       for (const m of fadeables) { if (m.material.opacity < 1) { m.material.opacity = 1; m.material.transparent = false; } }
@@ -588,5 +589,5 @@ const World = (() => {
     const p = posts[role]; if (!p) return null; const n = addNPC({ x: p.x, z: p.z, rotY: p.rotY, skin: [0xf1c27d, 0xc68642, 0x8d5524][Math.floor(Math.random() * 3)], hair: 0x1b1420, shirt: p.shirt, pants: 0x24304f, curly: Math.random() < 0.5, glasses: Math.random() < 0.4, coat: 0xe9e9f2, outfit: p.outfit }); n.isStaff = role; return n;
   }
 
-  return { init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, applyAvatar, setSign, setLocked, setWeather, setCamMode, lookDelta, catWander, catPos, catMood, routeBetween, setClinicPet, rebuildPlayer, setPreview, enableCoop, player2Pos, screenshot, showThankCards, addStaffNPC, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get camMode() { return camMode; }, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; }, get locked() { return lockedRooms; } };
+  return { init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, applyAvatar, setSign, setLocked, setWeather, setCamMode, lookDelta, setLookOptions, getLook, catWander, catPos, catMood, routeBetween, setClinicPet, rebuildPlayer, setPreview, enableCoop, player2Pos, screenshot, showThankCards, addStaffNPC, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get camMode() { return camMode; }, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; }, get locked() { return lockedRooms; } };
 })();
