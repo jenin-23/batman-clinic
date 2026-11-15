@@ -20,7 +20,7 @@ function defaultState() {
     rep: 3.0, hygiene: 90, staff: [], equipment: [], expansions: [], clients: [], goals: { day: 0, list: [] }, dayStats: {}, event: null, story: { seen: [], rival: false, charity: false, accredited: false, referral: false, certified: false, prestige: 0 },
     collections: { bones: [], tools: [], species: [] }, thankCards: 0, settings: { lang: "en", hints: true, difficulty: "vet", lookSens: 1, headBob: true, textSize: 1, camMode: "third", coop: false, oneHand: "left", music: true, weather: "auto" }, avatar: { scrub: "#2f4f8f", cap: "#2f4f8f", frames: "#2d2438" },
     quiz: { boxes: {}, last: {} }, textbook: [], leaderboard: [], weekly: { week: null, best: 0 }, lastBriefing: null, payrollMissed: 0, customNames: [], news: 0, dosesDone: 0, labsDone: 0,
-    energy: 100, naps: 0, coffees: 0, atHome: false, doctor: { name: "Ahmad", hairstyle: "curly", hair: "#1b1420", skin: "#9a5f3a", glassesStyle: "round", frames: "#2d2438", shoes: "#23222e", scrub: "#2f4f8f", cap: "#2f4f8f", coat: "#e9e9f2", scrubsOfDay: ["#2f4f8f", "#3f6f6a", "#5a3e8f", "#b4557a", "#4fb3a9", "#23222e", "#8a3350"] },
+    energy: 100, naps: 0, coffees: 0, atHome: false, doctor: { name: "Ahmad", hairstyle: "curly", beard: "short", hair: "#1b1420", skin: "#9a5f3a", glassesStyle: "round", frames: "#2d2438", shoes: "#23222e", scrub: "#2f4f8f", cap: "#2f4f8f", coat: "#e9e9f2", scrubsOfDay: ["#2f4f8f", "#3f6f6a", "#5a3e8f", "#b4557a", "#4fb3a9", "#23222e", "#8a3350"] },
     clinicPet: { species: "cat", name: "Mishmish", personality: "curious", color: "#3a3a3a", hunger: 40, feeds: 0, bond: 0, missed: 0 } };
 }
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(G.s)); } catch (e) { } }
@@ -29,7 +29,7 @@ function load() { try { const r = localStorage.getItem(SAVE_KEY); if (r) { const
 /* ---------------- UI primitives ---------------- */
 function toast(msg, kind = "info", ms = 3200) { const t = document.createElement("div"); t.className = "toast " + kind; t.innerHTML = msg; $("#toasts").appendChild(t); requestAnimationFrame(() => t.classList.add("show")); setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 400); }, ms); if (kind === "warn") Sound.vibrate(40); }
 function openPanel(title, html, opts = {}) { if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock(); closeMenus(); G.panelOpen = true; const p = $("#panel"); p.classList.remove("hidden"); p.classList.toggle("wide", !!opts.wide); p.classList.toggle("side", !!opts.side); document.body.classList.add("panel-open"); $("#panelTitle").innerHTML = title; $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; $("#panelClose").style.display = opts.noClose ? "none" : ""; G.input.x = G.input.z = 0; G.keys = {}; }
-function closePanel() { G.panelOpen = false; $("#panel").classList.add("hidden"); document.body.classList.remove("panel-open"); if (G.onPanelClose) { const f = G.onPanelClose; G.onPanelClose = null; f(); } }
+function closePanel() { G.panelOpen = false; World.setPlayerPose(null); $("#panel").classList.add("hidden"); document.body.classList.remove("panel-open"); if (G.onPanelClose) { const f = G.onPanelClose; G.onPanelClose = null; f(); } }
 function setBody(html) { $("#panelBody").innerHTML = html; $("#panelBody").scrollTop = 0; }
 function hint(text) { return G.s.settings.hints ? `<div class="hintbox">${icon("help", 16)} <b>Mentor:</b> ${text}</div>` : ""; }
 function confetti() { const c = document.createElement("div"); c.className = "confetti"; for (let i = 0; i < 40; i++) { const s = document.createElement("i"); s.style.left = Math.random() * 100 + "%"; s.style.background = ["#f2c14e", "#7c6fcf", "#5f8fd6", "#e07a5f", "#4fb3a9"][i % 5]; s.style.animationDelay = (Math.random() * 0.6) + "s"; c.appendChild(s); } document.body.appendChild(c); setTimeout(() => c.remove(), 2600); }
@@ -131,7 +131,7 @@ function spawnPatient(force) {
   p.rx = c.outcome === "surgery" ? "meloxicam" : { lac_dog: "amoxiclav", limp_cat: "meloxicam", limp_dog: "meloxicam", rabbit_stasis: "metoclop", parvo_pup: "maropitant", blocked_cat: "bupren", tick_dog: "enro", ear_dog: null }[c.id] || null;
   const skinTones = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac], shirts = [0x7c6fcf, 0x5f8fd6, 0xe07a5f, 0xf2c14e, 0x4fb3a9, 0xb4557a, 0x3a3f66], pants = [0x24304f, 0x3a3a4e, 0x5a3e2b];
   const petColors = { dog: [0xd9a066, 0x5b4636, 0xf5e6c8, 0x8c8c8c, 0xe8d5b5], cat: [0xf2a35e, 0x3a3a3a, 0xf7f3ec, 0xa9a9a9, 0xc7b299], bird: [0x7fd1c7, 0xfff3a0, 0x9fd7ff, 0xb7e3a3], rabbit: [0xf7f3ec, 0xc7b299, 0x5b4636, 0x8c8c8c], tortoise: [0x8a9b5a] };
-  p.npcCfg = Object.assign({}, returning && returning.cfg ? returning.cfg : { skin: pick(skinTones), hair: pick([0x1b1420, 0x4a2c1a, 0x8b5a2b, 0xd9b38c]), shirt: pick(shirts), pants: pick(pants), curly: Math.random() < 0.4, glasses: Math.random() < 0.3 }, { pet: { species: c.species, color: petRec ? petRec.color : pick(petColors[c.species]) } });
+  p.npcCfg = Object.assign({}, returning && returning.cfg ? returning.cfg : (() => { const hs = pick(["curly", "short", "short", "long", "bun", "buzz", "afro"]); return { skin: pick(skinTones), hair: pick([0x1b1420, 0x4a2c1a, 0x8b5a2b, 0xd9b38c, 0x3a2a20]), shirt: pick(shirts), pants: pick(pants), hairstyle: hs, beard: ["short", "buzz", "curly"].includes(hs) && Math.random() < 0.35 ? pick(["stubble", "short", "full"]) : "none", glasses: Math.random() < 0.3, glassesStyle: pick(["round", "square"]), frames: pick([0x2d2438, 0x6e4b36, 0xc8873a]), seed: Math.floor(Math.random() * 1e9) }; })(), { pet: { species: c.species, color: petRec ? petRec.color : pick(petColors[c.species]) } });
   p.npc = World.addNPC(Object.assign({ x: -5, z: -16 }, p.npcCfg));
   G.patients.push(p);
   const q = G.patients.filter(x => ["arriving", "at_desk"].includes(x.status)).length - 1; const spot = QUEUE_SPOTS[Math.min(q, 3)];
@@ -585,7 +585,8 @@ function tick() {
   const pr = $("#prompt"); if (it) { pr.classList.add("show"); pr.querySelector("span").textContent = it.label(); World.setRing(it.pos); } else { pr.classList.remove("show"); World.setRing(null); }
   if (G.s.settings.coop) { const p2 = World.player2Pos(); G.nearest2 = p2 && !G.panelOpen ? nearestInteractable(p2, true) : null; }
 }
-function interact() { if (G.panelOpen || !G.nearest) return; Sound.init(); Sound.vibrate(15); G.nearest.action(); }
+const POSES = { examTable: ["exam", 6.5, -7], orTable: ["exam", 7, 6.5], prepTable: ["exam", 0, 5.5], dentalTable: ["exam", 19.5, -7], wardTable: ["exam", 19.5, 6.5], microscope: ["exam", -12.6, 11.4], xrayTable: ["reach", 13.5, 6.5], desk: ["reach", -5, -6.5], pharmacy: ["reach", -5.5, 5.5], counter: ["reach", -17, -4.5], analyser: ["reach", -9.6, 11.4], bookshelf: ["reach", -20.6, 7], bowl: ["reach", 0.6, -10.9], officeDesk: ["think", -17.5, 6.5], autoclave: ["reach", 2.5, 3.2] };
+function interact() { if (G.panelOpen || !G.nearest) return; Sound.init(); Sound.vibrate(15); const it = G.nearest; it.action(); const ps = POSES[it.id]; if (ps && G.panelOpen) World.setPlayerPose(ps[0], { x: ps[1], z: ps[2] }); }
 function interact2() { if (G.panelOpen || !G.nearest2) return; Sound.init(); G.nearest2.action(); }
 
 function bindInput() {

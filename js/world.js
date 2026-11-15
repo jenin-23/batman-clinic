@@ -300,47 +300,122 @@ const World = (() => {
   function setLocked(key, locked) { lockedRooms[key] = locked; lockedMeshes[key].forEach(m => { m.visible = m.isSprite ? locked : !locked; }); if (themeMats.floors[key]) themeMats.floors[key].color.set(locked ? 0x555555 : 0xffffff); }
 
   /* ---------- characters ---------- */
+  /* ---------- humans v3: two-joint limbs, soft face, blinking eyes, seeded hair ---------- */
+  function seeded(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function hashCfg(cfg) { const str = [cfg.hair, cfg.skin, cfg.hairstyle, cfg.shirt].join("|"); let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function shadeC(color, f) { const r = Math.min(255, ((color >> 16) & 255) * f), g = Math.min(255, ((color >> 8) & 255) * f), b = Math.min(255, (color & 255) * f); return (r << 16) | (g << 8) | b; }
+  function limb(len, r0, r1, m) { const g = new THREE.Group(); const c = cyl(r0, r1, len, 0, 0, -len / 2, 0, m); g.add(c); g.add(sphere(r0 * 0.96, 0, 0, 0, 0, m)); return g; }
   function makeHuman(cfg) {
-    const g = new THREE.Group(); const P = {};
-    const skin = mat(cfg.skin), shirtM = mat(cfg.shirt), pantsM = mat(cfg.pants), shoeM = mat(cfg.shoes || 0x23222e); P.shoeMat = shoeM;
-    ["l", "r"].forEach((side, i) => { const piv = new THREE.Group(); piv.position.set(i === 0 ? -0.13 : 0.13, 0.92, 0); piv.add(cyl(0.11, 0.1, 0.78, 0, 0, -0.39, 0, pantsM)); const shoe = sphere(0.12, 0, 0, -0.84, 0.05, shoeM); shoe.scale.set(1, 0.6, 1.4); piv.add(shoe); P[side + "Shoe"] = shoe; g.add(piv); P[side + "Leg"] = piv; });
-    P.torso = box(0.52, 0.66, 0.32, 0, 0, 1.25, 0, 0.14, shirtM); g.add(P.torso); P.shirtMat = shirtM;
-    P.belt = box(0.5, 0.08, 0.3, 0x23222e, 0, 0.93, 0, 0.04); g.add(P.belt);
-    ["l", "r"].forEach((side, i) => { const piv = new THREE.Group(); piv.position.set(i === 0 ? -0.34 : 0.34, 1.5, 0); const sleeve = cyl(0.085, 0.075, 0.3, 0, 0, -0.15, 0, shirtM); piv.add(sleeve); piv.add(cyl(0.075, 0.07, 0.3, 0, 0, -0.44, 0, skin)); const hand = sphere(0.09, 0, 0, -0.63, 0, skin.clone()); piv.add(hand); P[side + "Hand"] = hand; g.add(piv); P[side + "Arm"] = piv; });
-    const headG = new THREE.Group(); headG.position.set(0, 1.82, 0); headG.add(cyl(0.07, 0.08, 0.14, 0, 0, -0.24, 0, skin));
-    const head = sphere(0.24, 0, 0, 0, 0, skin); head.scale.set(1, 1.05, 1); headG.add(head); headG.add(sphere(0.055, 0, -0.24, -0.02, 0, skin)); headG.add(sphere(0.055, 0, 0.24, -0.02, 0, skin));
-    const eyeM = mat(0x2d2438); headG.add(sphere(0.03, 0, -0.085, 0.03, 0.215, eyeM)); headG.add(sphere(0.03, 0, 0.085, 0.03, 0.215, eyeM));
-    const smile = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.012, 8, 16, Math.PI), mat(0x7a3b3b)); smile.position.set(0, -0.08, 0.215); smile.rotation.z = Math.PI; headG.add(smile);
-    const hairM = mat(cfg.hair); P.hair = []; const style = cfg.hairstyle || (cfg.curly ? "curly" : "short");
-    if (style === "afro") { const a = sphere(0.31, 0, 0, 0.08, -0.02, hairM); a.scale.set(1, 0.95, 1); headG.add(a); P.hair.push(a); for (let i = 0; i < 10; i++) { const b = sphere(0.09, 0, (Math.random() - .5) * .5, 0.1 + Math.random() * .25, (Math.random() - .5) * .5 - 0.02, hairM); headG.add(b); P.hair.push(b); } }
-    else if (style === "buzz") { const b = sphere(0.245, 0, 0, 0.035, -0.02, mat(cfg.hair, { roughness: 1 })); b.scale.set(1, 0.85, 1); headG.add(b); P.hair.push(b); }
-    else if (style === "long") { const top = sphere(0.255, 0, 0, 0.05, -0.03, hairM); top.scale.set(1, 0.85, 1.05); headG.add(top); P.hair.push(top); const back = box(0.42, 0.5, 0.18, 0, 0, -0.22, -0.16, 0.08, hairM); headG.add(back); P.hair.push(back); }
-    else if (style === "bun") { const top = sphere(0.25, 0, 0, 0.04, -0.02, hairM); top.scale.set(1, 0.85, 1); headG.add(top); P.hair.push(top); const bun = sphere(0.11, 0, 0, 0.22, -0.16, hairM); headG.add(bun); P.hair.push(bun); }
-    else if (style === "curly") { for (let i = 0; i < 26; i++) { const a = Math.random() * Math.PI * 2, el = Math.random() * 1.1 + 0.25; const r = 0.22; const h = sphere(0.075 + Math.random() * 0.03, 0, r * Math.cos(el) * Math.sin(a), r * Math.sin(el) + 0.02, r * Math.cos(el) * Math.cos(a) - 0.03, hairM); headG.add(h); P.hair.push(h); } }
-    else { const cap = sphere(0.25, 0, 0, 0.04, -0.02, hairM); cap.scale.set(1, 0.8, 1); headG.add(cap); P.hair.push(cap); }
-    if (cfg.glasses && cfg.glassesStyle !== "none") { const gm = mat(cfg.frames || 0x2d2438, { roughness: 0.4 }); P.frameMat = gm; const sq = cfg.glassesStyle === "square"; const mk = (x) => { if (sq) { const f = new THREE.Mesh(roundedBoxGeo(0.16, 0.12, 0.02, 0.03), gm); const inner = new THREE.Mesh(roundedBoxGeo(0.13, 0.09, 0.03, 0.02), new THREE.MeshStandardMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.25 })); f.position.set(x, 0.03, 0.23); inner.position.set(x, 0.03, 0.23); headG.add(f, inner); } else { const l = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.012, 8, 20), gm); l.position.set(x, 0.03, 0.23); headG.add(l); const c = new THREE.Mesh(new THREE.CircleGeometry(0.068, 16), new THREE.MeshStandardMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.25 })); c.position.set(x, 0.03, 0.232); headG.add(c); } }; mk(-0.09); mk(0.09); headG.add(box(0.05, 0.015, 0.015, 0, 0, 0.03, 0.235, 0.005, gm)); for (const sx of [-1, 1]) { const arm = box(0.012, 0.012, 0.22, 0, sx * 0.17, 0.035, 0.12, 0.004, gm); headG.add(arm); } }
-    P.cap = sphere(0.265, 0, 0, 0.05, -0.01, mat(cfg.capColor || 0x2f4f8f)); P.cap.scale.set(1, 0.75, 1); P.cap.visible = false; headG.add(P.cap); P.capMat = P.cap.material;
-    P.mask = box(0.2, 0.11, 0.06, 0x5f8fd6, 0, -0.07, 0.22, 0.04); P.mask.visible = false; headG.add(P.mask);
-    P.gown = box(0.6, 0.72, 0.4, 0x3f6f6a, 0, 1.24, 0, 0.16); P.gown.visible = false; g.add(P.gown);
-    P.coat = new THREE.Group(); const coatM = mat(cfg.coat || 0xe9e9f2); const cb = box(0.58, 0.9, 0.38, 0, 0, 1.12, 0, 0.14, coatM); P.coat.add(cb); P.coat.add(box(0.14, 0.4, 0.05, 0xcfd3e6, 0, 1.4, 0.19, 0.04)); P.coat.add(box(0.12, 0.05, 0.02, 0xf2c14e, 0.15, 1.42, 0.2, 0.01)); P.coat.add(box(0.1, 0.02, 0.01, 0x1a1420, 0.15, 1.42, 0.212, 0.004)); P.coat.visible = false; g.add(P.coat); P.coatMat = coatM;
-    if (cfg.steth) { const s = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.015, 8, 24, Math.PI), mat(0x23222e)); s.position.set(0, 1.5, 0.12); s.rotation.x = 0.3; s.rotation.z = Math.PI; g.add(s); const disc = cyl(0.04, 0.04, 0.02, 0xf2c14e, 0.18, 1.3, 0.2); g.add(disc); }
-    g.add(headG); P.head = headG; g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-    return { group: g, parts: P, phase: Math.random() * 6, skinColor: cfg.skin, hairColor: cfg.hair, shoeColor: cfg.shoes || 0x23222e, cfg };
+    const rnd = seeded(cfg.seed || hashCfg(cfg)); const g = new THREE.Group(); const P = {};
+    const skinC = cfg.skin, skin = mat(skinC, { roughness: 0.7 }), shirtM = mat(cfg.shirt), pantsM = mat(cfg.pants), shoeM = mat(cfg.shoes || 0x23222e, { roughness: 0.5 }); P.shoeMat = shoeM; P.shirtMat = shirtM;
+    const sleeveM = mat(cfg.shirt); P.sleeveMat = sleeveM;
+    // hips (bobs while walking) → legs; upper body pivots at the waist so it can lean
+    const hips = new THREE.Group(); hips.position.y = 0.92; g.add(hips); P.hips = hips;
+    hips.add(box(0.44, 0.16, 0.27, 0, 0, 0.0, 0, 0.08, pantsM));
+    ["l", "r"].forEach((side, i) => {
+      const sx = i ? 0.115 : -0.115; const thigh = limb(0.42, 0.1, 0.085, pantsM); thigh.position.set(sx, -0.03, 0); hips.add(thigh);
+      const knee = limb(0.41, 0.083, 0.068, pantsM); knee.position.y = -0.42; thigh.add(knee);
+      const foot = new THREE.Group(); foot.position.y = -0.41; knee.add(foot); const shoe = sphere(0.085, 0, 0, -0.035, 0.06, shoeM); shoe.scale.set(1, 0.62, 1.55); foot.add(shoe); foot.add(box(0.15, 0.03, 0.26, 0xdfe3ee, 0, -0.07, 0.06, 0.012));
+      P[side + "Leg"] = thigh; P[side + "Knee"] = knee; P[side + "Shoe"] = shoe;
+    });
+    const upper = new THREE.Group(); upper.position.y = 0.92; g.add(upper); P.upper = upper;
+    const chest = box(0.48, 0.6, 0.29, 0, 0, 0.33, 0, 0.14, shirtM); upper.add(chest); P.torso = chest;
+    P.belt = box(0.46, 0.06, 0.29, 0x23222e, 0, 0.04, 0, 0.03); upper.add(P.belt);
+    // V-neck of the scrub top
+    const vneck = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.12, 3), skin); vneck.position.set(0, 0.57, 0.135); vneck.rotation.x = Math.PI; vneck.scale.z = 0.25; upper.add(vneck);
+    ["l", "r"].forEach((side, i) => {
+      const sx = i ? 0.285 : -0.285; const shoulder = limb(0.29, 0.074, 0.064, sleeveM); shoulder.position.set(sx, 0.54, 0); upper.add(shoulder);
+      const elbow = limb(0.26, 0.064, 0.055, skin); elbow.position.y = -0.29; shoulder.add(elbow);
+      const handM = skin.clone(); const hand = sphere(0.068, 0, 0, -0.29, 0.01, handM); hand.scale.set(0.9, 1.1, 0.75); elbow.add(hand); const thumb = sphere(0.025, 0, (i ? -1 : 1) * 0.05, -0.27, 0.035, handM); elbow.add(thumb);
+      P[side + "Arm"] = shoulder; P[side + "Elbow"] = elbow; P[side + "Hand"] = hand;
+    });
+    // head
+    const headG = new THREE.Group(); headG.position.set(0, 0.92, 0); upper.add(headG); P.head = headG;
+    headG.add(cyl(0.065, 0.075, 0.16, 0, 0, -0.26, 0, skin));
+    const skull = sphere(0.255, 0, 0, 0, 0, skin); skull.scale.set(1, 1.03, 0.97); headG.add(skull);
+    const jaw = sphere(0.2, 0, 0, -0.085, 0.035, skin); jaw.scale.set(1.02, 0.78, 0.95); headG.add(jaw); // softer, rounder lower face
+    for (const sx of [-1, 1]) { const ear = sphere(0.055, 0, sx * 0.25, -0.005, -0.01, skin); ear.scale.set(0.55, 1, 0.8); headG.add(ear); }
+    const nose = sphere(0.03, 0, 0, -0.035, 0.25, mat(shadeC(skinC, 0.9), { roughness: 0.7 })); nose.scale.set(1, 0.85, 0.9); headG.add(nose);
+    const blushM = new THREE.MeshBasicMaterial({ color: 0xff8f9f, transparent: true, opacity: 0.22, depthWrite: false });
+    for (const sx of [-1, 1]) { const b = new THREE.Mesh(new THREE.CircleGeometry(0.045, 18), blushM); b.position.set(sx * 0.135, -0.065, 0.2); b.rotation.y = sx * 0.55; headG.add(b); }
+    // eyes: white + brown iris + pupil + catch-light; each eye scales vertically to blink
+    P.eyes = []; const irisC = cfg.iris || [0x4a2c1a, 0x3a2414, 0x5a3a20, 0x2d4a3a][Math.floor(rnd() * 4)];
+    for (const sx of [-1, 1]) {
+      const eg = new THREE.Group(); eg.position.set(sx * 0.088, 0.025, 0.215); headG.add(eg);
+      const white = sphere(0.04, 0xffffff, 0, 0, 0, mat(0xfbfbff, { roughness: 0.25 })); white.scale.set(1, 1.15, 0.55); eg.add(white);
+      const iris = new THREE.Group(); iris.position.z = 0.018; eg.add(iris);
+      const ir = sphere(0.026, 0, 0, 0, 0, mat(irisC, { roughness: 0.3 })); ir.scale.set(1, 1.1, 0.5); iris.add(ir); const pu = sphere(0.014, 0, 0, 0, 0.008, mat(0x0d0a12)); iris.add(pu); const hl = sphere(0.007, 0xffffff, 0.009, 0.011, 0.016, new THREE.MeshBasicMaterial({ color: 0xffffff })); iris.add(hl);
+      const lid = sphere(0.043, 0, 0, 0.018, 0.002, skin); lid.scale.set(1.05, 0.55, 0.62); eg.add(lid); // upper lid, slightly hooded
+      P.eyes.push({ g: eg, iris, lid });
+    }
+    const browM = mat(shadeC(cfg.hair, 1.1));
+    P.brows = []; for (const sx of [-1, 1]) { const br = box(0.085, 0.022, 0.03, 0, sx * 0.09, 0.105, 0.225, 0.011, browM); br.rotation.z = sx * -0.12; headG.add(br); P.brows.push(br); }
+    const mouthM = mat(0x7a3540); const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.011, 8, 16, Math.PI), mouthM); mouth.position.set(0, -0.11, 0.222); mouth.rotation.z = Math.PI; headG.add(mouth); P.mouth = mouth;
+    // beard / stubble along the jaw + moustache
+    if (cfg.beard && cfg.beard !== "none") { const bm = mat(cfg.hair, { roughness: 1 }); const full = cfg.beard === "full"; const jawline = new THREE.Mesh(new THREE.TorusGeometry(0.17, full ? 0.05 : cfg.beard === "stubble" ? 0.016 : 0.026, 10, 26, Math.PI), bm); jawline.rotation.z = Math.PI; jawline.position.set(0, -0.06, 0.1); jawline.scale.set(1.05, 0.9, 1.05); headG.add(jawline); const chin = sphere(full ? 0.075 : 0.05, 0, 0, -0.19, 0.17, bm); chin.scale.set(1.35, 0.65, 0.7); headG.add(chin); const mous = box(0.11, 0.024, 0.03, 0, 0, -0.074, 0.238, 0.012, bm); headG.add(mous); P.beard = [jawline, chin, mous]; } else P.beard = [];
+    // hair (seeded → same silhouette every time)
+    const hairM = mat(cfg.hair, { roughness: 0.85 }); P.hair = []; const style = cfg.hairstyle || (cfg.curly ? "curly" : "short"); const add = (m) => { headG.add(m); P.hair.push(m); return m; };
+    if (style === "curly" || style === "afro") {
+      const big = style === "afro"; const base = add(sphere(big ? 0.29 : 0.262, 0, 0, big ? 0.07 : 0.045, -0.03, hairM)); base.scale.set(1, big ? 0.95 : 0.82, 1);
+      const N = big ? 58 : 46, R = big ? 0.29 : 0.255, golden = Math.PI * (3 - Math.sqrt(5));
+      for (let i = 0; i < N; i++) { const y = 1 - (i / (N - 1)) * 1.15; const rr = Math.sqrt(Math.max(0, 1 - y * y)); const th = i * golden; const x = Math.cos(th) * rr, z = Math.sin(th) * rr; if (z > 0.35 && y < 0.5) continue; if (y < -0.1 && z > -0.3) continue; const s = (big ? 0.07 : 0.062) + rnd() * 0.03; add(sphere(s, 0, x * R, y * R * 0.95 + 0.07, z * R - 0.02, hairM)); }
+      for (let i = 0; i < 6; i++) add(sphere(0.055 + rnd() * 0.015, 0, -0.13 + i * 0.052, 0.19 + Math.sin(i * 1.7) * 0.015, 0.17, hairM)); // curly fringe
+    } else if (style === "buzz") { const b = add(sphere(0.262, 0, 0, 0.04, -0.02, mat(cfg.hair, { roughness: 1 }))); b.scale.set(1, 0.86, 1); }
+    else if (style === "long") { const t = add(sphere(0.268, 0, 0, 0.05, -0.03, hairM)); t.scale.set(1.02, 0.88, 1.04); add(box(0.46, 0.52, 0.2, 0, 0, -0.24, -0.15, 0.1, hairM)); for (const sx of [-1, 1]) add(box(0.09, 0.42, 0.14, 0, sx * 0.24, -0.18, 0.02, 0.05, hairM)); const fr = add(sphere(0.12, 0, -0.06, 0.18, 0.17, hairM)); fr.scale.set(1.8, 0.45, 0.6); }
+    else if (style === "bun") { const t = add(sphere(0.264, 0, 0, 0.045, -0.025, hairM)); t.scale.set(1, 0.86, 1); add(sphere(0.105, 0, 0, 0.23, -0.17, hairM)); }
+    else { const t = add(sphere(0.264, 0, 0, 0.05, -0.03, hairM)); t.scale.set(1.01, 0.82, 1.02); const fr = add(sphere(0.12, 0, 0.06, 0.17, 0.17, hairM)); fr.scale.set(1.7, 0.42, 0.62); fr.rotation.z = -0.2; }
+    // glasses
+    if (cfg.glasses && cfg.glassesStyle !== "none") { const gm = mat(cfg.frames || 0x2d2438, { roughness: 0.35, metalness: 0.2 }); P.frameMat = gm; const sq = cfg.glassesStyle === "square"; const lens = new THREE.MeshStandardMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.18, roughness: 0.05 });
+      for (const sx of [-1, 1]) { if (sq) { const f = new THREE.Mesh(roundedBoxGeo(0.15, 0.11, 0.018, 0.03), gm); f.position.set(sx * 0.09, 0.025, 0.252); headG.add(f); const l = new THREE.Mesh(roundedBoxGeo(0.125, 0.085, 0.02, 0.02), lens); l.position.set(sx * 0.09, 0.025, 0.253); headG.add(l); } else { const r = new THREE.Mesh(new THREE.TorusGeometry(0.066, 0.011, 8, 24), gm); r.position.set(sx * 0.09, 0.025, 0.252); headG.add(r); const l = new THREE.Mesh(new THREE.CircleGeometry(0.06, 20), lens); l.position.set(sx * 0.09, 0.025, 0.254); headG.add(l); } const arm = box(0.012, 0.012, 0.24, 0, sx * 0.16, 0.035, 0.13, 0.004, gm); headG.add(arm); }
+      headG.add(box(0.045, 0.012, 0.012, 0, 0, 0.035, 0.255, 0.004, gm)); }
+    // outfit layers (toggled by setHumanOutfit)
+    P.cap = sphere(0.275, 0, 0, 0.06, -0.015, mat(cfg.capColor || 0x2f4f8f)); P.cap.scale.set(1, 0.74, 1); P.cap.visible = false; headG.add(P.cap); P.capMat = P.cap.material;
+    P.mask = box(0.22, 0.13, 0.06, 0x5f8fd6, 0, -0.085, 0.215, 0.05); P.mask.visible = false; headG.add(P.mask);
+    P.gown = new THREE.Group(); const gownM = mat(0x3f6f6a); P.gown.add(box(0.54, 0.66, 0.34, 0, 0, 0.33, 0, 0.16, gownM)); P.gown.add(box(0.56, 0.45, 0.34, 0, 0, -0.18, 0, 0.14, gownM)); P.gown.visible = false; upper.add(P.gown); P.gownMat = gownM;
+    P.coat = new THREE.Group(); const coatC = cfg.coat || 0xe9e9f2, coatM = mat(coatC), coatD = mat(shadeC(coatC, 0.88)); P.coat.add(box(0.51, 0.62, 0.31, 0, 0, 0.33, 0, 0.13, coatM));
+    for (const sx of [-1, 1]) { const panel = box(0.245, 0.5, 0.05, 0, sx * 0.128, -0.2, 0.125, 0.02, coatM); panel.rotation.z = sx * -0.03; P.coat.add(panel); const back = box(0.24, 0.5, 0.05, 0, sx * 0.125, -0.2, -0.125, 0.02, coatM); P.coat.add(back); const side = box(0.05, 0.5, 0.25, 0, sx * 0.25, -0.2, 0, 0.02, coatM); P.coat.add(side); const lap = box(0.07, 0.3, 0.02, 0, sx * 0.07, 0.47, 0.158, 0.01, coatD); lap.rotation.z = sx * 0.42; P.coat.add(lap); const pocket = box(0.12, 0.11, 0.012, 0, sx * 0.13, -0.17, 0.152, 0.01, coatD); P.coat.add(pocket); }
+    P.coat.add(box(0.1, 0.04, 0.012, 0xf2c14e, 0.15, 0.42, 0.158, 0.008)); for (let b = 0; b < 3; b++) P.coat.add(sphere(0.012, 0xdfe3ee, 0.04, 0.3 - b * 0.17, 0.158)); P.coat.visible = false; upper.add(P.coat); P.coatMat = coatM;
+    if (cfg.steth) { const sm = mat(0x23222e, { roughness: 0.4 }); const s = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.013, 8, 24, Math.PI), sm); s.position.set(0, 0.58, 0.1); s.rotation.x = 0.35; s.rotation.z = Math.PI; upper.add(s); const tube = cyl(0.011, 0.011, 0.22, 0, 0.15, 0.43, 0.17, sm); upper.add(tube); const disc = cyl(0.035, 0.035, 0.018, 0xf2c14e, 0.15, 0.31, 0.18); disc.rotation.x = Math.PI / 2; upper.add(disc); P.stethDisc = disc;
+      const held = cyl(0.035, 0.035, 0.018, 0xf2c14e, 0, -0.33, 0.04); held.rotation.x = Math.PI / 2; held.visible = false; P.rElbow.add(held); P.stethHeld = held; }
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    return { group: g, parts: P, phase: rnd() * 6, skinColor: skinC, hairColor: cfg.hair, shoeColor: cfg.shoes || 0x23222e, cfg, move: 0, blinkT: 1 + rnd() * 3, blinkK: 0, sacT: 1, eyeX: 0, eyeY: 0, pose: null };
   }
   let currentOutfit = "clinic";
   function setHumanOutfit(rig, outfit) {
     if (rig === player) currentOutfit = outfit; const P = rig.parts; P.coat.visible = outfit === "clinic"; P.cap.visible = outfit === "scrubs" || outfit === "surgical"; P.mask.visible = outfit === "scrubs" || outfit === "surgical"; P.gown.visible = outfit === "surgical";
     const gloves = outfit === "surgical"; P.lHand.material.color.set(gloves ? 0xbfd3ff : rig.skinColor); P.rHand.material.color.set(gloves ? 0xbfd3ff : rig.skinColor);
+    P.sleeveMat.color.copy(outfit === "clinic" ? P.coatMat.color : outfit === "surgical" ? P.gownMat.color : P.shirtMat.color);
     const covers = outfit !== "clinic"; P.lShoe.material.color.set(covers ? 0x5f8fd6 : (rig.shoeColor || 0x23222e)); P.rShoe.material.color.set(covers ? 0x5f8fd6 : (rig.shoeColor || 0x23222e));
-    P.hair.forEach(h => h.visible = !P.cap.visible);
+    P.hair.forEach(h => h.visible = !P.cap.visible); P.beard.forEach(b => b.visible = !P.mask.visible); P.belt.visible = outfit === "scrubs";
   }
+  function approach(cur, target, k) { return cur + (target - cur) * k; }
   function animateHuman(rig, dt, moving, speedFactor = 1) {
-    const P = rig.parts; rig.phase += dt * (moving ? 9 * speedFactor : 1.5);
-    if (rig.sitting && !moving) { P.lLeg.rotation.x = -1.45; P.rLeg.rotation.x = -1.45; P.lArm.rotation.x = -0.75; P.rArm.rotation.x = -0.75; P.lArm.rotation.z = 0.15; P.rArm.rotation.z = -0.15; rig.group.position.y = -0.36; P.head.rotation.y = Math.sin(rig.phase * 0.5) * 0.25; return; }
-    const s = moving ? Math.sin(rig.phase) : 0, bob = moving ? Math.abs(Math.sin(rig.phase)) * 0.045 : Math.sin(rig.phase) * 0.008;
-    P.lLeg.rotation.x = s * 0.7; P.rLeg.rotation.x = -s * 0.7; P.lArm.rotation.x = -s * 0.55; P.rArm.rotation.x = s * 0.55;
-    P.lArm.rotation.z = 0.1 + (moving ? 0 : Math.sin(rig.phase) * 0.02); P.rArm.rotation.z = -0.1 - (moving ? 0 : Math.sin(rig.phase) * 0.02);
-    rig.group.position.y = bob; P.head.rotation.y = moving ? Math.sin(rig.phase * 0.5) * 0.08 : Math.sin(rig.phase * 0.7) * 0.06;
+    const P = rig.parts; const k = Math.min(1, dt * 8); rig.move = approach(rig.move, moving ? 1 : 0, Math.min(1, dt * 7)); const m = rig.move;
+    rig.phase += dt * (1.6 + 7.4 * m) * (moving ? speedFactor : 1);
+    // blink + small eye saccades, independent of pose
+    rig.blinkT -= dt; if (rig.blinkT <= 0) { rig.blinkK = 1; rig.blinkT = 2.2 + Math.random() * 3.5; } rig.blinkK = Math.max(0, rig.blinkK - dt * 9);
+    rig.sacT -= dt; if (rig.sacT <= 0) { rig.sacT = 0.8 + Math.random() * 2.2; rig.eyeX = (Math.random() - 0.5) * 0.016; rig.eyeY = (Math.random() - 0.5) * 0.008; }
+    const lidClose = Math.sin(Math.min(1, rig.blinkK) * Math.PI); P.eyes.forEach(e => { e.g.scale.y = 1 - lidClose * 0.85; e.iris.position.x = approach(e.iris.position.x, rig.eyeX, k); e.iris.position.y = approach(e.iris.position.y, rig.eyeY + (rig.pose === "exam" ? -0.008 : 0), k); e.lid.position.y = 0.018 - lidClose * 0.01; });
+    const breath = Math.sin(rig.phase * (moving ? 0.5 : 1.0)) * 0.012;
+    const set = (o, x, y, z) => { if (x !== undefined) o.rotation.x = approach(o.rotation.x, x, k); if (y !== undefined) o.rotation.y = approach(o.rotation.y, y, k); if (z !== undefined) o.rotation.z = approach(o.rotation.z, z, k); };
+    if ((rig.sitting || rig.pose === "sit") && !moving) {
+      set(P.lLeg, -1.5, 0, -0.05); set(P.rLeg, -1.5, 0, 0.05); set(P.lKnee, 1.45); set(P.rKnee, 1.45); set(P.lArm, -0.5, 0, -0.12); set(P.rArm, -0.5, 0, 0.12); set(P.lElbow, -0.9); set(P.rElbow, -0.9); set(P.upper, -0.05, 0, 0);
+      rig.group.position.y = approach(rig.group.position.y, -0.43, k); P.hips.position.y = 0.92; P.upper.position.y = 0.92; set(P.head, 0.05, Math.sin(rig.phase * 0.35) * 0.3, 0); return;
+    }
+    rig.group.position.y = approach(rig.group.position.y, 0, k);
+    const s = Math.sin(rig.phase), c = Math.cos(rig.phase);
+    // legs: thigh swings, knee bends during the forward swing, foot plants in stance
+    const tl = -s * 0.5 * m, tr = s * 0.5 * m; set(P.lLeg, tl, 0, 0); set(P.rLeg, tr, 0, 0);
+    set(P.lKnee, m * (0.08 + 0.85 * Math.max(0, c))); set(P.rKnee, m * (0.08 + 0.85 * Math.max(0, -c)));
+    const bob = Math.abs(c) * 0.035 * m; P.hips.position.y = 0.92 + bob - 0.012 * m; P.upper.position.y = P.hips.position.y + breath * (1 - m) * 0.4;
+    // pose for the upper body
+    let lean = 0.04 * m, twist = s * 0.07 * m, la = s * 0.45 * m, ra = -s * 0.45 * m, le = -(0.18 + 0.3 * m), re = -(0.18 + 0.3 * m), headX = 0, headY = moving ? -twist * 0.6 : Math.sin(rig.phase * 0.33) * 0.12, laz = -0.07, raz = 0.07;
+    if (rig.pose === "exam" && !moving) { lean = 0.42; twist = 0; ra = -0.95; re = -0.75; la = -0.55; le = -0.9; headX = 0.42; headY = 0; laz = -0.15; raz = 0.05; }
+    if (rig.pose === "reach" && !moving) { lean = 0.16; twist = 0; ra = -1.25; re = -0.3; la = -0.2; le = -0.5; headX = 0.18; headY = 0; }
+    if (rig.pose === "think" && !moving) { lean = 0.02; ra = -0.6; re = -2.1; la = -0.35; le = -1.5; headX = 0.1; headY = 0.15; raz = 0.25; }
+    set(P.upper, lean, twist, 0); set(P.lArm, la, 0, laz); set(P.rArm, ra, 0, raz); set(P.lElbow, le); set(P.rElbow, re); set(P.head, headX, headY, 0);
+    if (P.stethHeld) { const ex = rig.pose === "exam" && !moving; P.stethHeld.visible = ex; P.stethDisc.visible = !ex; }
+    P.torso.scale.y = 1 + breath * 0.6;
   }
 
   /* ---------- pets (detailed) ---------- */
@@ -521,15 +596,17 @@ const World = (() => {
     // camera
     if (preview) {
       previewAngle += dt * 0.6; player.group.rotation.y = previewAngle; player.group.position.y = 0; animateHuman(player, dt, false);
-      const ang = previewAngle + Math.PI; camera.position.lerp(new THREE.Vector3(pos.x + Math.sin(0) * 2.6, 1.5, pos.z + 2.9), Math.min(1, dt * 5)); camera.lookAt(new THREE.Vector3(pos.x, 1.05, pos.z));
-      for (const m of fadeables) { const want = (m.position.z > pos.z + 0.5 && Math.abs(m.position.x - pos.x) < 6) ? 0.1 : 1; m.material.opacity += (want - m.material.opacity) * Math.min(1, dt * 8); m.material.transparent = m.material.opacity < 0.995; }
+      camera.position.lerp(new THREE.Vector3(pos.x, 1.45, pos.z + 3.3), Math.min(1, dt * 5)); camera.lookAt(new THREE.Vector3(pos.x, 1.15, pos.z));
+      for (const m of fadeables) { const hide = m.position.z > pos.z + 0.4 && m.position.z < pos.z + 3.6 && Math.abs(m.position.x - pos.x) < 4; m.visible = !hide; }
     } else if (camMode === "first") {
+      for (const m of fadeables) m.visible = true;
       const k = Math.min(1, dt * 28); yaw += (tYaw - yaw) * k; pitch += (tPitch - pitch) * k; player.group.rotation.y = yaw;
       camera.position.set(pos.x, 1.62 + (moving && headBob ? Math.abs(Math.sin(player.phase)) * 0.035 : 0), pos.z);
       const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
       camera.lookAt(camera.position.clone().add(dir));
       for (const m of fadeables) { if (m.material.opacity < 1) { m.material.opacity = 1; m.material.transparent = false; } }
     } else {
+      for (const m of fadeables) m.visible = true;
       const target = new THREE.Vector3(pos.x, 1.0, pos.z); const desired = new THREE.Vector3(pos.x, 11 * camDist + 1.5, pos.z + 9 * camDist + 1);
       camera.position.lerp(desired, Math.min(1, dt * 4)); camera.lookAt(target);
       for (const m of fadeables) { const want = (m.position.z > pos.z + 0.5 && Math.abs(m.position.x - pos.x) < 10) ? 0.14 : 1; m.material.opacity += (want - m.material.opacity) * Math.min(1, dt * 8); m.material.transparent = m.material.opacity < 0.995; m.castShadow = m.material.opacity > 0.5; }
@@ -547,7 +624,7 @@ const World = (() => {
 
   function setRing(pos) { if (!pos) { ring.visible = false; return; } ring.visible = true; ring.position.x = pos.x; ring.position.z = pos.z; }
   function addNPC(cfg) {
-    const rig = makeHuman({ skin: cfg.skin, hair: cfg.hair, shirt: cfg.shirt, pants: cfg.pants, curly: cfg.curly, glasses: cfg.glasses, coat: cfg.coat }); rig.group.position.set(cfg.x, 0, cfg.z); if (cfg.rotY !== undefined) rig.group.rotation.y = cfg.rotY; scene.add(rig.group);
+    const rig = makeHuman(Object.assign({}, cfg, { pet: undefined })); rig.group.position.set(cfg.x, 0, cfg.z); if (cfg.rotY !== undefined) rig.group.rotation.y = cfg.rotY; scene.add(rig.group);
     if (cfg.outfit) setHumanOutfit(rig, cfg.outfit);
     let pet = null; if (cfg.pet) { pet = makePet(cfg.pet.species, cfg.pet.color); pet.group.position.set(cfg.x + 0.6, 0, cfg.z); scene.add(pet.group); }
     const n = { rig, pet, petFollow: true, path: [], speed: 2.4, onArrive: null, petMood: "calm" }; npcs.push(n); return n;
@@ -576,6 +653,7 @@ const World = (() => {
   }
   function catWander(target) { if (!cat) return; cat.rig.sleeping = false; const p = cat.rig.group.position; const spot = target || cat.spots[Math.floor(Math.random() * cat.spots.length)]; cat.path = routeBetween([p.x, p.z], spot); cat.restT = 6; }
   function catPos() { return cat ? cat.rig.group.position : null; }
+  function setPlayerPose(pose, target) { if (!player) return; player.pose = pose || null; if (pose && target && camMode !== "first") { const p = player.group.position; player.group.rotation.y = Math.atan2(target.x - p.x, target.z - p.z); } }
   function setClinicPet(species, color) { if (cat) { scene.remove(cat.rig.group); } const crig = makePet(species, color); crig.group.position.set(1.5, 0, -10.8); scene.add(crig.group); crig.sleeping = true; cat = { rig: crig, path: [], speed: species === "tortoise" ? 0.5 : species === "rabbit" ? 2.2 : 1.6, onArrive: null, restT: 0, spots: [[1.5, -10.8], [-8.5, -4], [-11, -9], [-16, 9], [-1, -0.5], [1.5, -10.8], [-7, -8]] }; }
   function catMood(m) { if (cat) cat.mood = m; }
   function rebuildPlayer(cfg) { const pos = player.group.position.clone(); const rot = player.group.rotation.y; const outfitNow = currentOutfit; scene.remove(player.group); playerCfg = Object.assign({}, playerCfg, cfg); player = makeHuman(playerCfg); player.group.position.copy(pos); player.group.rotation.y = rot; scene.add(player.group); setHumanOutfit(player, outfitNow); if (camMode === "first") player.group.visible = false; }
@@ -586,8 +664,8 @@ const World = (() => {
   function showThankCards(n) { if (!props.thankWall) return; props.thankWall.children.forEach((c, i) => c.visible = i < n); }
   function addStaffNPC(role) {
     const posts = { receptionist: { x: -5, z: -5.6, rotY: Math.PI, shirt: 0x7c6fcf, outfit: "clinic" }, nurse: { x: 7.4, z: -6, rotY: -Math.PI / 2, shirt: 0x4fb3a9, outfit: "scrubs" }, assistant: { x: 8, z: 7.6, rotY: -Math.PI / 2, shirt: 0x4fb3a9, outfit: "surgical" }, shopkeeper: { x: -17, z: -5.6, rotY: Math.PI, shirt: 0xe07a5f, outfit: "clinic" }, cleaner: { x: -9, z: -0.3, rotY: 0, shirt: 0x5f8fd6, outfit: "clinic" } };
-    const p = posts[role]; if (!p) return null; const n = addNPC({ x: p.x, z: p.z, rotY: p.rotY, skin: [0xf1c27d, 0xc68642, 0x8d5524][Math.floor(Math.random() * 3)], hair: 0x1b1420, shirt: p.shirt, pants: 0x24304f, curly: Math.random() < 0.5, glasses: Math.random() < 0.4, coat: 0xe9e9f2, outfit: p.outfit }); n.isStaff = role; return n;
+    const p = posts[role]; if (!p) return null; const n = addNPC({ x: p.x, z: p.z, rotY: p.rotY, skin: [0xf1c27d, 0xc68642, 0x8d5524][Math.floor(Math.random() * 3)], hair: [0x1b1420, 0x4a2c1a, 0x3a2a20][Math.floor(Math.random() * 3)], hairstyle: ["bun", "short", "long", "curly", "buzz"][Math.floor(Math.random() * 5)], glassesStyle: Math.random() < 0.5 ? "round" : "square", shirt: p.shirt, pants: 0x24304f, glasses: Math.random() < 0.4, coat: 0xe9e9f2, outfit: p.outfit, seed: Math.floor(Math.random() * 1e9) }); n.isStaff = role; return n;
   }
 
-  return { init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, applyAvatar, setSign, setLocked, setWeather, setCamMode, lookDelta, setLookOptions, getLook, catWander, catPos, catMood, routeBetween, setClinicPet, rebuildPlayer, setPreview, enableCoop, player2Pos, screenshot, showThankCards, addStaffNPC, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get camMode() { return camMode; }, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; }, get locked() { return lockedRooms; } };
+  return { init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, applyAvatar, setSign, setLocked, setWeather, setCamMode, lookDelta, setLookOptions, getLook, setPlayerPose, catWander, catPos, catMood, routeBetween, setClinicPet, rebuildPlayer, setPreview, enableCoop, player2Pos, screenshot, showThankCards, addStaffNPC, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get camMode() { return camMode; }, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; }, get locked() { return lockedRooms; } };
 })();

@@ -255,7 +255,7 @@ function feedPet() { const cp = G.s.clinicPet; if (cp.hunger < 30) return toast(
 function petClinicPet() { const cp = G.s.clinicPet; if (cp.personality === "grumpy" && cp.hunger > 60) { Sound.petAngry(cp.species); toast(`${cp.name} hisses — feed first, cuddle later.`, "warn"); return; } Sound.purr(); Sound.vibrate(60); award("catfriend"); cp.bond += 0.2; toast([`${cp.name} purrs and head-bumps your hand.`, `${cp.name} rolls over for a belly rub.`, `${cp.name} blinks slowly at you.`][Math.floor(Math.random() * 3)], "good", 2000); G.catTimer = 3; }
 
 /* ---------------- wardrobe (turntable) ---------------- */
-function applyDoctor() { const d = G.s.doctor; const h = (x) => parseInt(x.slice(1), 16); World.rebuildPlayer({ hairstyle: d.hairstyle, hair: h(d.hair), skin: h(d.skin), glasses: d.glassesStyle !== "none", glassesStyle: d.glassesStyle, frames: h(d.frames), shoes: h(d.shoes), shirt: h(d.scrub), coat: h(d.coat), capColor: h(d.cap) }); World.applyAvatar({ cap: h(d.cap) }); }
+function applyDoctor() { const d = G.s.doctor; const h = (x) => parseInt(x.slice(1), 16); World.rebuildPlayer({ seed: 7, beard: d.beard || "none", hairstyle: d.hairstyle, hair: h(d.hair), skin: h(d.skin), glasses: d.glassesStyle !== "none", glassesStyle: d.glassesStyle, frames: h(d.frames), shoes: h(d.shoes), shirt: h(d.scrub), coat: h(d.coat), capColor: h(d.cap) }); World.applyAvatar({ cap: h(d.cap) }); }
 function uiWardrobe(tab = "outfit") {
   const d = G.s.doctor, cp = G.s.clinicPet; const o = G.s.outfit;
   const sw = (key, cols) => cols.map(c => `<span class="swatch ${d[key] === c ? "sel" : ""}" style="background:${c}" onclick="setDoctor('${key}','${c}')"></span>`).join("");
@@ -268,7 +268,8 @@ function uiWardrobe(tab = "outfit") {
     <h4>Hairstyle</h4><div class="btnrow tight">${["curly", "short", "afro", "buzz", "long", "bun"].map(h => chip("hairstyle", h, h[0].toUpperCase() + h.slice(1))).join("")}</div>
     <h4>Hair colour</h4><div class="swatches">${sw("hair", ["#1b1420", "#4a2c1a", "#8b5a2b", "#d9b38c", "#9ea4c4", "#8a3350"])}</div>
     <h4>Skin tone</h4><div class="swatches">${sw("skin", ["#f1c27d", "#e0ac69", "#c68642", "#9a5f3a", "#8d5524", "#5a3a22"])}</div>
-    <h4>Glasses</h4><div class="btnrow tight">${chip("glassesStyle", "round", "Round")}${chip("glassesStyle", "square", "Square")}${chip("glassesStyle", "none", "None")}</div><div class="swatches">${sw("frames", ["#2d2438", "#f2c14e", "#8a3350", "#5f8fd6", "#dfe3ee", "#6e4b36"])}</div>
+    <h4>Beard</h4><div class="btnrow tight">${chip("beard", "none", "None")}${chip("beard", "stubble", "Stubble")}${chip("beard", "short", "Short")}${chip("beard", "full", "Full")}</div>
+    <h4>Glasses</h4><div class="btnrow tight">${chip("glassesStyle", "round", "Round")}${chip("glassesStyle", "square", "Square")}${chip("glassesStyle", "none", "None")}</div><div class="swatches">${sw("frames", ["#c8873a", "#2d2438", "#f2c14e", "#8a3350", "#5f8fd6", "#dfe3ee", "#6e4b36"])}</div>
     <h4>Shoes</h4><div class="swatches">${sw("shoes", ["#23222e", "#dfe3ee", "#6e4b36", "#f2c14e", "#5f8fd6", "#e07a5f"])}</div>`;
   if (tab === "pet") body = `<p class="muted">Your clinic companion lives in reception, wanders the building, and needs feeding twice a day at the bowl by the pet bed.</p><label>Name <input id="petName" value="${cp.name}" maxlength="14"></label><button class="btn small" onclick="setClinicPetOpt('name', document.getElementById('petName').value)">Save name</button>
     <h4>Species</h4><div class="btnrow tight">${["cat", "dog", "rabbit", "bird", "tortoise"].map(sp => pchip("species", sp, SPECIES[sp].label)).join("")}</div>
