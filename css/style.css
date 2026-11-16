@@ -245,3 +245,78 @@ ul.lvl li.on { opacity: 1; font-weight: 700; color: var(--accent); }
 #walkHint button { border: 0; background: rgba(255,255,255,.12); color: #fff; width: 26px; height: 26px; border-radius: 50%; cursor: pointer; }
 body.panel-open #walkHint, body.menu-open #walkHint { display: none !important; }
 body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
+
+/* =================== v2.6 hands-on mode =================== */
+body.ho #needs, body.ho #prompt, body.ho #joyZone, body.ho #dpad, body.ho #actBtn, body.ho #lookZone, body.ho #crosshair, body.ho #coopHint, body.ho #walkHint, body.ho #eventBanner { display: none !important; }
+body.ho #statusPill { transform: scale(.88); transform-origin: left top; opacity: .8; }
+body.ho::before, body.ho.panel-open::before { display: none !important; }
+#ho { position: fixed; inset: 0; z-index: 8; pointer-events: none; font-family: Nunito, sans-serif; }
+#ho.hidden { display: none; }
+#hoTop { position: fixed; top: calc(52px + var(--sat, 0px)); left: calc(10px + var(--sal, 0px)); display: flex; gap: 8px; align-items: center; pointer-events: auto; z-index: 3; background: rgba(18,20,34,.82); border: 1px solid var(--line); border-radius: 999px; padding: 5px 6px 5px 6px; color: var(--ink); font-size: 13px; backdrop-filter: blur(8px); max-width: calc(100vw - 20px); }
+#hoTop b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30vw; }
+.hobtn { border: 0; background: rgba(255,255,255,.1); color: var(--ink); font: 700 13px Nunito, sans-serif; padding: 7px 12px; border-radius: 999px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.hobtn:hover { background: var(--accent); color: var(--onaccent); }
+#hoFear { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; opacity: .9; }
+.fearbar { width: 46px; height: 7px; border-radius: 4px; background: #2a2f4a; overflow: hidden; display: inline-block; } .fearbar i { display: block; height: 100%; transition: width .4s, background .4s; }
+#hoHot { position: fixed; inset: 0; pointer-events: auto; touch-action: none; z-index: 1; cursor: crosshair; }
+.hodot { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid rgba(242,193,78,.85); box-shadow: 0 0 10px rgba(242,193,78,.6); pointer-events: none; animation: hopulse 1.8s ease-in-out infinite; }
+.hodot.ok { border-color: #7ef29a; box-shadow: 0 0 8px rgba(126,242,154,.6); animation: none; }
+@keyframes hopulse { 0%, 100% { transform: scale(.85); opacity: .65; } 50% { transform: scale(1.15); opacity: 1; } }
+.hoguide { position: absolute; left: 0; top: 0; pointer-events: none; } .hoguide line { stroke: #f2c14e; stroke-width: 3; stroke-dasharray: 8 7; opacity: .9; }
+.hocut { position: absolute; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #d8314a; pointer-events: none; }
+#hoPaint { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 1; }
+#hoBeam { position: fixed; width: 150px; height: 120px; border: 2px solid #ffe08a; background: rgba(255,224,138,.16); box-shadow: 0 0 24px rgba(255,224,138,.4) inset; pointer-events: auto; cursor: move; z-index: 2; touch-action: none; border-radius: 4px; }
+#hoBeam i { position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px dashed #ffe08a; } #hoBeam::after { content: ""; position: absolute; top: 50%; left: 0; right: 0; border-top: 1px dashed #ffe08a; }
+#hoBeam.hidden { display: none; }
+.hoflash { position: fixed; inset: 0; background: rgba(220,230,255,.35); pointer-events: none; animation: hoflash .5s ease-out forwards; z-index: 4; } @keyframes hoflash { to { opacity: 0; } }
+#hoHint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(96px + var(--sab, 0px)); max-width: min(620px, 92vw); background: rgba(18,20,34,.9); border: 1px solid var(--line); color: var(--ink); padding: 8px 14px; border-radius: 14px; font-size: 13.5px; z-index: 3; pointer-events: auto; text-align: center; }
+#hoHint .red, .red { color: #ff8fa3; }
+#hoTools { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + var(--sab, 0px)); display: flex; gap: 6px; padding: 6px; background: rgba(18,20,34,.86); border: 1px solid var(--line); border-radius: 18px; pointer-events: auto; z-index: 3; max-width: calc(100vw - 20px); overflow-x: auto; -webkit-overflow-scrolling: touch; backdrop-filter: blur(8px); }
+#hoTools.hidden { display: none; }
+.hotool { flex: 0 0 auto; min-width: 62px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 7px 5px; border-radius: 12px; border: 1px solid transparent; background: rgba(255,255,255,.05); color: var(--ink); font: 700 10.5px Nunito, sans-serif; cursor: pointer; }
+.hotool:hover { background: rgba(255,255,255,.12); } .hotool.on { background: var(--accent); color: var(--onaccent); }
+.hotool.expose { background: #b8364d; color: #fff; } .hotool.instr svg { max-width: 70px; height: 28px; }
+#hoCursor { position: fixed; display: none; transform: translate(-6px, -30px); pointer-events: none; color: #ffe08a; filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); z-index: 5; }
+.horing { position: fixed; width: 54px; height: 54px; margin: -27px 0 0 -27px; pointer-events: none; z-index: 4; text-align: center; }
+.horing svg { width: 54px; height: 54px; transform: rotate(-90deg); } .horing circle { fill: none; stroke: rgba(255,255,255,.2); stroke-width: 4; } .horing circle.p { stroke: #f2c14e; stroke-dasharray: 100.5; stroke-dashoffset: 100.5; }
+.horing span { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 12px; color: #fff; text-shadow: 0 1px 3px #000; }
+.hofloat { position: fixed; max-width: 260px; background: rgba(18,20,34,.92); border: 1px solid var(--line); border-left: 4px solid #7ea3ff; color: var(--ink); padding: 7px 10px; border-radius: 10px; font-size: 13px; z-index: 4; pointer-events: none; transition: opacity .5s, transform .5s; }
+.hofloat.good { border-left-color: #7ef29a; } .hofloat.warn { border-left-color: #ff5f7a; } .hofloat.dim { opacity: .85; font-size: 12px; } .hofloat.off { opacity: 0; transform: translateY(-8px); }
+#hoLens { position: fixed; left: 16px; top: 110px; width: min(360px, 92vw); max-height: calc(100vh - 230px); overflow: auto; background: var(--panel); border: 2px solid rgba(242,193,78,.55); border-radius: 20px; box-shadow: 0 18px 50px rgba(0,0,0,.6); pointer-events: auto; z-index: 6; color: var(--ink); }
+#hoLens.wide { width: min(600px, 94vw); } #hoLens.hidden { display: none; }
+#hoLensHead { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 14px; } #hoLensHead button { border: 0; background: rgba(255,255,255,.1); color: var(--ink); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; }
+#hoLensBody { padding: 10px 12px; } .lenssvg { width: 100%; border-radius: 12px; display: block; } .lenssvg.round { max-width: 220px; margin: 0 auto; border-radius: 50%; }
+.lenssvg .pupil { transition: r .4s; }
+#hoMon { position: fixed; top: calc(100px + var(--sat, 0px)); left: calc(10px + var(--sal, 0px)); width: 290px; background: #06120a; border: 2px solid #1d3a26; border-radius: 14px; padding: 8px; pointer-events: auto; z-index: 3; color: #cfe; font-family: "SF Mono", Menlo, monospace; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+#hoMon.hidden { display: none; } #hoMon.alarm { border-color: #ff5f7a; animation: monalarm 1s infinite; } @keyframes monalarm { 50% { box-shadow: 0 0 0 4px rgba(255,95,122,.5); } }
+#hoMon .monhead { font: 700 12px Nunito, sans-serif; display: flex; justify-content: space-between; color: #7ef29a; margin-bottom: 4px; } #monAlarm { color: #ff5f7a; font-weight: 800; }
+#monEcg { width: 100%; height: 46px; background: #06120a; display: block; }
+.monnums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 6px 0; } .monnums div { background: #0b1d12; border-radius: 6px; padding: 3px 6px; } .monnums small { display: block; font-size: 9.5px; color: #8fb; } .monnums b { font-size: 18px; color: #7ef29a; } .monnums b.bad { color: #ff5f7a; }
+.moncontrols { display: flex; flex-wrap: wrap; gap: 4px; } .moncontrols button { flex: 1 1 auto; border: 1px solid #2a4a34; background: #10261a; color: #cfe; font: 700 11px Nunito, sans-serif; padding: 6px 6px; border-radius: 8px; cursor: pointer; } .moncontrols button:hover { background: #1d4a2e; }
+.shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.bottle { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--ink); font: 700 12px Nunito, sans-serif; cursor: pointer; text-align: center; }
+.bottle i { width: 22px; height: 32px; border-radius: 6px 6px 4px 4px; background: linear-gradient(#e9e2f6, #b9a9e0); box-shadow: inset 0 -10px 0 rgba(0,0,0,.15); } .bottle small { font-weight: 600; opacity: .7; font-size: 10px; }
+.bottle.cls-NSAID i { background: linear-gradient(#ffe0a8, #f2a35e); } .bottle.cls-Antibiotic i { background: linear-gradient(#cfe8ff, #5f8fd6); } .bottle.cls-Opioid i { background: linear-gradient(#ffd0da, #e0607a); } .bottle.cls-Antiparasitic i { background: linear-gradient(#d9f5c9, #7ab35a); }
+.bottle.wrong { border-color: #ff5f7a; animation: shake .3s; } @keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.hovit { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; } .hovit span { background: rgba(255,255,255,.06); border-radius: 8px; padding: 3px 8px; font-size: 12px; }
+ul.hofind, ul.hosteps { margin: 4px 0 8px; padding-left: 18px; font-size: 13px; } ul.hosteps { list-style: none; padding-left: 2px; } ul.hosteps li { opacity: .7; } ul.hosteps li.done { opacity: 1; color: #7ef29a; }
+/* the tablet: panel docked beside the patient */
+body.ho #panel { left: auto !important; right: calc(12px + var(--sar, 0px)) !important; top: calc(52px + var(--sat, 0px)) !important; bottom: calc(12px + var(--sab, 0px)); transform: none !important; width: min(400px, 36vw) !important; max-height: none !important; border-radius: 22px; border: 8px solid #1b1d2b; box-shadow: 0 0 0 1px #3a3f5c, 0 24px 60px rgba(0,0,0,.55); }
+body.ho #panelBody { max-height: calc(100vh - 150px - var(--sat, 0px) - var(--sab, 0px)); }
+body.ho #hoTools, body.ho #hoHint { left: calc((100vw - min(400px, 36vw)) / 2); }
+@media (max-width: 760px), (max-aspect-ratio: 5/6) {
+  body.ho #panel { left: 6px !important; right: 6px !important; top: auto !important; bottom: calc(6px + var(--sab, 0px)) !important; width: auto !important; max-height: 44vh !important; border-width: 5px; border-radius: 20px 20px 16px 16px; }
+  body.ho #panelBody { max-height: calc(44vh - 60px); }
+  body.ho.panel-open #hoTools { bottom: calc(44vh + 12px + var(--sab, 0px)); } body.ho.panel-open #hoHint { bottom: calc(44vh + 84px + var(--sab, 0px)); }
+  body.ho #hoTools, body.ho #hoHint { left: 50%; }
+  #hoMon { width: 200px; top: calc(96px + var(--sat, 0px)); padding: 5px; } #monEcg { height: 30px; } .monnums b { font-size: 13px; } .moncontrols button { font-size: 9.5px; padding: 4px; }
+  #hoLens { left: 6px !important; right: 6px; top: calc(96px + var(--sat, 0px)) !important; width: auto; max-height: 50vh; } #hoLens.wide { width: auto; }
+  #hoTop b { max-width: 26vw; } .hotool { min-width: 54px; }
+}
+@media (max-width: 760px), (max-aspect-ratio: 5/6) {
+  #hoMon { width: auto; right: auto; max-width: 62vw; } #hoMon #monEcg { display: none; } #hoMon .monnums { grid-template-columns: repeat(3, auto); margin: 2px 0; } #hoMon .monnums small { font-size: 8px; }
+  #hoMon .moncontrols { display: none; } #hoMon.alarm .moncontrols, #hoMon.open .moncontrols { display: flex; } #hoMon .monhead::after { content: "tap for controls"; font-weight: 600; opacity: .6; font-size: 10px; }
+  body.ho #panel { max-height: 40vh !important; } body.ho #panelBody { max-height: calc(40vh - 60px); }
+  body.ho.panel-open #hoTools { bottom: calc(40vh + 12px + var(--sab, 0px)); } body.ho.panel-open #hoHint { bottom: calc(40vh + 84px + var(--sab, 0px)); }
+}
+@media (min-width: 761px) and (min-aspect-ratio: 5/6) { #hoMon { left: auto; right: calc(min(400px, 36vw) + 26px + var(--sar, 0px)); top: calc(52px + var(--sat, 0px)); width: 270px; } }

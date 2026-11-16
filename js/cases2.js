@@ -207,7 +207,7 @@ const STORYLINES = [
 Object.entries({
   ulcer_dog: { breed: "Boxer", weight: 29, age: "6 years", sex: "male" }, ulcer_indolent: { breed: "Boxer", weight: 29, age: "6 years", sex: "male" },
   cherry_eye: { breed: "French Bulldog", weight: 11, age: "8 months" }, gdv: { breed: "Great Dane", weight: 58, age: "7 years", sex: "male" },
-  choc_dog: { breed: "Beagle", weight: 10, age: "3 years" }, aural_dog: { breed: "Cocker Spaniel", weight: 13.5, age: "6 years" },
+  choc_dog: { breed: "Beagle", weight: 10, age: "3 years", sex: "male" }, aural_dog: { breed: "Cocker Spaniel", weight: 13.5, age: "6 years", sex: "male" },
   ccl_dog: { breed: "Labrador Retriever", weight: 36, age: "5 years" }, ivdd_dog: { breed: "Dachshund", weight: 7.5, age: "5 years" },
   hypo_pup: { breed: "Chihuahua", weight: 0.9, age: "8 weeks" }, pancreatitis_dog: { breed: "Miniature Schnauzer", weight: 8.2, age: "8 years" },
   hookworm_pup: { breed: "Mixed breed", weight: 3.4, age: "10 weeks" }, hyperT_cat: { breed: "Domestic shorthair", weight: 4.1, age: "13 years", sex: "male (neutered)" },

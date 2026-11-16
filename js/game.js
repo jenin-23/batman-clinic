@@ -133,7 +133,7 @@ function spawnPatient(force) {
   const skinTones = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac], shirts = [0x7c6fcf, 0x5f8fd6, 0xe07a5f, 0xf2c14e, 0x4fb3a9, 0xb4557a, 0x3a3f66], pants = [0x24304f, 0x3a3a4e, 0x5a3e2b];
   const petColors = { dog: [0xd9a066, 0x5b4636, 0xf5e6c8, 0x8c8c8c, 0xe8d5b5], cat: [0xf2a35e, 0x3a3a3a, 0xf7f3ec, 0xa9a9a9, 0xc7b299], bird: [0x7fd1c7, 0xfff3a0, 0x9fd7ff, 0xb7e3a3], rabbit: [0xf7f3ec, 0xc7b299, 0x5b4636, 0x8c8c8c], tortoise: [0x8a9b5a] };
   p.npcCfg = Object.assign({}, returning && returning.cfg ? returning.cfg : (() => { const hs = pick(["curly", "short", "short", "long", "bun", "buzz", "afro"]); return { skin: pick(skinTones), hair: pick([0x1b1420, 0x4a2c1a, 0x8b5a2b, 0xd9b38c, 0x3a2a20]), shirt: pick(shirts), pants: pick(pants), hairstyle: hs, beard: ["short", "buzz", "curly"].includes(hs) && Math.random() < 0.35 ? pick(["stubble", "short", "full"]) : "none", glasses: Math.random() < 0.3, glassesStyle: pick(["round", "square"]), frames: pick([0x2d2438, 0x6e4b36, 0xc8873a]), seed: Math.floor(Math.random() * 1e9) }; })(), { pet: { species: c.species, color: petRec ? petRec.color : pick(petColors[c.species]) } });
-  p.npc = World.addNPC(Object.assign({ x: -5, z: -16 }, p.npcCfg));
+  p.npc = World.addNPC(Object.assign({ x: -5, z: -16 }, p.npcCfg)); if (typeof hoSymptomsFor === "function" && p.npc.pet) World.setSymptoms(p.npc.pet, hoSymptomsFor(p));
   G.patients.push(p);
   const q = G.patients.filter(x => ["arriving", "at_desk"].includes(x.status)).length - 1; const spot = QUEUE_SPOTS[Math.min(q, 3)];
   p.npc.path = [[-5, -11], [-5, -9.3], spot]; p.npc.speed = p.emergency ? 3.4 : 2.2; p.npc.onArrive = () => { p.status = "at_desk"; updateHUD(); };
@@ -297,6 +297,7 @@ function genVitals(p) {
   const inR = (r, bias = 0) => +(rnd(r[0], r[1]) + bias).toFixed(r[1] > 50 ? 0 : 1);
   const vit = { temp: inR(v.temp, sick ? 0.3 : 0), hr: inR(v.hr, sick ? (v.hr[1] - v.hr[0]) * 0.2 : 0), rr: inR(v.rr, sick ? 4 : 0), crt: "< 2 s", mm: v.mm };
   const o = { vomit_dog: { temp: 39.4, hr: 130, rr: 28, crt: "2.5 s", mm: "pale pink, tacky" }, heat_dog: { temp: 41.6, hr: 170, rr: 80, crt: "< 1 s", mm: "brick red" }, blocked_cat: { temp: 36.8, hr: 120, rr: 30, crt: "2 s", mm: "pale" }, spleen_dog: { temp: 37.9, hr: 160, rr: 36, crt: "3 s", mm: "pale/white" }, pyometra: { temp: 39.9, hr: 140, rr: 32, crt: "2 s", mm: "injected" }, parvo_pup: { temp: 39.8, hr: 160, rr: 36, crt: "2.5 s", mm: "tacky" }, rabbit_stasis: { temp: 38.2, hr: 240, rr: 55, crt: "< 2 s", mm: "pale pink" } }[p.caseDef.id];
+  const hv = typeof HO_CLIN !== "undefined" && HO_CLIN[p.caseDef.id] && HO_CLIN[p.caseDef.id].vit; if (hv) Object.assign(vit, hv);
   return o ? Object.assign(vit, o) : vit;
 }
 function vitalClass(val, r) { return val < r[0] ? "low" : val > r[1] ? "high" : "ok"; }
@@ -313,7 +314,7 @@ function uiBehaviourCue(p) {
   $("#cuePause").onclick = () => { Sound.success(); addXP(15, "read the body language"); p.npc.petMood = "calm"; p.fear = Math.max(0, p.fear - 0.1); MGpanel("Gentle restraint", (el) => MG.restraint(el, p.species)).then(r => { if (!r.ok) { p.mistakes++; stat("handlingErrors"); } renderExam(p); }); };
   $("#cuePush").onclick = () => uiFightBack(p, () => renderExam(p));
 }
-function MGpanel(title, runner, opts = {}) { openPanel(`${icon(opts.icon || "hand", 20)} ${title}`, `<div id="mgHost"></div>`, { noClose: true, wide: true }); energy(-1); return runner($("#mgHost")).then(r => { if (r && r.ok && G.s.energy < 25 && Math.random() < 0.15) { r.ok = false; r.text += " (fatigue error)"; toast("Fatigue cost you that one — take a break.", "warn"); } return r; }); }
+function MGpanel(title, runner, opts = {}) { if (G.ho && typeof hoMG === "function") return hoMG(title, runner, opts); openPanel(`${icon(opts.icon || "hand", 20)} ${title}`, `<div id="mgHost"></div>`, { noClose: true, wide: true }); energy(-1); return runner($("#mgHost")).then(r => { if (r && r.ok && G.s.energy < 25 && Math.random() < 0.15) { r.ok = false; r.text += " (fatigue error)"; toast("Fatigue cost you that one — take a break.", "warn"); } return r; }); }
 function renderExam(p) {
   const sp = SPECIES[p.species], v = sp.vitals, done = p.examDone, allDone = EXAM_STEPS.every(s => done[s.id]);
   const steps = EXAM_STEPS.map(s => `<div class="step ${done[s.id] ? "done" : ""}" onclick="examStep(${p.id},'${s.id}')"><span class="chk">${done[s.id] ? icon("check", 16) : ""}</span><div><b>${s.label}</b>${done[s.id] ? `<div class="tip">${s.tip}${s.id === "tpr" ? vitalsHTML(p) : ""}${s.id === "history" ? `<div class='tip'>Owner: “${p.caseDef.complaint}”</div>` : ""}${s.id === "ausc" && p.hidden && p.hidden.murmur ? `<div class='tip'><b>Finding:</b> grade II/VI systolic murmur over the left apex — note for the anaesthetic plan (ASA II).</div>` : ""}${s.id === "msk" && p.secondary ? `<div class='tip'><b>Also noted:</b> ${p.secondary}.</div>` : ""}${s.id === "bcs" ? `<div class='tip'>${BCS[p.caseDef.id === "bird_well" ? 1 : p.secondary && p.secondary.includes("overweight") ? 3 : 2]}</div>` : ""}</div>` : ""}</div></div>`).join("");
@@ -401,6 +402,7 @@ function renderPreop(p) {
 function preopStep(id) {
   const p = G.patients.find(x => x.id === id); const i = p.preopDone.length; const s = PREOP_STEPS[i]; if (!s) return;
   const finish = () => { p.preopDone.push(s.id); Sound.click(); if (s.id === "monitor") Sound.beep(); renderPreop(p); };
+  if (G.ho && typeof hoPreopStep === "function" && hoPreopStep(p, s, finish)) return;
   if (s.id === "iv" && !p.ivFight && Math.random() < 0.15 + p.fear * 0.3 + difficultyScale() * 0.1 && !["bird", "tortoise"].includes(p.species)) { p.ivFight = true; return uiFightBack(p, finish); }
   if (s.id === "blood") return (G.s.settings.examGames !== false ? MGpanel("Blood sample", (el) => MG.bloodDraw(el, p.species), { icon: "drop" }) : Promise.resolve({ ok: true })).then(r => { if (!r.ok) p.mistakes++; openPanel(`${icon("flask", 20)} Bloods`, "", { noClose: true }); uiLabPanel(p, finish); });
   if (s.id === "clip") return MGpanel("Clip & vacuum", (el) => MG.clipVacuum(el)).then(r => { if (!r.ok) p.mistakes++; finish(); });
@@ -447,6 +449,7 @@ function uiSurgery() {
 function pickApproach(id, a) { const p = G.patients.find(x => x.id === id); p.approach = a; p.record.push(`${clockStr()} — Approach: ${a}.`); addXP(10); renderSurgery(id); }
 function monitorHTML(v, sp) { const r = SPECIES[sp].vitals; return `<div class="monitor"><div><small>HR</small><b class="${v.hr < r.hr[0] * 0.7 || v.hr > r.hr[1] * 1.15 ? "bad" : ""}">${Math.round(v.hr)}</b></div><div><small>SpO₂</small><b class="${v.spo2 < 95 ? "bad" : ""}">${Math.round(v.spo2)}%</b></div><div><small>ETCO₂</small><b class="${v.etco2 < 35 || v.etco2 > 45 ? "bad" : ""}">${Math.round(v.etco2)}</b></div><div><small>MAP</small><b class="${v.map < 60 ? "bad" : ""}">${Math.round(v.map)}</b></div><div><small>Temp</small><b class="${v.temp < 37 ? "bad" : ""}">${v.temp.toFixed(1)}°</b></div><div class="ecg"><svg viewBox="0 0 120 30"><path d="M0 15 L20 15 L25 5 L30 25 L35 15 L60 15 L65 5 L70 25 L75 15 L100 15 L105 5 L110 25 L115 15 L120 15" fill="none" stroke="#7ef29a" stroke-width="2"/></svg></div></div>`; }
 function renderSurgery(id) {
+  if (G.ho && typeof HO !== "undefined" && HO.room === "orTable") return hoSurgStep(id);
   const p = G.patients.find(x => x.id === id); const proc = PROCEDURES[p.caseDef.procedure]; const S = p.surg; const st = proc.steps[S.step];
   if (!st) return finishSurgery(p);
   const asnL = staffLevel("assistant"); const assistant = !!asnL; const maxEvents = (proc.steps.length > 7 ? 2 : 1) + (p.murmurFound || (p.hidden && p.hidden.murmur) ? 1 : 0) + (p.referral ? 1 : 0) + (G.s.settings.difficulty === "specialist" ? 1 : 0);
@@ -564,7 +567,7 @@ function tick() {
   requestAnimationFrame(tick);
   const nowR = performance.now(); const rd = Math.min(250, nowR - (G.lastReal || nowR)); G.lastReal = nowR; if (!G.paused) G.gameTime += rd;
   const night = G.s.shiftActive && G.s.clockMin >= 18 * 60;
-  const res = World.update(G.input, { frozen: G.panelOpen || G.paused, paused: G.paused, gate, night, input2: G.s.settings.coop ? G.input2 : null, speedMult: G.s.energy < 40 ? 0.85 : 1 });
+  const res = World.update(G.input, { frozen: G.panelOpen || G.paused || G.ho, paused: G.paused, gate, night, input2: G.s.settings.coop ? G.input2 : null, speedMult: G.s.energy < 40 ? 0.85 : 1 });
   if (typeof Bubbles !== "undefined") Bubbles.update();
   if (G.paused) return;
   const dt = res.dt; const pos = res.pos;
@@ -591,11 +594,11 @@ function tick() {
   G.catTimer -= dt; if (G.catTimer <= 0) { const per = G.s.clinicPet.personality; G.catTimer = per === "playful" ? rnd(15, 30) : per === "lazy" ? rnd(70, 120) : rnd(35, 70); if (G.s.clinicPet.hunger > 75) World.catWander([0.6, -10.9]); else if (per === "curious" && Math.random() < 0.5) { const pp = World.playerPos(); World.catWander([pp.x + 0.8, pp.z + 0.6]); } else World.catWander(); }
   const it = G.panelOpen ? null : nearestInteractable(pos); G.nearest = it;
   if (World.camMode === "first") $("#crosshair").classList.toggle("hit", !!it);
-  const pr = $("#prompt"); if (it) { pr.classList.add("show"); pr.querySelector("span").textContent = it.label(); World.setRing(it.pos); } else { pr.classList.remove("show"); World.setRing(null); }
+  const pr = $("#prompt"); if (it && !G.ho) { pr.classList.add("show"); pr.querySelector("span").textContent = it.label(); World.setRing(it.pos); } else { pr.classList.remove("show"); World.setRing(null); }
   if (G.s.settings.coop) { const p2 = World.player2Pos(); G.nearest2 = p2 && !G.panelOpen ? nearestInteractable(p2, true) : null; }
 }
 const POSES = { examTable: ["exam", 6.5, -7], orTable: ["exam", 7, 6.5], prepTable: ["exam", 0, 5.5], dentalTable: ["exam", 19.5, -7], wardTable: ["exam", 19.5, 6.5], microscope: ["exam", -12.6, 11.4], xrayTable: ["reach", 13.5, 6.5], desk: ["reach", -5, -6.5], pharmacy: ["reach", -5.5, 5.5], counter: ["reach", -17, -4.5], analyser: ["reach", -9.6, 11.4], bookshelf: ["reach", -20.6, 7], bowl: ["reach", 0.6, -10.9], officeDesk: ["think", -17.5, 6.5], autoclave: ["reach", 2.5, 3.2] };
-function interact() { if (G.panelOpen || !G.nearest) return; Sound.init(); Sound.vibrate(15); const it = G.nearest; it.action(); const ps = POSES[it.id]; if (ps && G.panelOpen) World.setPlayerPose(ps[0], { x: ps[1], z: ps[2] }); }
+function interact() { if (G.panelOpen || G.ho || !G.nearest) return; Sound.init(); Sound.vibrate(15); const it = G.nearest; if (typeof hoEnter === "function" && hoEnter(it)) return; it.action(); const ps = POSES[it.id]; if (ps && G.panelOpen) World.setPlayerPose(ps[0], { x: ps[1], z: ps[2] }); }
 function interact2() { if (G.panelOpen || !G.nearest2) return; Sound.init(); G.nearest2.action(); }
 
 function bindInput() {

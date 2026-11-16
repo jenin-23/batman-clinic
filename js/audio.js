@@ -29,8 +29,29 @@ const Sound = (() => {
     const g = ctx.createGain(); g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     src.connect(f); f.connect(g); g.connect(master); src.start(t0);
   }
+  function lpNoise({ dur = 0.1, vol = 0.3, freq = 120, type = "lowpass", q = 0.7, delay = 0, attack = 0.01 }) {
+    if (!ensure() || muted) return; const t0 = ctx.currentTime + delay;
+    const buf = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * dur)), ctx.sampleRate); const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource(); src.buffer = buf; const f = ctx.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(vol, t0 + attack); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f); f.connect(g); g.connect(master); src.start(t0);
+  }
+  const loops = {};
+  function loopStart(id, build) { if (!ensure() || muted || loops[id]) return; try { loops[id] = build(); } catch (e) { } }
+  function loopStop(id) { const l = loops[id]; if (!l) return; try { l.g.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.05); setTimeout(() => { try { l.nodes.forEach(n => n.stop && n.stop()); } catch (e) { } }, 200); } catch (e) { } delete loops[id]; }
+  function noiseLoopNode() { const buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate); const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; return src; }
   return {
     init() { ensure(); resume(); },
+    /* ---- clinical sounds ---- */
+    heart(o = {}) { const v = (o.vol === undefined ? 0.6 : o.vol) * (o.muffled ? 0.25 : 1); if (v <= 0.01) return; lpNoise({ dur: 0.09, vol: v, freq: 70 }); tone({ freq: 52, dur: 0.05, decay: 0.06, vol: v * 0.5 }); const gap = Math.min(0.3, 0.22 * (o.gapScale || 1)); lpNoise({ dur: 0.07, vol: v * 0.75, freq: 105, delay: gap }); tone({ freq: 74, dur: 0.04, decay: 0.05, vol: v * 0.4, delay: gap }); if (o.murmur) lpNoise({ dur: gap * 0.8, vol: v * 0.32, freq: 260, type: "bandpass", q: 1.2, delay: 0.06, attack: 0.03 }); },
+    breath(o = {}) { const v = o.vol === undefined ? 0.4 : o.vol; if (v <= 0.01) return; lpNoise({ dur: 0.75, vol: v * 0.5, freq: 520, type: "bandpass", q: 0.6, attack: 0.3 }); lpNoise({ dur: 0.9, vol: v * 0.3, freq: 380, type: "bandpass", q: 0.6, attack: 0.2, delay: 0.85 }); if (o.wheeze) tone({ freq: 440, type: "triangle", dur: 0.55, decay: 0.2, vol: v * 0.12, delay: 0.95, slideTo: 400 }); if (o.crackle) for (let i = 0; i < 7; i++) lpNoise({ dur: 0.012, vol: v * 0.5, freq: 1800, type: "bandpass", q: 3, delay: 0.15 + Math.random() * 0.5 }); },
+    purr(on, vol = 0.35) { if (!on) return loopStop("purr"); loopStart("purr", () => { const src = noiseLoopNode(); const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 160; const g = ctx.createGain(); g.gain.value = 0; const am = ctx.createGain(); am.gain.value = 0; const lfo = ctx.createOscillator(); lfo.frequency.value = 26; const lg = ctx.createGain(); lg.gain.value = vol; lfo.connect(lg); lg.connect(am.gain); src.connect(f); f.connect(am); am.connect(g); g.connect(master); g.gain.setTargetAtTime(1, ctx.currentTime, 0.2); src.start(); lfo.start(); return { g, nodes: [src, lfo] }; }); },
+    pulseOx(spo2 = 98) { tone({ freq: Math.max(320, 440 + (spo2 - 85) * 32), type: "sine", dur: 0.05, decay: 0.05, vol: 0.12 }); },
+    clipper(on) { if (!on) return loopStop("clip"); loopStart("clip", () => { const o = ctx.createOscillator(); o.type = "sawtooth"; o.frequency.value = 118; const f = ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 900; const g = ctx.createGain(); g.gain.value = 0.0001; o.connect(f); f.connect(g); g.connect(master); g.gain.setTargetAtTime(0.06, ctx.currentTime, 0.05); o.start(); return { g, nodes: [o] }; }); },
+    xray() { tone({ freq: 1950, dur: 0.45, decay: 0.05, vol: 0.14 }); lpNoise({ dur: 0.5, vol: 0.08, freq: 3000, type: "highpass" }); },
+    whirr() { tone({ freq: 180, slideTo: 620, type: "sawtooth", dur: 1.4, decay: 0.3, vol: 0.05 }); },
+    squeak() { tone({ freq: 900, slideTo: 1300, type: "triangle", dur: 0.08, decay: 0.05, vol: 0.08 }); },
+
     toggleMute() { muted = !muted; return muted; },
     bell() { tone({ freq: 1760, dur: 0.05, decay: 1.4, vol: 0.25 }); tone({ freq: 2637, dur: 0.05, decay: 1.0, vol: 0.12 }); tone({ freq: 1320, dur: 0.05, decay: 1.2, vol: 0.1, delay: 0.12 }); },
     bark() { for (let i = 0; i < 2; i++) { noise({ dur: 0.12, vol: 0.5, freq: 420, q: 2, delay: i * 0.22 }); tone({ freq: 260, slideTo: 150, type: "sawtooth", dur: 0.12, decay: 0.06, vol: 0.18, delay: i * 0.22 }); } },
