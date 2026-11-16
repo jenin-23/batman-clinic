@@ -320,3 +320,46 @@ body.ho #hoTools, body.ho #hoHint { left: calc((100vw - min(400px, 36vw)) / 2); 
   body.ho.panel-open #hoTools { bottom: calc(40vh + 12px + var(--sab, 0px)); } body.ho.panel-open #hoHint { bottom: calc(40vh + 84px + var(--sab, 0px)); }
 }
 @media (min-width: 761px) and (min-aspect-ratio: 5/6) { #hoMon { left: auto; right: calc(min(400px, 36vw) + 26px + var(--sar, 0px)); top: calc(52px + var(--sat, 0px)); width: 270px; } }
+.hosub { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 4px 18px; font-size: 12px; opacity: .85; } .hosub span.ok { color: #7ef29a; }
+/* ---- v2.6.1 calmer hands-on layout ---- */
+#hoHandle { display: none; }
+body.ho #hoHandle { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border: 0; background: transparent; color: var(--muted, #aab); font: 700 11px Nunito, sans-serif; padding: 6px 0 2px; cursor: pointer; }
+body.ho #hoHandle i { width: 38px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.3); }
+.hoprog { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: rgba(255,255,255,.1); color: var(--ink); vertical-align: middle; }
+#hoHint.fade { opacity: 0; pointer-events: none; transition: opacity .8s; }
+#hoAsk { position: fixed; z-index: 7; pointer-events: auto; left: 12px; bottom: calc(96px + var(--sab, 0px)); width: min(360px, 92vw); background: var(--panel); border: 1px solid var(--line); border-left: 4px solid #f2c14e; border-radius: 16px; padding: 10px; box-shadow: 0 14px 40px rgba(0,0,0,.5); }
+#hoAsk.hidden { display: none; } #hoAsk .ownerq { display: flex; flex-direction: column; gap: 6px; font-size: 13px; } #hoAsk .opt { text-align: left; white-space: normal; }
+/* desktop: collapsed tablet slides out to a tab */
+body.ho.tabmin #panel { transform: translateX(calc(100% - 44px)) !important; opacity: .92; }
+body.ho.tabmin #hoTools, body.ho.tabmin #hoHint { left: 50%; }
+@media (min-width: 761px) and (min-aspect-ratio: 5/6) { body.ho #hoHandle { position: absolute; left: -2px; top: 50%; width: 40px; flex-direction: column; } body.ho #hoHandle i { width: 5px; height: 38px; } body.ho #hoHandle span { writing-mode: vertical-rl; } body.ho:not(.tabmin) #hoHandle { display: none; } body.ho.tabmin #hoHandle { display: flex; } }
+@media (max-width: 760px), (max-aspect-ratio: 5/6) {
+  body.ho #statusPill { display: none !important; }
+  #hoTop { top: calc(8px + var(--sat, 0px)); right: 62px; padding: 4px; gap: 4px; }
+  #hoTop .hobtn { padding: 7px 10px; font-size: 0; gap: 0; } #hoTop .hobtn svg { width: 18px; height: 18px; }
+  #hoTop b { font-size: 13px; max-width: 34vw; } #hoFear { font-size: 0; }
+  body.ho #panel { max-height: 46vh !important; transition: transform .3s ease; }
+  body.ho.tabmin #panel { transform: translateY(calc(100% - 64px)) !important; opacity: 1; }
+  body.ho.tabmin #panelBody { visibility: hidden; }
+  body.ho.tabmin #panelClose { display: none !important; }
+  body.ho #panelBody { max-height: calc(46vh - 76px); }
+  body.ho #panel .phead, body.ho #panelTitle { font-size: 14px; }
+  body.ho #hoTools { bottom: calc(52px + var(--sab, 0px)); padding: 4px; gap: 3px; border-radius: 14px; }
+  body.ho:not(.tabmin).panel-open #hoTools { bottom: calc(46vh + 10px + var(--sab, 0px)); }
+  .hotool { min-width: 50px; padding: 4px 5px 3px; font-size: 9.5px; } .hotool svg { width: 20px; height: 20px; } .hotool.instr svg { max-width: 56px; height: 22px; }
+  body.ho #hoHint { bottom: calc(116px + var(--sab, 0px)); font-size: 12.5px; padding: 6px 10px; max-width: 94vw; }
+  body.ho:not(.tabmin).panel-open #hoHint { display: none !important; }
+  #hoAsk { left: 8px; right: 8px; width: auto; bottom: calc(118px + var(--sab, 0px)); }
+  body.ho:not(.tabmin).panel-open #hoAsk { bottom: calc(46vh + 74px + var(--sab, 0px)); }
+  .hofloat { max-width: 70vw; font-size: 12.5px; }
+  .hodot { width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; }
+  #hoMon { top: calc(56px + var(--sat, 0px)); }
+  #hoLens { top: calc(56px + var(--sat, 0px)) !important; max-height: 48vh; }
+  body.ho #toasts { top: calc(56px + var(--sat)) !important; }
+}
+@media (max-width: 760px), (max-aspect-ratio: 5/6) {
+  body.ho.tabmin #hoTools, body.ho:not(.panel-open) #hoTools { bottom: calc(74px + var(--sab, 0px)) !important; }
+  body.ho.tabmin #hoHint, body.ho:not(.panel-open) #hoHint { bottom: calc(140px + var(--sab, 0px)) !important; display: block; }
+  body.ho.tabmin #hoAsk, body.ho:not(.panel-open) #hoAsk { bottom: calc(142px + var(--sab, 0px)) !important; }
+  body.ho:not(.panel-open) #hoTools { bottom: calc(14px + var(--sab, 0px)) !important; } body.ho:not(.panel-open) #hoHint { bottom: calc(80px + var(--sab, 0px)) !important; }
+}
