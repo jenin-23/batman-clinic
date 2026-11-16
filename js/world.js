@@ -378,7 +378,7 @@ const World = (() => {
     if (cfg.steth) { const sm = mat(0x23222e, { roughness: 0.4 }); const s = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.013, 8, 24, Math.PI), sm); s.position.set(0, 0.58, 0.1); s.rotation.x = 0.35; s.rotation.z = Math.PI; upper.add(s); const tube = cyl(0.011, 0.011, 0.22, 0, 0.15, 0.43, 0.17, sm); upper.add(tube); const disc = cyl(0.035, 0.035, 0.018, 0xf2c14e, 0.15, 0.31, 0.18); disc.rotation.x = Math.PI / 2; upper.add(disc); P.stethDisc = disc;
       const held = cyl(0.035, 0.035, 0.018, 0xf2c14e, 0, -0.33, 0.04); held.rotation.x = Math.PI / 2; held.visible = false; P.rElbow.add(held); P.stethHeld = held; }
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-    return { group: g, parts: P, phase: rnd() * 6, skinColor: skinC, hairColor: cfg.hair, shoeColor: cfg.shoes || 0x23222e, cfg, move: 0, blinkT: 1 + rnd() * 3, blinkK: 0, sacT: 1, eyeX: 0, eyeY: 0, pose: null };
+    g.userData.dynamic = true; return { group: g, parts: P, phase: rnd() * 6, skinColor: skinC, hairColor: cfg.hair, shoeColor: cfg.shoes || 0x23222e, cfg, move: 0, blinkT: 1 + rnd() * 3, blinkK: 0, sacT: 1, eyeX: 0, eyeY: 0, pose: null };
   }
   let currentOutfit = "clinic";
   function setHumanOutfit(rig, outfit) {
@@ -489,6 +489,7 @@ const World = (() => {
     }
     P.eyes = eyeSink; eyeSink = null; P.bodyMat = m;
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    g.userData.dynamic = true;
     return { group: g, parts: P, phase: Math.random() * 6, species, color };
   }
   function animatePet(rig, dt, moving, mood = "calm") {
@@ -507,7 +508,7 @@ const World = (() => {
       if (sy.lethargic && P.head && !moving) P.head.rotation.x = 0.4;
       if (sy.pant && P.head) P.head.position.y = P.head.userData.y0 + Math.sin(rig.phase * 6) * 0.006;
     }
-    if (rig.anaesth) { if (P.head) { P.head.rotation.set(0.1, 0, 0); } if (P.tail) P.tail.rotation.y = 0; if (P.legs) P.legs.forEach(l => l.rotation.x = 0); if (P.body) P.body.scale.y = (rig.species === "dog" ? 0.85 : 0.9) + Math.sin(rig.phase * 0.35) * 0.02; }
+    if (rig.anaesth) { if (P.head) { P.head.rotation.set(rig.recumb === "dorsal" ? -0.5 : 0.1, 0, 0); } if (P.tail) P.tail.rotation.y = 0; if (P.legs) P.legs.forEach(l => l.rotation.x = 0); if (P.body) P.body.scale.y = (rig.species === "dog" ? 0.85 : 0.9) + Math.sin(rig.phase * 0.35) * 0.02; }
   }
   /* visible clinical signs on the 3D pet */
   function setSymptoms(rig, list) {
@@ -527,15 +528,42 @@ const World = (() => {
       if (k === "eyeClosed" && P.eyes) P.eyes.forEach(e => [e.w, e.pupil, e.hl].forEach(o => o.scale.y = 0.2));
     });
   }
+  /* height of the furniture top under (x, z): ray straight down, ignoring people and animals */
+  const downRay = THREE.Raycaster ? new THREE.Raycaster() : null;
+  function surfaceY(x, z, guess) {
+    if (!downRay || !scene) return guess; try {
+      downRay.set(new THREE.Vector3(x, 2.6, z), new THREE.Vector3(0, -1, 0)); downRay.far = 2.6; downRay.camera = camera;
+      const hits = downRay.intersectObjects(scene.children, true);
+      for (const h of hits) { let q = h.object, dyn = false; while (q) { if (q.userData && q.userData.dynamic) { dyn = true; break; } q = q.parent; } if (dyn || !h.object.visible || h.object.material && h.object.material.transparent && h.object.material.opacity < 0.5) continue; const y = h.point.y; if (y > 0.15 && y < 1.6 && Math.abs(y - guess) < 0.6) return y; }
+    } catch (e) { } return guess;
+  }
+  /* sit the pet exactly on its surface, centred: measure the visible meshes after posing */
+  function fitPet(rig) {
+    const g = rig.group, s = g.userData.surface; if (!s || !THREE.Box3) return;
+    try {
+      g.position.set(s.x, s.y, s.z); g.updateMatrixWorld(true);
+      const all = new THREE.Box3(), body = new THREE.Box3(), tmp = new THREE.Box3(); let any = false;
+      const bodyMesh = rig.parts && rig.parts.body;
+      g.traverse(o => { if (!o.isMesh || !o.geometry) return; let q = o, vis = true; while (q) { if (!q.visible) { vis = false; break; } if (q === g) break; q = q.parent; } if (!vis) return;
+        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); tmp.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); all.union(tmp); any = true; if (o === bodyMesh) body.copy(tmp); });
+      if (!any) return;
+      const lying = rig.recumb === "lateral" || rig.recumb === "dorsal";
+      const ref = all;
+      g.position.x += s.x - (all.min.x + all.max.x) / 2; g.position.z += s.z - (all.min.z + all.max.z) / 2; g.position.y += s.y - ref.min.y + (lying ? 0.01 : 0);
+    } catch (e) { }
+  }
   /* recumbency for tables: "lateral" (left side up), "dorsal" (on its back) or null */
   function setRecumbency(rig, mode) {
-    if (!rig) return; const g = rig.group; const sp = rig.species; rig.recumb = mode;
+    if (!rig) return; const g = rig.group; const sp = rig.species; if (sp === "tortoise") mode = null; rig.recumb = mode;
+    const hd = rig.parts.head; if (hd) { if (hd.userData.y0h === undefined) hd.userData.y0h = hd.position.y; hd.position.y = hd.userData.y0h - (mode === "dorsal" ? ({ dog: 0.26, cat: 0.16, rabbit: 0.18, bird: 0.08 }[sp] || 0.15) : 0); }
     const half = { dog: 0.32, cat: 0.2, rabbit: 0.24, bird: 0.12, tortoise: 0.3 }[sp] || 0.25, bodyY = { dog: 0.5, cat: 0.32, rabbit: 0.3, bird: 0.26, tortoise: 0.22 }[sp] || 0.3;
     if (g.userData.baseY === undefined) g.userData.baseY = g.position.y;
     if (mode === "lateral") { g.rotation.z = Math.PI / 2; g.position.y = g.userData.baseY - bodyY + half; }
     else if (mode === "dorsal") { g.rotation.z = Math.PI; g.position.y = g.userData.baseY + bodyY + half * 0.6; }
     else { g.rotation.z = 0; g.position.y = g.userData.baseY; }
     rig.anaesth = mode === "dorsal" || mode === "lateral";
+    if (rig.anaesth && rig.parts.head) rig.parts.head.rotation.set(mode === "dorsal" ? -0.5 : 0.1, 0, 0);
+    fitPet(rig);
   }
   /* close-up workspace camera */
   let focusCam = null; const focusLook = new THREE.Vector3();
@@ -556,7 +584,7 @@ const World = (() => {
       animateHuman(n.rig, dt, moving, 0.9);
       if (n.pet) {
         if (n.petFollow) {
-          if (n.pet.group.rotation.z) { n.pet.group.rotation.z = 0; n.pet.anaesth = false; n.pet.recumb = null; }
+          if (n.pet.group.rotation.z) { n.pet.group.rotation.z = 0; n.pet.anaesth = false; n.pet.recumb = null; } n.pet.group.userData.surface = null;
           const pr = n.pet.group, pos = n.rig.group.position; const off = n.pet.species === "bird" ? [0.45, 0.0] : [0.55, 0.1]; const ang = n.rig.group.rotation.y;
           const tx = pos.x + Math.cos(ang) * off[0] - Math.sin(ang) * off[1], tz = pos.z - Math.sin(ang) * off[0] - Math.cos(ang) * off[1];
           pr.position.x += (tx - pr.position.x) * Math.min(1, dt * 6); pr.position.z += (tz - pr.position.z) * Math.min(1, dt * 6);
@@ -673,13 +701,13 @@ const World = (() => {
 
   function setRing(pos) { if (!pos) { ring.visible = false; return; } ring.visible = true; ring.position.x = pos.x; ring.position.z = pos.z; }
   function addNPC(cfg) {
-    const rig = makeHuman(Object.assign({}, cfg, { pet: undefined })); rig.group.position.set(cfg.x, 0, cfg.z); if (cfg.rotY !== undefined) rig.group.rotation.y = cfg.rotY; scene.add(rig.group);
+    const rig = makeHuman(Object.assign({}, cfg, { pet: undefined })); rig.group.userData.dynamic = true; rig.group.position.set(cfg.x, 0, cfg.z); if (cfg.rotY !== undefined) rig.group.rotation.y = cfg.rotY; scene.add(rig.group);
     if (cfg.outfit) setHumanOutfit(rig, cfg.outfit);
     let pet = null; if (cfg.pet) { pet = makePet(cfg.pet.species, cfg.pet.color); pet.group.position.set(cfg.x + 0.6, 0, cfg.z); scene.add(pet.group); }
     const n = { rig, pet, petFollow: true, path: [], speed: 2.4, onArrive: null, petMood: "calm" }; npcs.push(n); return n;
   }
   function removeNPC(n) { const i = npcs.indexOf(n); if (i >= 0) npcs.splice(i, 1); scene.remove(n.rig.group); if (n.pet) scene.remove(n.pet.group); }
-  function placePet(n, x, y, z, rotY = 0) { n.petFollow = false; n.pet.group.position.set(x, y, z); n.pet.group.rotation.y = rotY; n.pet.group.rotation.z = 0; n.pet.group.userData.baseY = y; n.pet.anaesth = false; n.pet.recumb = null; if (n.pet.parts.cage) n.pet.parts.cage.visible = false; }
+  function placePet(n, x, y, z, rotY = 0) { n.petFollow = false; n.pet.group.position.set(x, y, z); n.pet.group.rotation.y = rotY; n.pet.group.rotation.z = 0; n.pet.group.userData.baseY = y; n.pet.group.userData.surface = { x, y: y > 0.5 ? surfaceY(x, z, y) : y, z }; if (n.pet.parts.head && n.pet.parts.head.userData.y0h !== undefined) n.pet.parts.head.position.y = n.pet.parts.head.userData.y0h; n.pet.anaesth = false; n.pet.recumb = null; fitPet(n.pet); if (n.pet.parts.cage) n.pet.parts.cage.visible = false; }
   function playerPos() { return player.group.position; }
   function applyTheme(t) {
     Object.assign(theme, t); themeMats.wallClones.forEach(m => m.color.set(theme.wall)); themeMats.wall.color.set(theme.wall);
