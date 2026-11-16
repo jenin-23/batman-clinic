@@ -16,7 +16,7 @@
   }
   window.logActivity = function (msg, kind) { const t = G.s ? clockStr().replace(/^Day \d+ /, "") : ""; G.log.unshift({ t, msg, kind }); if (G.log.length > 60) G.log.pop(); };
   window.toast = function (msg, kind = "info", ms = 3200) {
-    logActivity(msg, kind); if (kind === "xp") return; // XP ticks live in the activity log, not on screen
+    logActivity(msg, kind); if (kind === "xp") return; if (kind === "info" && G.s && G.s.settings && G.s.settings.fewerToasts) return; // XP ticks live in the activity log, not on screen
     const key = msg.replace(/<[^>]+>/g, "").slice(0, 60); const now = Date.now(); if (recent.get(key) && now - recent.get(key) < 4000) return; recent.set(key, now);
     const t = { msg, kind, ms, pri: PRI[kind] || 1 };
     if (!current) show(t); else if (t.pri > current.pri) { queue.push(current); clearTimeout(timer); show(t); } else { queue.push(t); while (queue.length > 3) { queue.sort((a, b) => b.pri - a.pri); queue.pop(); } }

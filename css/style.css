@@ -213,7 +213,6 @@ body.talking #needs { opacity: .25; }
 
 /* ---------- v2.4: phone, walk, staff levels ---------- */
 .pdot { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #ff5f7a; color: #fff; font-size: 11px; font-weight: 800; margin-left: auto; }
-#gearBtn { position: relative; }
 #gearBtn.hasdot::after { content: ""; position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 50%; background: #ff5f7a; box-shadow: 0 0 0 2px var(--panel, #1c1b29); }
 .phone { display: flex; flex-direction: column; gap: 10px; }
 .phonetabs { display: flex; gap: 6px; }
@@ -245,3 +244,4 @@ ul.lvl li.on { opacity: 1; font-weight: 700; color: var(--accent); }
 #walkHint { position: absolute; left: 50%; transform: translateX(-50%); top: calc(64px + var(--sat, 0px)); z-index: 6; background: rgba(20,19,32,.88); border: 1px solid var(--accent); color: #fff; padding: 7px 8px 7px 14px; border-radius: 999px; font-size: 14px; display: flex; gap: 8px; align-items: center; pointer-events: auto; white-space: nowrap; }
 #walkHint button { border: 0; background: rgba(255,255,255,.12); color: #fff; width: 26px; height: 26px; border-radius: 50%; cursor: pointer; }
 body.panel-open #walkHint, body.menu-open #walkHint { display: none !important; }
+body.reduce-motion *, body.reduce-motion *::before, body.reduce-motion *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
