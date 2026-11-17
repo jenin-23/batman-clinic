@@ -129,6 +129,7 @@ function hoBuildDOM() {
   $("#hoLensX").onclick = () => { if (!HO.lensLocked) hoLens(null); };
   $("#hoOrbit").querySelectorAll("button").forEach(b => { let rep = null; const go = () => hoOrbitStep(b.dataset.o); b.onpointerdown = (e) => { e.preventDefault(); go(); if (b.dataset.o !== "c") rep = setInterval(go, 160); }; const stop = () => { clearInterval(rep); rep = null; }; b.onpointerup = stop; b.onpointerleave = stop; b.onpointercancel = stop; });
   const hot = $("#hoHot");
+  hot.addEventListener("pointerdown", hoPointerDown);
   hot.addEventListener("wheel", (e) => { if (!HO.on) return; e.preventDefault(); hoOrbitBy(0, 0, e.deltaY > 0 ? 1.08 : 1 / 1.08); }, { passive: false });
   hot.addEventListener("contextmenu", (e) => e.preventDefault()); hot.addEventListener("pointermove", hoPointerMove); window.addEventListener("pointerup", hoPointerUp); hot.addEventListener("pointercancel", hoPointerUp);
   window.addEventListener("keydown", (e) => { if (HO.on && e.key === "Escape" && !G.panelOpen) hoClose(); });
