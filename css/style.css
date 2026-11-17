@@ -363,3 +363,12 @@ body.ho.tabmin #hoTools, body.ho.tabmin #hoHint { left: 50%; }
   body.ho.tabmin #hoAsk, body.ho:not(.panel-open) #hoAsk { bottom: calc(142px + var(--sab, 0px)) !important; }
   body.ho:not(.panel-open) #hoTools { bottom: calc(14px + var(--sab, 0px)) !important; } body.ho:not(.panel-open) #hoHint { bottom: calc(80px + var(--sab, 0px)) !important; }
 }
+.skipbtn { margin-left: 6px; border: 1px solid rgba(242,193,78,.5); background: rgba(242,193,78,.1); color: #f2c14e; font: 700 10.5px Nunito, sans-serif; padding: 2px 8px; border-radius: 999px; cursor: pointer; vertical-align: middle; }
+.skipbtn:hover { background: #f2c14e; color: #1b1d2b; }
+.hotool.skip { color: #f2c14e; border-color: rgba(242,193,78,.4); }
+#hoOrbit { position: fixed; z-index: 3; pointer-events: auto; left: calc(10px + var(--sal, 0px)); top: 50%; transform: translateY(-50%); display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 5px; background: rgba(18,20,34,.7); border: 1px solid var(--line); border-radius: 14px; backdrop-filter: blur(6px); }
+#hoOrbit button { width: 36px; height: 36px; border: 0; border-radius: 10px; background: rgba(255,255,255,.08); color: var(--ink); font-size: 17px; cursor: pointer; touch-action: none; }
+#hoOrbit button:active, #hoOrbit button:hover { background: var(--accent); color: var(--onaccent); }
+#hoOrbit button[data-o="c"] { grid-column: span 2; height: 28px; font-size: 14px; }
+@media (max-width: 760px), (max-aspect-ratio: 5/6) { #hoOrbit { top: 38%; padding: 3px; gap: 3px; } #hoOrbit button { width: 32px; height: 30px; font-size: 15px; } }
+body.ho:not(.tabmin).panel-open #hoOrbit { top: 30%; }
