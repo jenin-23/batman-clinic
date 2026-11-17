@@ -51,7 +51,7 @@ const Bubbles = (() => {
 /* owner dialogue as a speech bubble with choices */
 function bubbleTalk(p, next) {
   const O = OWNER_TYPES[p.personality]; const opts = O.options.map((o, i) => ({ o, i })).sort(() => Math.random() - 0.5);
-  G.panelOpen = true; document.body.classList.add("talking"); // freeze movement while talking
+  if (window.__joyReset) window.__joyReset(); G.panelOpen = true; document.body.classList.add("talking"); // freeze movement while talking
   const target = () => p.npc && p.npc.rig.group.position;
   const b = Bubbles.show({ target, ttl: 0, yoff: 2.2, html: `<button class="bclose" aria-label="Not now">✕</button><div class="bname">${p.ownerName} <span class="muted">(${O.label})</span></div><div class="btext">${O.intro(p)}</div><div class="bopts">${opts.map(x => `<button class="bopt" data-i="${x.i}">${x.o[0]}</button>`).join("")}</div>` });
   b.el.querySelector(".bclose").onclick = () => { Bubbles.remove(b); G.panelOpen = false; document.body.classList.remove("talking"); p.greeted = false; };
@@ -97,10 +97,10 @@ document.addEventListener("visibilitychange", () => { if (document.hidden && G.s
 /* ---------- right-hand look stick (first person on touch) ---------- */
 function bindLookStick() {
   const zone = $("#lookZone"); if (!zone) return; let id = null, lx = 0, ly = 0, sx = 0, sy = 0, t0 = 0;
-  zone.addEventListener("pointerdown", (e) => { if (id !== null) return; id = e.pointerId; lx = sx = e.clientX; ly = sy = e.clientY; t0 = performance.now(); try { zone.setPointerCapture(id); } catch (err) { } e.preventDefault(); });
+  zone.addEventListener("pointerdown", (e) => { if (id !== null && !e.isPrimary) return; id = e.pointerId; lx = sx = e.clientX; ly = sy = e.clientY; t0 = performance.now(); try { zone.setPointerCapture(id); } catch (err) { } e.preventDefault(); });
   zone.addEventListener("pointermove", (e) => { if (e.pointerId !== id || G.paused) return; const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY; World.lookDelta(dx * 0.0062, dy * 0.0052); });
-  const end = (e) => { if (e.pointerId !== id) return; id = null; if (performance.now() - t0 < 220 && Math.hypot(e.clientX - sx, e.clientY - sy) < 10) interact(); };
-  zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end);
+  const end = (e) => { if (e.pointerId !== id) return; id = null; if (performance.now() - t0 < 220 && Math.hypot(e.clientX - sx, e.clientY - sy) < 10) { const was = G.panelOpen || G.ho; interact(); if (!was && (G.panelOpen || G.ho) && typeof swallowGhostClick === "function") swallowGhostClick(); } };
+  zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end); zone.addEventListener("lostpointercapture", (e) => { if (e.pointerId === id) id = null; });
 }
 function updateFPUI() { const fp = World.camMode === "first"; $("#lookZone").classList.toggle("show", fp && G.touch); $("#crosshair").classList.toggle("show", fp); document.body.classList.toggle("fp", fp); if (fp && !G.touch && !G.fpHinted) { G.fpHinted = true; toast("First person: click the view to look with the mouse · WASD to walk · E to use · Esc frees the mouse.", "info", 6000); } }
 

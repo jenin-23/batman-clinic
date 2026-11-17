@@ -127,12 +127,13 @@ function hoBuildDOM() {
   d.innerHTML = `<div id="hoTop"><button id="hoBack" class="hobtn">${icon("arrow", 16)} Step back</button><b id="hoTitle"></b><span id="hoFear"></span><button id="hoTab" class="hobtn">${icon("folder", 16)} Tablet</button></div>
     <div id="hoHot"></div><canvas id="hoPaint"></canvas><div id="hoBeam" class="hidden"><i></i></div>
     <div id="hoHint"></div><div id="hoTools"></div><div id="hoMon" class="hidden"></div><div id="hoLens" class="hidden"><div id="hoLensHead"><b id="hoLensTitle"></b><button id="hoLensX" aria-label="Close">✕</button></div><div id="hoLensBody"></div></div><div id="hoCursor"></div><div id="hoAsk" class="hidden"></div><div id="hoSay" class="hidden"></div><div id="hoTip" class="hidden"></div>
-    <div id="hoOrbit"><button data-o="l" title="Walk round to the left">⟲</button><button data-o="r" title="Walk round to the right">⟳</button><button data-o="u" title="Look from higher">▲</button><button data-o="d" title="Look from lower">▼</button><button data-o="i" title="Closer">＋</button><button data-o="o" title="Further">－</button><button data-o="c" title="Reset view">⌂</button></div>`;
+    <button id="hoOrbitTog" aria-label="Camera controls" title="Camera controls">⟳</button><div id="hoOrbit"><button data-o="l" title="Walk round to the left">⟲</button><button data-o="r" title="Walk round to the right">⟳</button><button data-o="u" title="Look from higher">▲</button><button data-o="d" title="Look from lower">▼</button><button data-o="i" title="Closer">＋</button><button data-o="o" title="Further">－</button><button data-o="c" title="Reset view">⌂</button></div>`;
   document.body.appendChild(d);
   const pan = $("#panel"); if (pan && !$("#hoHandle")) { const hd = document.createElement("button"); hd.id = "hoHandle"; hd.setAttribute("aria-label", "Open or close the tablet"); hd.innerHTML = `<i></i><span></span>`; pan.insertBefore(hd, pan.firstChild); hd.onclick = () => hoTabMin(!document.body.classList.contains("tabmin")); }
   $("#hoBack").onclick = () => hoClose();
   $("#hoTab").onclick = () => { if (G.panelOpen && !document.body.classList.contains("tabmin")) hoTabMin(true); else { hoTabMin(false); if (!G.panelOpen) hoTablet(); } };
   $("#hoLensX").onclick = () => { if (!HO.lensLocked) hoLens(null); };
+  $("#hoOrbitTog").onclick = () => document.body.classList.toggle("orbitOpen");
   $("#hoOrbit").querySelectorAll("button").forEach(b => { let rep = null; const go = () => hoOrbitStep(b.dataset.o); b.onpointerdown = (e) => { e.preventDefault(); go(); if (b.dataset.o !== "c") rep = setInterval(go, 160); }; const stop = () => { clearInterval(rep); rep = null; }; b.onpointerup = stop; b.onpointerleave = stop; b.onpointercancel = stop; });
   const hot = $("#hoHot");
   hot.addEventListener("pointerdown", hoPointerDown);
@@ -152,7 +153,7 @@ function hoEnter(it) {
   hoOpen(it.id, null, { cam: [lx + dx / L * 1.45, 1.95, lz + dz / L * 1.45], look: [lx, 1.15, lz], title: { pharmacy: "Pharmacy counter", analyser: "Blood analyser", microscope: "Microscope", ultrasound: "Ultrasound", autoclave: "Autoclave" }[it.id] });
   it.action(); return true;
 }
-function hoOpen(room, p, frame) {
+function hoOpen(room, p, frame) { HO.petR = null; document.body.classList.remove("orbitOpen"); if (window.__joyReset) window.__joyReset();
   hoBuildDOM(); Sound.init();
   const st = HO_STATIONS[room]; const mem = (G.s.hoOrbit || {})[room]; HO.orbit = mem ? Object.assign({}, mem) : { yaw: 0, pitch: 0, zoom: 1 }; HO.on = true; HO.room = room; HO.p = p; HO.tool = "hand"; HO.need = null; HO.cfg = frame || st; G.ho = true;
   document.body.classList.add("ho"); $("#ho").classList.remove("hidden"); hoTabMin(hoPhone()); G.hoHeld = 0; const th = $("#toasts"); if (th) th.querySelectorAll(".toast").forEach(t => t.remove()); $("#hoTitle").textContent = (frame && frame.title) || st.title;
@@ -167,17 +168,19 @@ function hoOpen(room, p, frame) {
   else if (room === "wardTable") { hoTools(["hand", "steth", "treat"]); hoExamLite(p); uiWard(); }
   else if (room === "kennel") { World.setRecumbency(p.npc.pet, "lateral"); hoTools(["hand", "steth"]); hoExamLite(p); uiRecovery(); }
   else hoTools([]);
-  cancelAnimationFrame(HO.raf); const loop = () => { if (!HO.on) return; hoUpdate(); HO.raf = requestAnimationFrame(loop); }; HO.raf = requestAnimationFrame(loop);
+  cancelAnimationFrame(HO.raf); const loop = () => { if (!HO.on) return; hoUpdate(); const tabOpen = hoPhone() && document.body.classList.contains("panel-open") && !document.body.classList.contains("tabmin"); if (tabOpen !== HO.tabOpenF) { HO.tabOpenF = tabOpen; hoFrame(); } HO.raf = requestAnimationFrame(loop); }; HO.raf = requestAnimationFrame(loop);
 }
 function hoFrame() {
   const f = HO.cfg; if (!f) return; const O = HO.orbit || (HO.orbit = { yaw: 0, pitch: 0, zoom: 1 });
   const look = { x: f.look[0], y: f.look[1], z: f.look[2] }; const vx = f.cam[0] - look.x, vz = f.cam[2] - look.z, dy0 = f.cam[1] - look.y; const hd = Math.hypot(vx, vz) || 1; const a = Math.atan2(vx, vz) + O.yaw;
   const phone = innerWidth < 760 || innerHeight > innerWidth * 1.2;
   const mult = (phone ? (innerHeight > innerWidth * 1.5 ? 2.5 : 2.0) : 2.05) * (window.__hoMult || 1) * O.zoom;
-  const elev = Math.atan2(dy0, hd) + O.pitch; const R0 = Math.hypot(hd, dy0) * mult;
+  const elev = Math.atan2(dy0, hd) + O.pitch; let R0 = Math.hypot(hd, dy0) * mult;
+  try { const pg = HO.p && HO.p.npc && HO.p.npc.pet && HO.p.npc.pet.group; if (pg && HO.petR == null) { const bx = new THREE.Box3().setFromObject(pg); const c = bx.getCenter(new THREE.Vector3()); HO.petR = Math.max(bx.max.x - bx.min.x, bx.max.z - bx.min.z) / 2 + Math.hypot(c.x - look.x, c.z - look.z) * 0.6; }
+    if (HO.petR) { const vf = (phone ? 55 : 44) * Math.PI / 180, asp = innerWidth / innerHeight; const hf = 2 * Math.atan(Math.tan(vf / 2) * asp); const avail = phone ? 0.92 : (innerHeight < 500 ? 0.58 : 0.62); const need = HO.petR / Math.tan(hf * avail / 2) * 1.08; const base = Math.hypot(hd, dy0) * (phone ? (innerHeight > innerWidth * 1.5 ? 2.5 : 2.0) : 2.05) * (window.__hoMult || 1); if (need > base) R0 = need * O.zoom; } } catch (e) { }
   const cam = { x: look.x + Math.sin(a) * Math.cos(elev) * R0, y: look.y + Math.sin(elev) * R0, z: look.z + Math.cos(a) * Math.cos(elev) * R0 };
   const fx = look.x - cam.x, fz = look.z - cam.z, L = Math.hypot(fx, fz) || 1; const rx = -fz / L, rz = fx / L; const dist = Math.hypot(hd, dy0);
-  if (phone) { look.y -= dist * mult * 0.1; } else { const k = dist * mult * 0.28; look.x += rx * k; look.z += rz * k; cam.x += rx * k; cam.z += rz * k; }
+  if (phone) { look.y -= dist * mult * (HO.tabOpenF && innerHeight > innerWidth ? 0.24 : 0.1); } else { const k = dist * mult * 0.28; look.x += rx * k; look.z += rz * k; cam.x += rx * k; cam.z += rz * k; }
   World.setFocus({ cam, look, fov: phone ? 55 : 44 });
 }
 function hoClose() {
@@ -189,7 +192,7 @@ function hoClose() {
   if (G.hoHeld) { const n = G.hoHeld; G.hoHeld = 0; setTimeout(() => toast(`${icon("bell", 16)} ${n} update${n > 1 ? "s" : ""} while you were busy — see the activity log.`, "info", 3500), 500); } closePanel(); HO.p = null; HO.room = null;
 }
 function hoToast(m, k, ms) { G.hoToast = true; try { toast(m, k, ms); } finally { G.hoToast = false; } }
-function hoPhone() { return innerWidth < 760 || innerHeight > innerWidth * 1.2; }
+function hoPhone() { return innerWidth < 760 || innerHeight > innerWidth * 1.2 || innerHeight < 500; }
 function hoTabMin(on) { document.body.classList.toggle("tabmin", !!on); const h = $("#hoHandle span"); if (h) h.textContent = on ? "Open tablet" : "Close tablet"; }
 function hoOrbitBy(dYaw, dPitch, zoomK) { const O = HO.orbit || (HO.orbit = { yaw: 0, pitch: 0, zoom: 1 }); O.yaw += dYaw; O.pitch = Math.max(-0.55, Math.min(0.75, O.pitch + dPitch)); O.zoom = Math.max(0.45, Math.min(1.6, O.zoom * (zoomK || 1))); hoFrame(); if (HO.room) { G.s.hoOrbit = G.s.hoOrbit || {}; G.s.hoOrbit[HO.room] = { yaw: O.yaw, pitch: O.pitch, zoom: O.zoom }; clearTimeout(HO.orbSave); HO.orbSave = setTimeout(save, 800); } }
 function hoOrbitStep(o) { if (o === "c") { HO.orbit = { yaw: 0, pitch: 0, zoom: 1 }; if (G.s.hoOrbit && HO.room) { delete G.s.hoOrbit[HO.room]; save(); } return hoFrame(); } hoOrbitBy(o === "l" ? -0.22 : o === "r" ? 0.22 : 0, o === "u" ? 0.1 : o === "d" ? -0.1 : 0, o === "i" ? 0.9 : o === "o" ? 1.11 : 1); }
@@ -257,8 +260,8 @@ function hoUpdate() {
 function hoNearest(x, y, parts, maxD = 64) { let best = null, bd = maxD; (parts || hoActiveParts()).forEach(k => { const a = hoAnchorScreen(k); if (!a || a.behind) return; const d = Math.hypot(a.x - x, a.y - y); if (d < bd) { bd = d; best = k; } }); return best; }
 function hoCursor(x, y, show) { const c = $("#hoCursor"); if (!c) return; if (!show) { c.style.display = "none"; return; } c.style.display = "block"; c.style.left = x + "px"; c.style.top = y + "px"; c.innerHTML = hoIcon(HO.tool, 34); }
 function hoPointerDown(e) {
-  if (!HO.on || G.paused) return; e.preventDefault(); const x = e.clientX, y = e.clientY;
-  HO.ptrs = HO.ptrs || {}; HO.ptrs[e.pointerId] = { x, y };
+  if (!HO.on || G.paused) return; e.preventDefault(); const x = e.clientX, y = e.clientY; HO.hotDown = e.pointerId;
+  HO.ptrs = HO.ptrs || {}; if (e.isPrimary !== false) HO.ptrs = {}; HO.ptrs[e.pointerId] = { x, y };
   if (Object.keys(HO.ptrs).length >= 2 || e.button === 2) { if (HO.hold) { const h = HO.hold; HO.hold = null; if (h.end) h.end(); } HO.orb = { x, y, d: hoPinchDist() }; return; }
   HO.down = { x, y, t: performance.now() };
   if (!HO.paint && !(HO.need && HO.need.drag && HO.tool === "scalpel") && !hoNearest(x, y, null, 80) && !(HO.need && HO.need.surgical && hoNearest(x, y, HO.need.parts, 110))) { HO.orb = { x, y, d: 0, maybe: true }; return; }
@@ -283,7 +286,7 @@ function hoPointerMove(e) { if (!HO.on) return; const x = e.clientX, y = e.clien
   if (HO.ptrs && HO.ptrs[e.pointerId]) HO.ptrs[e.pointerId] = { x, y };
   if (HO.orb) { const O = HO.orb; const dx = x - O.x, dy = y - O.y; if (O.maybe && Math.hypot(dx, dy) < 6) return; O.maybe = false; const d = hoPinchDist(); hoOrbitBy(-dx * 0.008, dy * 0.005, O.d && d ? O.d / d : 1); O.x = x; O.y = y; if (d) O.d = d; return; } if (HO.paint && HO.paint.active) return hoPaintMove(x, y); if (HO.drag) return hoDragMove(x, y); if (HO.hold) { hoCursor(x, y, true); if (HO.hold.move) HO.hold.move(x, y); } }
 function hoShowTip(part, x, y) { const t = $("#hoTip"); if (!t) return; t.textContent = hoPartName(part, HO.p && HO.p.species); t.style.left = x + "px"; t.style.top = y + "px"; t.classList.remove("hidden"); clearTimeout(HO.tipT); HO.tipT = setTimeout(() => t.classList.add("hidden"), 1800); }
-function hoPointerUp(e) { if (!HO.on) return;
+function hoPointerUp(e) { if (!HO.on) return; if (e && e.pointerType === "touch" && HO.hotDown === e.pointerId && typeof swallowGhostClick === "function") swallowGhostClick(400); HO.hotDown = null; if (HO.ptrs && e && e.pointerId !== undefined) delete HO.ptrs[e.pointerId];
   if (HO.pend) { const P = HO.pend; HO.pend = null; clearTimeout(HO.pendT); if (!P.labelled && performance.now() - P.t0 >= 450) { P.labelled = true; hoShowTip(P.part, P.x, P.y); } if (!P.labelled) hoExamAct(P.part, P.x, P.y, true); hoCursor(0, 0, false); return; } if (HO.ptrs && e && e.pointerId !== undefined) delete HO.ptrs[e.pointerId];
   if (HO.orb) { const O = HO.orb; HO.orb = null; if (O.maybe && HO.room === "examTable" && HO.down) hoFloatAt(HO.down.x, HO.down.y, "Tap a body part — or drag here to walk round the table."); return; } if (HO.paint && HO.paint.active) return hoPaintEnd(); if (HO.drag) return hoDragEnd(); if (HO.hold) { const h = HO.hold; HO.hold = null; if (h.end) h.end(); } hoCursor(0, 0, false); }
 function hoFloatAt(x, y, text) { const el = document.createElement("div"); el.className = "hofloat dim"; el.textContent = text; el.style.left = Math.min(innerWidth - 270, x + 12) + "px"; el.style.top = y - 20 + "px"; $("#ho").appendChild(el); setTimeout(() => el.classList.add("off"), 1500); setTimeout(() => el.remove(), 2000); }

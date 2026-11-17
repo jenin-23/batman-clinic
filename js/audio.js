@@ -11,7 +11,7 @@ const Sound = (() => {
     } catch (e) { ctx = null; return false; }
     return true;
   }
-  function resume() { if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {}); }
+  function resume() { if (ctx && ctx.state !== "running" && ctx.state !== "closed") { try { ctx.resume().catch(() => {}); } catch (e) { } } }
   function tone({ freq = 440, type = "sine", dur = 0.3, vol = 0.3, attack = 0.005, decay = 0.25, slideTo = null, delay = 0 }) {
     if (!ensure() || muted) return;
     const t0 = ctx.currentTime + delay;
