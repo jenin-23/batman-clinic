@@ -1,7 +1,7 @@
 /* Batman Clinic — offline cache + update detection. BUILD is stamped per deploy. */
 const BUILD = "__BUILD__";
 const CACHE = "batman-clinic-" + BUILD;
-const ASSETS = ["./", "./index.html", "./css/style.css", "./js/version.js", "./js/diagrams.js", "./js/data.js", "./js/cases2.js", "./js/audio.js", "./js/decor.js", "./js/world.js", "./js/minigames.js", "./js/game.js", "./js/systems.js", "./js/phone.js", "./js/handson.js", "./js/ux.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png", "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"];
+const ASSETS = ["./", "./index.html", "./css/style.css", "./js/version.js", "./js/diagrams.js", "./js/data.js", "./js/cases2.js", "./js/audio.js", "./js/decor.js", "./js/world.js", "./js/minigames.js", "./js/game.js", "./js/systems.js", "./js/phone.js", "./js/handson.js", "./js/polish.js", "./js/ux.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png", "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).catch(() => {})); /* wait for the page to ask before activating, so we can show an update banner */ });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("message", e => { if (e.data === "SKIP_WAITING") self.skipWaiting(); if (e.data === "GET_BUILD" && e.source) e.source.postMessage({ build: BUILD }); });

@@ -372,3 +372,29 @@ body.ho.tabmin #hoTools, body.ho.tabmin #hoHint { left: 50%; }
 #hoOrbit button[data-o="c"] { grid-column: span 2; height: 28px; font-size: 14px; }
 @media (max-width: 760px), (max-aspect-ratio: 5/6) { #hoOrbit { top: 38%; padding: 3px; gap: 3px; } #hoOrbit button { width: 32px; height: 30px; font-size: 15px; } }
 body.ho:not(.tabmin).panel-open #hoOrbit { top: 30%; }
+/* ---- v2.7 polish ---- */
+.gl { border-bottom: 1px dotted currentColor; cursor: help; }
+#glTip { position: fixed; z-index: 60; max-width: 280px; background: #11131f; color: var(--ink); border: 1px solid var(--accent); border-radius: 12px; padding: 8px 10px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+#glTip.hidden, #recap.hidden, #hoSay.hidden, #hoTip.hidden { display: none; }
+#recap { position: fixed; z-index: 30; left: calc(12px + var(--sal, 0px)); bottom: calc(96px + var(--sab, 0px)); width: min(340px, 92vw); background: var(--panel); border: 1px solid var(--line); border-left: 4px solid #7ea3ff; border-radius: 16px; padding: 10px 12px; color: var(--ink); box-shadow: 0 16px 40px rgba(0,0,0,.5); }
+#recap .rhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; } #recap .rhead button { border: 0; background: rgba(255,255,255,.1); color: var(--ink); border-radius: 50%; width: 26px; height: 26px; cursor: pointer; }
+#recap ul { list-style: none; padding: 0; margin: 6px 0; font-size: 13px; display: flex; flex-direction: column; gap: 4px; } #recap li.ok { color: #9ff2b4; } #recap li.bad { color: #ffb0bd; }
+#hoSay { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: calc(52px + var(--sat, 0px)); max-width: min(520px, 90vw); background: rgba(18,20,34,.92); border: 1px solid var(--line); border-left: 4px solid #f2c14e; color: var(--ink); padding: 7px 12px; border-radius: 12px; font-size: 13.5px; pointer-events: none; }
+@media (max-width: 760px), (max-aspect-ratio: 5/6) { #hoSay { top: calc(54px + var(--sat, 0px)); font-size: 12.5px; } }
+#hoTip { position: fixed; z-index: 7; transform: translate(-50%, -150%); background: #11131f; color: #ffe08a; border: 1px solid rgba(242,193,78,.6); padding: 4px 9px; border-radius: 8px; font: 700 12px Nunito, sans-serif; pointer-events: none; white-space: nowrap; }
+.hodot.hl { width: 26px; height: 26px; margin: -13px 0 0 -13px; border: 3px solid #fff; box-shadow: 0 0 0 4px rgba(242,193,78,.7), 0 0 18px rgba(242,193,78,.9); }
+.hodotname { position: absolute; transform: translate(-50%, -190%); background: #f2c14e; color: #1b1d2b; font: 800 12px Nunito, sans-serif; padding: 3px 9px; border-radius: 999px; white-space: nowrap; pointer-events: none; }
+.hotool.next { background: rgba(242,193,78,.18); color: #f2c14e; border-color: rgba(242,193,78,.5); } .hotool.more { opacity: .85; }
+.nextbtn { width: 100%; justify-content: flex-start; text-align: left; white-space: normal; margin: 4px 0 2px; }
+#hoTools { touch-action: pan-x; overscroll-behavior: contain; }
+#hoTools.surg { flex-wrap: wrap; justify-content: center; overflow-x: visible; max-width: min(760px, 96vw); row-gap: 4px; }
+#hoTools.surg .hotool { min-width: 0; flex: 0 0 auto; width: 78px; padding: 4px 3px 3px; } #hoTools.surg .hotool svg { max-width: 64px; height: 22px; } #hoTools.surg .hotool span { font-size: 9.5px; line-height: 1.05; }
+@media (max-width: 760px), (max-aspect-ratio: 5/6) { #hoTools.surg .hotool { width: 64px; } #hoTools.surg .hotool svg { max-width: 52px; height: 18px; } }
+.volrow { display: flex; align-items: center; gap: 10px; margin: 4px 0; font-size: 13px; } .volrow span { flex: 0 0 170px; } .volrow input { flex: 1; accent-color: var(--accent); }
+/* rotation controls live on the empty right side of the 3D view */
+#hoOrbit { left: auto !important; right: calc(min(400px, 36vw) + 26px + var(--sar, 0px)); top: 58%; }
+body.ho.tabmin #hoOrbit, body.ho:not(.panel-open) #hoOrbit { right: calc(56px + var(--sar, 0px)); }
+@media (min-width: 761px) and (min-aspect-ratio: 5/6) { body.ho #hoMon:not(.hidden) ~ #hoOrbit { top: 66%; } }
+@media (max-width: 760px), (max-aspect-ratio: 5/6) { #hoOrbit { right: calc(6px + var(--sar, 0px)) !important; top: 40% !important; } }
+#hoTools.surg { width: max-content; max-width: min(760px, 96vw); }
+@media (max-width: 760px), (max-aspect-ratio: 5/6) { #hoTools.surg { max-width: 96vw; } }

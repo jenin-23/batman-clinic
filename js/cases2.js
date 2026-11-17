@@ -263,3 +263,7 @@ function storylinesHTML() {
   return STORYLINES.map(st => { const a = A[st.id]; const lock = st.level > G.s.level; const status = !a ? (lock ? `Unlocks at level ${st.level}` : "Not started — it will find you") : a.done ? `Complete (day ${a.doneDay})` : `Visit ${a.step + 1} of ${st.steps.length}${a.due > G.s.day ? ` — back on day ${a.due}` : " — due today"}`;
     return `<div class="step ${a && a.done ? "done" : ""}"><span class="chk">${a && a.done ? icon("check", 16) : icon(lock ? "tag" : "book", 16)}</span><div><b>${st.title}</b><div class="tip">${status}${a && a.pet ? ` · ${a.pet} (${a.owner})` : ""}</div>${a && a.done ? `<div class="tip">${st.ending.replace(/\{pet\}/g, a.pet)}</div>` : ""}</div></div>`; }).join("") + `<p class="muted small">Storylines bring the same patient back for follow-up visits. Sources for the cases are in References → Case sources.</p>`;
 }
+
+/* make the pet's sex match the words in each case (owner text, findings, answers) */
+Object.entries({ mystery_addison: "female", ivdd_dog: "male", hypo_pup: "male", hookworm_pup: "male", lily_cat: "female", asthma_cat: "female", mbd_tortoise: "male", heat_dog: "male", parvo_pup: "male" })
+  .forEach(([id, sx]) => { const c = CASES.find(x => x.id === id); if (c && !c.sex) c.sex = sx; });

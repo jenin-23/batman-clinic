@@ -157,6 +157,8 @@ function wireXrayHover(container, labelEl) {
 
 /* ---------------- UI line icons (24px grid, stroke = currentColor) ---------------- */
 const ICON_PATHS = {
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
   bell: '<path d="M5 15a7 7 0 0 1 14 0z"/><path d="M12 8V5"/><path d="M4 18.5h16"/>',
   steth: '<path d="M6 4v6a5 5 0 0 0 10 0V4"/><path d="M11 15v2a4 4 0 0 0 8 0v-3"/><circle cx="19" cy="11" r="2"/>',
   xray: '<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M12 7v10M8.5 10h7M9.5 13h5M10 16h4"/>',

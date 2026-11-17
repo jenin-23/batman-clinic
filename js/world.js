@@ -567,7 +567,8 @@ const World = (() => {
   }
   /* close-up workspace camera */
   let focusCam = null; const focusLook = new THREE.Vector3();
-  function setFocus(f) { focusCam = f ? { cam: new THREE.Vector3(f.cam.x, f.cam.y, f.cam.z), look: new THREE.Vector3(f.look.x, f.look.y, f.look.z), fov: f.fov || 50 } : null; if (f) { focusLook.copy(f.look); player.group.visible = false; if (f.snap || window.__hoSnap) { camera.position.copy(focusCam.cam); camera.fov = focusCam.fov; camera.updateProjectionMatrix(); camera.lookAt(focusLook); } } else { player.group.visible = camMode !== "first"; camera.fov = camMode === "first" ? 70 : 42; camera.updateProjectionMatrix(); } }
+  function setFocus(f) { focusCam = f ? { cam: new THREE.Vector3(f.cam.x, f.cam.y, f.cam.z), look: new THREE.Vector3(f.look.x, f.look.y, f.look.z), fov: f.fov || 50 } : null; if (f) { focusLook.copy(f.look); player.group.visible = false; if (f.snap || window.__hoSnap) { camera.position.copy(focusCam.cam); camera.fov = focusCam.fov; camera.updateProjectionMatrix(); camera.lookAt(focusLook); } } else { player.group.visible = camMode !== "first"; fovTarget = camMode === "first" ? 70 : 42; tpLook.copy(focusLook); tpLookInit = true; } }
+  let fovTarget = null; const tpLook = new THREE.Vector3(); let tpLookInit = false;
   function project(x, y, z) { const v = new THREE.Vector3(x, y, z); v.project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight, behind: v.z > 1 }; }
 
   /* ---------- NPC movement ---------- */
@@ -668,6 +669,7 @@ const World = (() => {
     if (player2 && opts.input2) { const p2 = player2.group.position; const i2 = opts.input2; let m2 = false; if (!opts.frozen && (i2.x || i2.z)) { const l = Math.hypot(i2.x, i2.z) || 1; p2.x += i2.x / l * 4 * dt; p2.z += i2.z / l * 4 * dt; m2 = true; player2.group.rotation.y = lerpAngle(player2.group.rotation.y, Math.atan2(i2.x, i2.z), Math.min(1, dt * 12)); } collide(p2, 0.35); animateHuman(player2, dt, m2); }
     if (!opts.paused) npcUpdate(dt);
     // camera
+    if (fovTarget !== null && !focusCam) { camera.fov += (fovTarget - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); if (Math.abs(camera.fov - fovTarget) < 0.2) { camera.fov = fovTarget; camera.updateProjectionMatrix(); fovTarget = null; } }
     if (focusCam) {
       const k = Math.min(1, dt * 4.5); camera.position.lerp(focusCam.cam, k); focusLook.lerp(focusCam.look, k); camera.lookAt(focusLook); if (Math.abs(camera.fov - focusCam.fov) > 0.3) { camera.fov += (focusCam.fov - camera.fov) * k; camera.updateProjectionMatrix(); }
       for (const m of fadeables) { const hide = Math.abs(m.position.x - focusCam.cam.x) < 4 && ((m.position.z - focusCam.look.z) * (m.position.z - focusCam.cam.z) < 0 || Math.abs(m.position.z - focusCam.cam.z) < 0.6); m.visible = !hide; }
@@ -685,7 +687,7 @@ const World = (() => {
     } else {
       for (const m of fadeables) m.visible = true;
       const target = new THREE.Vector3(pos.x, 1.0, pos.z); const desired = new THREE.Vector3(pos.x, 11 * camDist + 1.5, pos.z + 9 * camDist + 1);
-      camera.position.lerp(desired, Math.min(1, dt * 4)); camera.lookAt(target);
+      camera.position.lerp(desired, Math.min(1, dt * 4)); if (!tpLookInit) { tpLook.copy(target); tpLookInit = true; } tpLook.lerp(target, Math.min(1, dt * 5)); camera.lookAt(tpLook);
       for (const m of fadeables) { const want = (m.position.z > pos.z + 0.5 && Math.abs(m.position.x - pos.x) < 10) ? 0.14 : 1; m.material.opacity += (want - m.material.opacity) * Math.min(1, dt * 8); m.material.transparent = m.material.opacity < 0.995; m.castShadow = m.material.opacity > 0.5; }
     }
     // day/night + weather
