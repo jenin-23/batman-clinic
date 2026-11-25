@@ -153,7 +153,7 @@ function hoEnter(it) {
   hoOpen(it.id, null, { cam: [lx + dx / L * 1.45, 1.95, lz + dz / L * 1.45], look: [lx, 1.15, lz], title: { pharmacy: "Pharmacy counter", analyser: "Blood analyser", microscope: "Microscope", ultrasound: "Ultrasound", autoclave: "Autoclave" }[it.id] });
   it.action(); return true;
 }
-function hoOpen(room, p, frame) { HO.petR = null; document.body.classList.remove("orbitOpen"); if (window.__joyReset) window.__joyReset();
+function hoOpen(room, p, frame) { try { World.setExpression("player", ["orTable", "prepTable", "xrayTable", "dentalTable"].includes(room) ? "focused" : "neutral"); } catch (e) { } HO.petR = null; document.body.classList.remove("orbitOpen"); if (window.__joyReset) window.__joyReset();
   hoBuildDOM(); Sound.init();
   const st = HO_STATIONS[room]; const mem = (G.s.hoOrbit || {})[room]; HO.orbit = mem ? Object.assign({}, mem) : { yaw: 0, pitch: 0, zoom: 1 }; HO.on = true; HO.room = room; HO.p = p; HO.tool = "hand"; HO.need = null; HO.cfg = frame || st; G.ho = true;
   document.body.classList.add("ho"); $("#ho").classList.remove("hidden"); hoTabMin(hoPhone()); G.hoHeld = 0; const th = $("#toasts"); if (th) th.querySelectorAll(".toast").forEach(t => t.remove()); $("#hoTitle").textContent = (frame && frame.title) || st.title;
@@ -183,7 +183,7 @@ function hoFrame() {
   if (phone) { look.y -= dist * mult * (HO.tabOpenF && innerHeight > innerWidth ? 0.24 : 0.1); } else { const k = dist * mult * 0.28; look.x += rx * k; look.z += rz * k; cam.x += rx * k; cam.z += rz * k; }
   World.setFocus({ cam, look, fov: phone ? 55 : 44 });
 }
-function hoClose() {
+function hoClose() { try { World.setExpression("player", "neutral"); if (HO.p && HO.p.npc && HO.p.npc.pet) World.setPetLook(HO.p.npc.pet, null); } catch (e) { }
   if (!HO.on) return; HO.on = false; G.ho = false; cancelAnimationFrame(HO.raf); hoStopSounds();
   if (HO.mon) { HO.mon.stop = true; HO.mon = null; }
   if (HO.p && HO.p.npc && HO.p.npc.pet && !["preop", "ready_or", "recovery", "dental_ready"].includes(HO.p.status)) World.setRecumbency(HO.p.npc.pet, null);
@@ -197,7 +197,7 @@ function hoTabMin(on) { document.body.classList.toggle("tabmin", !!on); const h 
 function hoOrbitBy(dYaw, dPitch, zoomK) { const O = HO.orbit || (HO.orbit = { yaw: 0, pitch: 0, zoom: 1 }); O.yaw += dYaw; O.pitch = Math.max(-0.55, Math.min(0.75, O.pitch + dPitch)); O.zoom = Math.max(0.45, Math.min(1.6, O.zoom * (zoomK || 1))); hoFrame(); if (HO.room) { G.s.hoOrbit = G.s.hoOrbit || {}; G.s.hoOrbit[HO.room] = { yaw: O.yaw, pitch: O.pitch, zoom: O.zoom }; clearTimeout(HO.orbSave); HO.orbSave = setTimeout(save, 800); } }
 function hoOrbitStep(o) { if (o === "c") { HO.orbit = { yaw: 0, pitch: 0, zoom: 1 }; if (G.s.hoOrbit && HO.room) { delete G.s.hoOrbit[HO.room]; save(); } return hoFrame(); } hoOrbitBy(o === "l" ? -0.22 : o === "r" ? 0.22 : 0, o === "u" ? 0.1 : o === "d" ? -0.1 : 0, o === "i" ? 0.9 : o === "o" ? 1.11 : 1); }
 function hoTablet() { const r = HO.room, p = HO.p; if (r === "examTable" && p) return hoExamTablet(p); if (r === "xrayTable") return p && p.xray ? showXrayPanel(p, p.xray, true) : hoXrayTablet(p); if (r === "prepTable" && p) return renderPreop(p); if (r === "orTable" && p) return p.surg ? hoSurgTablet(p) : uiSurgery(); if (r === "dentalTable") return uiDental(); if (r === "wardTable") return uiWard(); if (r === "kennel") return uiRecovery(); const it = INTERACT.find(x => x.id === r); if (it) it.action(); }
-function hoStopSounds() { try { Sound.purr(false); Sound.clipper(false); } catch (e) { } if (HO.listen) { clearInterval(HO.listen.timer); HO.listen = null; } }
+function hoStopSounds() { try { if (HO.p && HO.p.npc && HO.p.npc.pet) HO.p.npc.pet.purr = false; Sound.purr(false); Sound.clipper(false); } catch (e) { } if (HO.listen) { clearInterval(HO.listen.timer); HO.listen = null; } }
 
 /* ---------------- tools tray, hints, floating notes ---------------- */
 function hoTools(list, extra) {
@@ -244,7 +244,8 @@ function hoActivePartsFor() {
   return [];
 }
 function hoUpdate() {
-  const host = $("#hoHot"); if (!host) return; const parts = hoActiveParts(); const show = G.s.settings.hoDots !== false;
+  const host = $("#hoHot"); if (!host) return;
+  try { const pr = HO.p && HO.p.npc && HO.p.npc.pet; if (pr) { const hp = HO.hl && performance.now() < HO.hl.until ? HO.hl.part : null; const w = hp && typeof hoAnchorWorld === "function" ? hoAnchorWorld(hp) : null; const cam = World.camera && World.camera.position; World.setPetLook(pr, w && HO.tool && HO.tool !== "hand" ? { x: w.x, y: w.y + 0.15, z: w.z } : cam ? { x: cam.x, y: cam.y, z: cam.z } : null); } } catch (e) { } const parts = hoActiveParts(); const show = G.s.settings.hoDots !== false;
   const hl = HO.hl && performance.now() < HO.hl.until ? HO.hl.part : null; let html = "";
   parts.forEach(k => { if (!show && k !== hl) return; const a = hoAnchorScreen(k); if (a && !a.behind) html += `<i class="hodot ${HO.need && HO.need.done && HO.need.done.includes(k) ? "ok" : ""} ${k === hl ? "hl" : ""}" style="left:${Math.round(a.x)}px;top:${Math.round(a.y)}px"></i>`; });
   if (hl) { const a = hoAnchorScreen(hl); if (a) html += `<span class="hodotname" style="left:${Math.round(a.x)}px;top:${Math.round(a.y)}px">${hoPartName(hl, HO.p && HO.p.species)}</span>`; }
@@ -421,7 +422,7 @@ function hoExamAct(part, x, y) {
   if (t === "treat") { if (p.ho.treats >= 3) return hoFloat(part, "That's enough treats!"); p.ho.treats++; Sound.squeak(); hoFearAdd(p, -0.15); hoOwnerSay(p, pick([`${pr.He} loves those!`, "Aww, look at that!", "Good " + (/female/.test(p.sex) ? "girl" : "boy") + "!"])); return hoFloat("mouth", "Treat accepted — calmer.", "good"); }
   if (t === "towel") { if (p.ho.towel) return hoFloat(part, "Already wrapped."); p.ho.towel = true; hoFearAdd(p, -0.2); hoOwnerSay(p, sp === "cat" ? "A purrito!" : "Oh, that's clever."); return hoFloat(part, "Gentle towel wrap — much calmer.", "good"); }
   if (t === "steth") return hoListen(part);
-  if (t === "thermo") { if (part !== "tail") return hoFloat(part, "Temperature is taken at the tail end."); return hoTimed(2600, sp === "bird" ? "cloacal…" : "reading…", "tail", () => { Sound.beep(); p.ho.temp = true; hoFearAdd(p, sp === "cat" ? 0.12 : 0.08); hoOwnerSay(p, pick([`Oh no, ${p.name} hates that!`, "Poor thing!", "Is the temperature OK?"])); hoFloat(part, `${p.vitals.temp} °C`, p.vitals.temp > SPECIES[sp].vitals.temp[1] + 0.3 ? "warn" : p.vitals.temp < SPECIES[sp].vitals.temp[0] - 0.3 ? "warn" : "good"); hoAfterTPR(p); }); }
+  if (t === "thermo") { if (part !== "tail") return hoFloat(part, "Temperature is taken at the tail end."); if (p.npc && p.npc.pet) World.petFlinch(p.npc.pet); return hoTimed(2600, sp === "bird" ? "cloacal…" : "reading…", "tail", () => { Sound.beep(); p.ho.temp = true; hoFearAdd(p, sp === "cat" ? 0.12 : 0.08); hoOwnerSay(p, pick([`Oh no, ${p.name} hates that!`, "Poor thing!", "Is the temperature OK?"])); hoFloat(part, `${p.vitals.temp} °C`, p.vitals.temp > SPECIES[sp].vitals.temp[1] + 0.3 ? "warn" : p.vitals.temp < SPECIES[sp].vitals.temp[0] - 0.3 ? "warn" : "good"); hoAfterTPR(p); }); }
   if (t === "light") { if (part !== "eye") return; p.ho.eye = true; hoEyeLens(p, false); return hoCheckEyesStep(p); }
   if (t === "fluor") { if (part !== "eye") return; p.ho.stain = true; hoEyeLens(p, true); return; }
   if (t === "oto") { if (part !== "ear") return hoFloat(part, "The otoscope is for ears."); hoFearAdd(p, 0.06); p.ho.ear = true; hoEarLens(p); return hoCheckEyesStep(p); }
@@ -473,7 +474,7 @@ function hoSkipNeed() {
 function hoListen(part) {
   const p = HO.p; const sp = p.species; const c = hoClin(p); if (!["heart", "lungCr", "lungCd"].includes(part)) return hoFloat(part, "Listen over the chest."); if (HO.listen) return hoFloat(part, "Still listening…");
   const purring = sp === "cat" && !p.ho.purrStopped && (p.ho.purrs === undefined ? (p.ho.purrs = Math.random() < 0.55) : p.ho.purrs);
-  if (purring) { Sound.purr(true, 0.4); hoHint(`${p.name} is purring — you can't hear the heart over it. <button class="btn small" onclick="hoTapTrick()">Turn on the tap</button> (running water usually stops a purr)`); }
+  if (purring) { Sound.purr(true, 0.4); if (p.npc && p.npc.pet) p.npc.pet.purr = true; hoHint(`${p.name} is purring — you can't hear the heart over it. <button class="btn small" onclick="hoTapTrick()">Turn on the tap</button> (running water usually stops a purr)`); }
   const hrPlay = Math.min(sp === "bird" ? 200 : 180, p.vitals.hr); let pos = { x: HO.down.x, y: HO.down.y }; const murmur = p.hidden && p.hidden.murmur;
   const beat = () => { if (!HO.listen) return; const h = hoAnchorScreen("heart"), l1 = hoAnchorScreen("lungCr"), l2 = hoAnchorScreen("lungCd"); const dh = h ? Math.hypot(h.x - pos.x, h.y - pos.y) : 999; const vh = Math.max(0, 1 - dh / 170); Sound.heart({ vol: 0.75 * vh, murmur: murmur && dh < 70, muffled: purring && !p.ho.purrStopped, gapScale: 160 / Math.max(80, hrPlay) }); };
   const breathT = setInterval(() => { if (!HO.listen) return; const l1 = hoAnchorScreen("lungCr"), l2 = hoAnchorScreen("lungCd"); const dl = Math.min(l1 ? Math.hypot(l1.x - pos.x, l1.y - pos.y) : 999, l2 ? Math.hypot(l2.x - pos.x, l2.y - pos.y) : 999); Sound.breath({ vol: 0.55 * Math.max(0, 1 - dl / 150), wheeze: c.lungs === "wheeze", crackle: c.lungs === "crackles" }); }, Math.max(900, 60000 / p.vitals.rr));
@@ -571,6 +572,7 @@ function hoNeedAct(part, x, y) {
   const N = HO.need; if (!N) return; if (HO.tool !== N.tool) return hoFloat(part, `Use the ${HO_TOOLS[N.tool][0].toLowerCase()}.`);
   if (!N.parts.includes(part)) return hoFloat(part, "Not there.");
   const go = () => { if (!N.done.includes(part)) N.done.push(part); Sound.click(); hoFloat(part, "✓", "good"); if (N.parts.every(k => N.done.includes(k))) { HO.need = null; hoHint(""); N.onDone(); } };
+  if (N.tool === "syringe" && HO.p && HO.p.npc && HO.p.npc.pet) World.petFlinch(HO.p.npc.pet);
   if (N.holdMs) hoHoldStart(N.holdMs, N.tool === "syringe" ? "drawing…" : N.tool === "mask" ? "oxygen…" : "placing…", go); else go();
 }
 function hoAddProp(p, part, color) { try { const l = (HO_ANCH[p.species] || HO_ANCH.dog)[part]; if (!l) return; const m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 10), new THREE.MeshStandardMaterial({ color })); m.position.set(l[0], l[1], l[2]); m.rotation.z = Math.PI / 2; p.npc.pet.group.add(m); } catch (e) { } }
@@ -671,7 +673,7 @@ const HO_ANES = [
 function hoAnesEvent(p) {
   const S = p.surg; let pool = HO_ANES.slice(); if (p.species !== "dog") pool = pool.filter(e => e.id !== "rsa" && e.id !== "vpc"); const ev = pick(pool); Sound.alarm(); Sound.vibrate(80);
   if (ev.id === "spo2") S.vit.spo2 = 90; if (ev.id === "map") S.vit.map = 53; if (ev.id === "temp") S.vit.temp = 36.3; if (ev.id === "light") S.vit.hr *= 1.35; if (ev.id === "co2") S.vit.etco2 = 57; if (ev.id === "brady") S.vit.hr = Math.round(S.vit.hr * 0.6);
-  HO.mon.ev = { ev, t0: HO.mon.clk(), got: [] }; const al = $("#monAlarm"); if (al) al.textContent = "ALARM"; hoHint(`<b class="red">Alarm:</b> ${ev.text} Use the anaesthetic machine controls.`); $("#hoMon").classList.add("alarm");
+  HO.mon.ev = { ev, t0: HO.mon.clk(), got: [] }; try { World.setExpression("player", "worried", 6); } catch (e) { } const al = $("#monAlarm"); if (al) al.textContent = "ALARM"; hoHint(`<b class="red">Alarm:</b> ${ev.text} Use the anaesthetic machine controls.`); $("#hoMon").classList.add("alarm");
 }
 function hoMonControl(c) {
   const M = HO.mon; if (!M) return; const p = M.p; const S = p.surg; Sound.click();

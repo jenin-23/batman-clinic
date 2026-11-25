@@ -64,7 +64,7 @@ function buildDecor(W) {
     const r = ROOMS[k], st = ROOM_STYLE[k]; if (!st) continue;
     if (themeMats.floors[k]) { const fm = themeMats.floors[k]; fm.map = floorTexture(st.floor, st.f1, st.f2, Math.max(1, Math.round((r.x[1] - r.x[0]) / 2)), Math.max(1, Math.round((r.z[1] - r.z[0]) / 2))); fm.color.set(0xffffff); fm.needsUpdate = true; }
     if (k === "corridor") continue;
-    const inset = 0.2, ph = 1.05; const pm = mat(st.panel); const stripe = mat(st.accent, { emissive: st.accent, emissiveIntensity: 0.08 });
+    const inset = 0.2, ph = 1.05; const pm = mat(st.panel); const stripe = mat(st.accent, { emissive: st.accent, emissiveIntensity: 0.08 }); if (W.roomMats) W.roomMats[k] = { panel: pm, stripe };
     const segs = [[r.x[0] + inset, r.z[0] + inset, r.x[1] - inset, r.z[0] + inset], [r.x[0] + inset, r.z[1] - inset, r.x[1] - inset, r.z[1] - inset], [r.x[0] + inset, r.z[0] + inset, r.x[0] + inset, r.z[1] - inset], [r.x[1] - inset, r.z[0] + inset, r.x[1] - inset, r.z[1] - inset]];
     segs.forEach(([x1, z1, x2, z2]) => { const horiz = Math.abs(x2 - x1) > Math.abs(z2 - z1); const len = horiz ? x2 - x1 : z2 - z1; const p = new THREE.Mesh(roundedBoxGeo(horiz ? len : 0.06, ph, horiz ? 0.06 : len, 0.02), pm); p.position.set((x1 + x2) / 2, ph / 2 + 0.18, (z1 + z2) / 2); p.receiveShadow = true; scene.add(p); fadeables.push(p); const s = new THREE.Mesh(roundedBoxGeo(horiz ? len : 0.07, 0.08, horiz ? 0.07 : len, 0.02), stripe); s.position.set((x1 + x2) / 2, ph + 0.22, (z1 + z2) / 2); scene.add(s); fadeables.push(s); });
   }

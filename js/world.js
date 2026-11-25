@@ -29,6 +29,7 @@ const World = (() => {
   const lockedMeshes = { dental: [], ward: [] };
   let camDist = 1.0, camMode = "third", yaw = Math.PI, pitch = -0.1, tYaw = Math.PI, tPitch = -0.1, lookSens = 1, headBob = true, nightAmount = 0, weather = "clear", hour = 9;
   const windowMats = [];
+  const lightCfg = { hemi: 0.85, hemiN: 0.45, sun: 0.7, sunN: 0.45 }; let cozyCtl = null, cozyColl = [];
 
   /* ---------- helpers ---------- */
   function roundedBoxGeo(w, h, d, r = 0.08) {
@@ -84,14 +85,14 @@ const World = (() => {
     if (color2) { m.map = tileTexture(color, color2, Math.max(1, Math.round((x2 - x1) / 2))); m.color.set(0xffffff); }
     const p = new THREE.Mesh(g, m); p.rotation.x = -Math.PI / 2; p.position.set((x1 + x2) / 2, 0, (z1 + z2) / 2); p.receiveShadow = true; scene.add(p); if (key) themeMats.floors[key] = m; return p;
   }
-  function pendant(x, z, color = 0xfff1c0) { const g = new THREE.Group(); g.add(cyl(0.01, 0.01, 0.6, 0x5a5e80, 0, 2.95, 0)); const shade = cyl(0.22, 0.32, 0.22, 0x2a2f4a, 0, 2.6, 0); g.add(shade); const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.2 })); bulb.position.y = 2.5; g.add(bulb); g.position.set(x, 0, z); g.userData.decor = true; scene.add(g); return g; }
-  function rug(x, z, w, d, color) { const r = box(w, 0.03, d, color, x, 0.015, z, 0.02); r.userData.decor = true; scene.add(r); return r; }
+  function pendant(x, z, color = 0xfff1c0) { const g = new THREE.Group(); g.add(cyl(0.01, 0.01, 0.6, 0x5a5e80, 0, 2.95, 0)); const shade = cyl(0.22, 0.32, 0.22, 0x2a2f4a, 0, 2.6, 0); g.add(shade); const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.2 })); bulb.position.y = 2.5; g.add(bulb); g.position.set(x, 0, z); g.userData.decor = true; scene.add(g); (props.pendants = props.pendants || []).push({ bulb, room: roomAt(x, z) }); return g; }
+  function rug(x, z, w, d, color) { const r = box(w, 0.03, d, color, x, 0.015, z, 0.02); r.userData.decor = true; scene.add(r); (props.rugs = props.rugs || []).push(r); return r; }
   function plant(x, z, big = false) { if (typeof buildDecor === "function") { const g = new THREE.Group(); g.userData.decor = true; scene.add(g); return g; }
  const g = new THREE.Group(); g.add(cyl(big ? 0.3 : 0.22, big ? 0.25 : 0.18, big ? 0.55 : 0.4, 0x5a3e2b, 0, big ? 0.27 : 0.2, 0)); for (let i = 0; i < (big ? 8 : 5); i++) { const l = sphere(big ? 0.3 : 0.22, 0x3f8f5a, (Math.random() - .5) * .4, (big ? 0.85 : 0.6) + Math.random() * .35, (Math.random() - .5) * .4); l.scale.set(1, 1.3, 1); g.add(l); } g.position.set(x, 0, z); g.userData.decor = true; scene.add(g); return g; }
   function poster(x, z, rotY, color) { if (typeof buildDecor === "function") { const g = new THREE.Group(); g.userData.decor = true; scene.add(g); return g; }
  const g = new THREE.Group(); g.add(box(1.0, 0.75, 0.06, 0xdfe3ee, 0, 0, 0, 0.04)); g.add(box(0.8, 0.55, 0.07, color, 0, 0, 0.01, 0.06)); g.add(box(0.35, 0.08, 0.08, 0xf2c14e, -0.15, 0.12, 0.02, 0.03)); g.add(box(0.5, 0.05, 0.08, 0xdfe3ee, -0.07, 0, 0.02, 0.02)); g.position.set(x, 1.6, z); g.rotation.y = rotY; g.userData.decor = true; scene.add(g); return g; }
   function chair(x, z, rotY) { const g = new THREE.Group(); g.add(accentBox(0.6, 0.12, 0.6, 0, 0.45, 0, 0.06)); g.add(accentBox(0.6, 0.5, 0.12, 0, 0.75, -0.24, 0.06)); [[-0.22, -0.22], [0.22, -0.22], [-0.22, 0.22], [0.22, 0.22]].forEach(p => g.add(cyl(0.03, 0.03, 0.42, 0x6b6f8f, p[0], 0.21, p[1]))); g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); addCollider(x - .3, z - .3, x + .3, z + .3); return g; }
-  function sofa(x, z, rotY, w = 2.2) { const g = new THREE.Group(); g.add(accentBox(w, 0.45, 0.8, 0, 0.25, 0, 0.14)); g.add(accentBox(w, 0.55, 0.22, 0, 0.72, -0.3, 0.1)); g.add(accentBox(0.22, 0.3, 0.8, -w / 2 + 0.11, 0.6, 0, 0.08)); g.add(accentBox(0.22, 0.3, 0.8, w / 2 - 0.11, 0.6, 0, 0.08)); [[-0.5], [0.5]].forEach(p => g.add(box(0.5, 0.1, 0.6, theme.trim, p[0], 0.5, 0.05, 0.05))); g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); const hw = rotY ? 0.45 : w / 2, hd = rotY ? w / 2 : 0.45; addCollider(x - hw, z - hd, x + hw, z + hd); return g; }
+  function sofa(x, z, rotY, w = 2.2) { const g = new THREE.Group(); g.add(accentBox(w, 0.45, 0.8, 0, 0.25, 0, 0.14)); g.add(accentBox(w, 0.55, 0.22, 0, 0.72, -0.3, 0.1)); g.add(accentBox(0.22, 0.3, 0.8, -w / 2 + 0.11, 0.6, 0, 0.08)); g.add(accentBox(0.22, 0.3, 0.8, w / 2 - 0.11, 0.6, 0, 0.08)); [[-0.5], [0.5]].forEach(p => g.add(box(0.5, 0.1, 0.6, theme.trim, p[0], 0.5, 0.05, 0.05))); g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); const hw = rotY ? 0.45 : w / 2, hd = rotY ? w / 2 : 0.45; addCollider(x - hw, z - hd, x + hw, z + hd); (props.sofas = props.sofas || []).push({ g, x, z, rot: rotY, w }); return g; }
   function table(x, z, w, d, h, color, legColor = 0x6b6f8f) { const g = new THREE.Group(); g.add(box(w, 0.12, d, color, 0, h, 0, 0.06)); [[-w / 2 + .12, -d / 2 + .12], [w / 2 - .12, -d / 2 + .12], [-w / 2 + .12, d / 2 - .12], [w / 2 - .12, d / 2 - .12]].forEach(p => g.add(cyl(0.05, 0.05, h, legColor, p[0], h / 2, p[1]))); g.position.set(x, 0, z); scene.add(g); addCollider(x - w / 2, z - d / 2, x + w / 2, z + d / 2); return g; }
   function shelf(x, z, w, rotY, items, palette) { const g = new THREE.Group(); g.add(trimBox(w, 2.0, 0.4, 0, 1.0, 0, 0.06)); const pal = palette || [0xf2c14e, 0x7c6fcf, 0x5f8fd6, 0xe07a5f, 0x4fb3a9]; for (let s = 0; s < 3; s++) { g.add(box(w - 0.1, 0.06, 0.38, 0xdfe3ee, 0, 0.45 + s * 0.55, 0.02, 0.03)); for (let i = 0; i < items; i++) g.add(box(0.22, 0.3, 0.2, pal[(i + s) % pal.length], -w / 2 + 0.25 + i * ((w - 0.4) / Math.max(1, items - 1)), 0.65 + s * 0.55, 0.05, 0.05)); } g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); return g; }
   function cabinet(x, z, w, rotY, color) { const g = new THREE.Group(); g.add(box(w, 0.9, 0.6, color || theme.trim, 0, 0.45, 0, 0.08)); g.add(box(w - 0.1, 0.08, 0.62, 0xdfe3ee, 0, 0.94, 0, 0.04)); for (let i = 0; i < Math.floor(w / 0.6); i++) g.add(box(0.5, 0.7, 0.04, 0xdfe3ee, -w / 2 + 0.35 + i * 0.6, 0.45, 0.31, 0.04)); g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g); if (!color) themeMats.trim.push(g.children[0].material); return g; }
@@ -164,7 +165,7 @@ const World = (() => {
     plant(-12.3, -11.3, true); plant(2.3, -2.6); poster(2.85, -7, -Math.PI / 2, 0x5f8fd6);
     const waterBowl = cyl(0.2, 0.15, 0.1, 0x5f8fd6, -8.8, 0.05, -8.6); scene.add(waterBowl);
     // cat bed (clinic cat)
-    const bed = cyl(0.45, 0.4, 0.15, 0x7c6fcf, 1.5, 0.07, -10.8); scene.add(bed);
+    const bed = cyl(0.45, 0.4, 0.15, 0x7c6fcf, 1.5, 0.07, -10.8); scene.add(bed); props.catBed = bed;
 
     // ---- Shop (-21..-13)
     props.counter = new THREE.Group(); props.counter.add(accentBox(2.4, 1.0, 0.8, 0, 0.5, 0, 0.12)); props.counter.add(box(2.6, 0.1, 0.9, 0xdfe3ee, 0, 1.03, 0, 0.05)); props.counter.add(box(0.35, 0.3, 0.3, 0x6b6f8f, 0.7, 1.22, 0, 0.05)); props.counter.position.set(-17, 0, -4.5); scene.add(props.counter); addCollider(-18.2, -4.9, -15.8, -4.1);
@@ -395,7 +396,7 @@ const World = (() => {
     // blink + small eye saccades, independent of pose
     rig.blinkT -= dt; if (rig.blinkT <= 0) { rig.blinkK = 1; rig.blinkT = 2.2 + Math.random() * 3.5; } rig.blinkK = Math.max(0, rig.blinkK - dt * 9);
     rig.sacT -= dt; if (rig.sacT <= 0) { rig.sacT = 0.8 + Math.random() * 2.2; rig.eyeX = (Math.random() - 0.5) * 0.016; rig.eyeY = (Math.random() - 0.5) * 0.008; }
-    const lidClose = Math.sin(Math.min(1, rig.blinkK) * Math.PI); P.eyes.forEach(e => { e.g.scale.y = 1 - lidClose * 0.85; e.iris.position.x = approach(e.iris.position.x, rig.eyeX, k); e.iris.position.y = approach(e.iris.position.y, rig.eyeY + (rig.pose === "exam" ? -0.008 : 0), k); e.lid.position.y = 0.018 - lidClose * 0.01; });
+    faceUpdate(rig, dt); const lidClose = Math.sin(Math.min(1, rig.blinkK) * Math.PI); P.eyes.forEach(e => { e.g.scale.y = (1 - lidClose * 0.85) * (rig.eyeOpen === undefined ? 1 : rig.eyeOpen); e.iris.position.x = approach(e.iris.position.x, rig.eyeX, k); e.iris.position.y = approach(e.iris.position.y, rig.eyeY + (rig.pose === "exam" ? -0.008 : 0), k); e.lid.position.y = 0.018 - lidClose * 0.01; });
     const breath = Math.sin(rig.phase * (moving ? 0.5 : 1.0)) * 0.012;
     const set = (o, x, y, z) => { if (x !== undefined) o.rotation.x = approach(o.rotation.x, x, k); if (y !== undefined) o.rotation.y = approach(o.rotation.y, y, k); if (z !== undefined) o.rotation.z = approach(o.rotation.z, z, k); };
     if ((rig.sitting || rig.pose === "sit") && !moving) {
@@ -509,6 +510,75 @@ const World = (() => {
       if (sy.pant && P.head) P.head.position.y = P.head.userData.y0 + Math.sin(rig.phase * 6) * 0.006;
     }
     if (rig.anaesth) { if (P.head) { P.head.rotation.set(rig.recumb === "dorsal" ? -0.5 : 0.1, 0, 0); } if (P.tail) P.tail.rotation.y = 0; if (P.legs) P.legs.forEach(l => l.rotation.x = 0); if (P.body) P.body.scale.y = (rig.species === "dog" ? 0.85 : 0.9) + Math.sin(rig.phase * 0.35) * 0.02; }
+    alivePet(rig, dt, moving, mood);
+  }
+
+  /* ---------- PETS COME ALIVE: appeal, springs, squash & stretch, breathing, blinking, look-at, flinch ---------- */
+  const DEF_RR = { dog: 22, cat: 26, rabbit: 48, bird: 34, tortoise: 5 }, LEG_LEN = { dog: 0.42, cat: 0.28, rabbit: 0.24 };
+  function ageYears(a) { if (a === undefined || a === null) return null; if (typeof a === "number") return a; const m = String(a).match(/([\d.]+)\s*(w|m|y)/i); if (!m) return null; const v = parseFloat(m[1]), u = m[2].toLowerCase(); return u === "w" ? v / 52 : u === "m" ? v / 12 : v; }
+  function setPetAppeal(rig, age) {
+    if (!rig || rig.appeal) return; const P = rig.parts, sp = rig.species; const y = ageYears(age);
+    const j = y === null ? 0.25 : y < 0.5 ? 1 : y < 1 ? 0.75 : y < 2 ? 0.4 : 0.18; rig.appeal = j; if (sp === "tortoise") return;
+    if (P.head) P.head.scale.multiplyScalar(1 + 0.17 * j);
+    const hlM = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    (P.eyes || []).forEach((e, i) => { const k = 1 + 0.3 * j; [e.w, e.pupil, e.hl].forEach(o => { o.scale.multiplyScalar(k); o.position.y -= e.r * 0.3 * j; }); e.pupil.scale.multiplyScalar(1 + 0.08 * j);
+      const hl2 = new THREE.Mesh(new THREE.SphereGeometry(e.r * 0.11 * k, 8, 6), hlM); hl2.position.set(e.hl.position.x - e.r * 0.5 * k, e.hl.position.y - e.r * 0.5 * k, e.hl.position.z); e.w.parent.add(hl2); e.hl2 = hl2; });
+    if ((sp === "dog" || sp === "cat" || sp === "rabbit") && P.head && P.eyes && P.eyes.length >= 2) { const bm = new THREE.MeshBasicMaterial({ color: 0xff8f9f, transparent: true, opacity: 0.16 + 0.2 * j, depthWrite: false }); P.eyes.slice(0, 2).forEach((e, i) => { const sx = e.w.position.x < 0 ? -1 : 1; const b = new THREE.Mesh(new THREE.CircleGeometry(e.r * 0.95, 16), bm); b.position.set(e.w.position.x * 1.45, e.w.position.y - e.r * 1.9, e.w.position.z - e.r * 0.2); b.rotation.y = sx * 0.55; P.head.add(b); }); }
+    const L = LEG_LEN[sp]; if (L && P.legs && P.legs.length) { const d = L * 0.14 * j; rig.group.children.forEach(c => { c.position.y -= d; }); P.legs.forEach(l => l.scale.y *= 1 - 0.14 * j); }
+  }
+  function springStep(st, target, dt, k = 70, c = 9) { st.v += (k * (target - st.x) - c * st.v) * dt; st.x += st.v * dt; return st.x; }
+  function alivePet(rig, dt, moving, mood) {
+    const P = rig.parts, g = rig.group, A = rig.alive || (rig.alive = { px: g.position.x, pz: g.position.z, ry: g.rotation.y, sp: 0, tail: { x: 0, v: 0 }, ear: { x: 0, v: 0 }, blT: 1 + Math.random() * 3, bl: 0, bph: Math.random() * 6 });
+    if (dt <= 0) return; const t = performance.now() * 0.001;
+    // velocity → follow-through on tail and ears
+    const vx = (g.position.x - A.px) / dt, vz = (g.position.z - A.pz) / dt; const sp = Math.min(6, Math.hypot(vx, vz)); let yr = g.rotation.y - A.ry; while (yr > Math.PI) yr -= Math.PI * 2; while (yr < -Math.PI) yr += Math.PI * 2; yr /= dt; const acc = (sp - A.sp) / dt;
+    A.px = g.position.x; A.pz = g.position.z; A.ry = g.rotation.y; A.sp = sp;
+    const tailX = springStep(A.tail, Math.max(-0.7, Math.min(0.7, -yr * 0.18)), dt, 60, 7); const earX = springStep(A.ear, Math.max(-0.5, Math.min(0.5, -acc * 0.03 + (moving ? Math.sin(rig.phase) * 0.08 : 0))), dt, 80, 8);
+    if (P.tail && rig.species !== "tortoise") P.tail.rotation.y += tailX;
+    if (P.ears) P.ears.forEach((e, i) => { if (e.userData.z0 === undefined) e.userData.z0 = e.rotation.z; e.rotation.z = e.userData.z0 + earX * (i ? -1 : 1) * 0.8; });
+    // breathing at the case's real rate (fast and deep when the pet is struggling)
+    const rr = rig.rr || DEF_RR[rig.species] || 24; A.bph += dt * Math.PI * 2 * rr / 60 * (rig.sleeping ? 0.75 : 1); const amp = rr > 45 && rig.species !== "rabbit" && rig.species !== "bird" ? 0.06 : rig.species === "tortoise" ? 0.008 : 0.03;
+    if (P.body && !rig.anaesth) { const base = rig.species === "bird" ? 1.15 : rig.species === "tortoise" ? 0.75 : rig.species === "dog" ? 0.85 : 0.9; P.body.scale.y = base + Math.sin(A.bph) * amp; }
+    // look at a target (a tool, the doctor) — head turns, pupils follow
+    let lookT = rig.lookTarget || null; if (!lookT && player && !rig.sleeping && !rig.anaesth) { const pp = player.group.position; if (Math.hypot(pp.x - g.position.x, pp.z - g.position.z) < 3.2) lookT = { x: pp.x, y: 1.45, z: pp.z }; }
+    let lookYaw = 0, lookPitch = 0;
+    if (lookT && P.head && !rig.anaesth) { const v = new THREE.Vector3(lookT.x, lookT.y, lookT.z); g.worldToLocal(v); const hx = v.x - P.head.position.x, hy = v.y - P.head.position.y, hz = v.z - P.head.position.z; lookYaw = Math.max(-0.85, Math.min(0.85, Math.atan2(hx, Math.max(0.05, hz)))); if (hz < 0) lookYaw = Math.sign(hx || 1) * 0.85; lookPitch = Math.max(-0.45, Math.min(0.35, -Math.atan2(hy, Math.hypot(hx, hz)))); A.lookY = (A.lookY || 0) + (lookYaw - (A.lookY || 0)) * Math.min(1, dt * 6); A.lookP = (A.lookP || 0) + (lookPitch - (A.lookP || 0)) * Math.min(1, dt * 6); P.head.rotation.y = A.lookY + Math.sin(t * 0.7) * 0.05; P.head.rotation.x += A.lookP * 0.6; }
+    else { A.lookY = (A.lookY || 0) * Math.max(0, 1 - dt * 3); A.lookP = 0; }
+    // blinking: random, sometimes double; slow when sleepy; closed when asleep
+    A.blT -= dt; if (A.blT <= 0) { A.bl = 1; A.dbl = Math.random() < 0.2; A.blT = (rig.sym && rig.sym.lethargic ? 1.5 : 2) + Math.random() * 4; } const slow = rig.sym && rig.sym.lethargic; A.bl = Math.max(0, A.bl - dt * (slow ? 3 : 8)); if (A.bl === 0 && A.dbl) { A.dbl = false; A.bl = 0.999; A.blT = Math.max(A.blT, 0.1); }
+    let lid = Math.sin(Math.min(1, A.bl) * Math.PI); let open = 1;
+    if (rig.sleeping || rig.anaesth) open = 0.12; else if (slow) open = 0.7;
+    if (rig.purr && mood === "calm") open = Math.min(open, 0.5);
+    if (A.fl) open = Math.min(open, 0.3);
+    const pupilK = mood === "tense" || mood === "angry" ? 1.3 : mood === "calm" ? 0.92 : 1;
+    (P.eyes || []).forEach(e => { if (e.by === undefined) { e.by = e.w.scale.y; e.py = e.pupil.scale.y; e.hy = e.hl.scale.y; e.px0 = e.pupil.position.x; e.ps = e.pupil.scale.x; } const f = Math.max(0.1, open * (1 - lid * 0.9)); e.w.scale.y = e.by * f; e.pupil.scale.y = e.py * f * pupilK; e.pupil.scale.x = e.ps * pupilK; e.hl.scale.y = e.hy * f; if (e.hl2) e.hl2.visible = f > 0.4; e.pupil.position.x = e.px0 + (A.lookY || 0) * e.r * 0.28; });
+    // squash & stretch hop onto the table (anticipation → stretch → land)
+    let sy = 1, sxz = 1;
+    if (rig.hop) { const H = rig.hop; if (!H.to) H.to = g.position.clone(); H.t += dt; const k = Math.min(1, H.t / 0.62); const ease = u => u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      if (k < 0.2) { const u = Math.sin(k / 0.2 * Math.PI / 2); g.position.copy(H.from); sy = 1 - 0.2 * u; sxz = 1 + 0.1 * u; }
+      else if (k < 0.78) { const u = (k - 0.2) / 0.58, e2 = ease(u); g.position.lerpVectors(H.from, H.to, e2); g.position.y += Math.sin(u * Math.PI) * 0.35; sy = 1 + 0.16 * Math.sin(u * Math.PI); sxz = 1 - 0.07 * Math.sin(u * Math.PI); }
+      else { const u = (k - 0.78) / 0.22; g.position.copy(H.to); sy = 1 - 0.17 * Math.sin(u * Math.PI); sxz = 1 + 0.09 * Math.sin(u * Math.PI); }
+      if (k >= 1) { g.position.copy(H.to); rig.hop = null; sy = 1; sxz = 1; } }
+    // anticipation: wind up before a swat / snap
+    if (rig.windup) { rig.windup.t += dt; const k = rig.windup.t / 0.28; if (k < 1) { sy *= 1 - 0.1 * Math.sin(k * Math.PI / 2); if (P.head) P.head.rotation.x -= 0.35 * k; if (P.legs && P.legs[0]) P.legs[0].rotation.x = -1.2 * k; } else if (k < 1.6) { const u = (k - 1) / 0.6; if (P.legs && P.legs[0]) P.legs[0].rotation.x = -1.2 + 2.2 * Math.sin(u * Math.PI); sxz *= 1 + 0.05 * Math.sin(u * Math.PI); } else rig.windup = null; }
+    // flinch: a quick jerk back, eyes squeezed, ears flat
+    if (A.fl) { A.fl.t += dt; const k = A.fl.t / 0.4; if (k >= 1) { g.position.copy(A.fl.base); A.fl = null; } else { const off = Math.sin(Math.min(1, k * 2.5) * Math.PI) * 0.06 * (1 - k); g.position.set(A.fl.base.x - Math.sin(g.rotation.y) * off, A.fl.base.y, A.fl.base.z - Math.cos(g.rotation.y) * off); sy *= 1 - 0.08 * (1 - k); if (P.ears) P.ears.forEach(e => { if (rig.species === "cat" || rig.species === "rabbit") e.rotation.x = -1.0; }); } }
+    if (!rig.anaesth) { const by = rig.sleeping ? 0.6 : 1, fx = rig.fluffXZ || 1; g.scale.set(sxz * fx, by * sy, sxz * fx); }
+  }
+  function petFlinch(rig) { if (!rig || rig.anaesth || rig.sleeping) return; const A = rig.alive || (rig.alive = { px: rig.group.position.x, pz: rig.group.position.z, ry: rig.group.rotation.y, sp: 0, tail: { x: 0, v: 0 }, ear: { x: 0, v: 0 }, blT: 2, bl: 0, bph: 0 }); if (A.fl) return; A.fl = { t: 0, base: rig.group.position.clone() }; }
+  function petWindup(rig) { if (rig && !rig.anaesth) rig.windup = { t: 0 }; }
+  function setPetLook(rig, v) { if (rig) rig.lookTarget = v ? { x: v.x, y: v.y, z: v.z } : null; }
+  function setPetVitals(rig, v) { if (rig && v && v.rr) rig.rr = +v.rr || null; }
+
+  /* ---------- people's faces: happy, worried, focused, laughing ---------- */
+  const EXPR = { neutral: { by: 0, br: 0, mz: Math.PI, ms: [1, 1], eye: 1 }, happy: { by: 0.008, br: 0.05, mz: Math.PI, ms: [1.15, 1.25], eye: 0.85 }, worried: { by: 0.012, br: 0.32, mz: 0, ms: [0.75, 0.7], eye: 1.05 }, focused: { by: -0.008, br: -0.26, mz: Math.PI, ms: [0.6, 0.35], eye: 0.72 }, laughing: { by: 0.014, br: 0.1, mz: Math.PI, ms: [1.35, 1.9], eye: 0.4 } };
+  function setExpression(rig, expr, secs) { if (rig === "player") rig = player; if (!rig || !rig.parts || !rig.parts.brows) return; rig.expr = EXPR[expr] ? expr : "neutral"; rig.exprUntil = secs ? performance.now() + secs * 1000 : 0; }
+  function faceUpdate(rig, dt) {
+    const P = rig.parts; if (!P.brows || !P.mouth) return; if (rig.exprUntil && performance.now() > rig.exprUntil) { rig.expr = rig.exprAfter || "neutral"; rig.exprAfter = null; rig.exprUntil = 0; }
+    const E = EXPR[rig.expr || "neutral"], k = Math.min(1, dt * 7);
+    P.brows.forEach((b, i) => { const sx = i ? 1 : -1; if (b.userData.y0 === undefined) { b.userData.y0 = b.position.y; b.userData.z0 = b.rotation.z; } b.position.y += (b.userData.y0 + E.by - b.position.y) * k; b.rotation.z += (b.userData.z0 + sx * E.br - b.rotation.z) * k; });
+    const m = P.mouth; m.rotation.z += (E.mz - m.rotation.z) * Math.min(1, dt * 12); m.scale.x += (E.ms[0] - m.scale.x) * k; m.scale.y += (E.ms[1] - m.scale.y) * k; if (rig.expr === "laughing") m.scale.y = E.ms[1] + Math.sin(performance.now() * 0.025) * 0.25;
+    rig.eyeOpen = (rig.eyeOpen === undefined ? 1 : rig.eyeOpen) + (E.eye - (rig.eyeOpen === undefined ? 1 : rig.eyeOpen)) * k;
   }
   /* visible clinical signs on the 3D pet */
   function setSymptoms(rig, list) {
@@ -521,7 +591,7 @@ const World = (() => {
       if (k === "earSwollen" && P.ears && P.ears[0]) { const e = P.ears[0]; e.scale.x *= 2.1; e.scale.z *= 1.4; e.material = mat(0xd98a8a); }
       if ((k === "cloudyEye" || k === "squint") && P.eyes && P.eyes.length) { const e = P.eyes[P.eyes.length - 1]; if (k === "cloudyEye") { e.pupil.material = mat(0x9fb7c9, { roughness: 0.2 }); e.w.material = mat(0xd7e4ee); } else { [e.w, e.pupil, e.hl].forEach(o => o.scale.y = 0.18); } }
       if (k === "bloated" && P.body) { P.body.scale.x *= 1.3; P.body.scale.z *= 1.12; }
-      if (k === "fluffed") rig.group.scale.set(1.18, 1, 1.18);
+      if (k === "fluffed") { rig.fluffXZ = 1.18; rig.group.scale.set(1.18, 1, 1.18); }
       if (k === "pale" && P.eyes) { /* gums only — seen in the mouth view */ }
       if (k === "thin" && P.body) { P.body.scale.x *= 0.78; }
       if (k === "fat" && P.body) { P.body.scale.x *= 1.25; P.body.scale.z *= 1.06; }
@@ -573,8 +643,8 @@ const World = (() => {
 
   /* ---------- NPC movement ---------- */
   function moveAlong(n, dt) {
-    if (!n.path || !n.path.length) return false;
-    const tgt = n.path[0], pos = n.rig.group.position; const dx = tgt[0] - pos.x, dz = tgt[1] - pos.z; const d = Math.hypot(dx, dz); const step = n.speed * dt;
+    if (!n.path || !n.path.length) { n.vel = 0; return false; }
+    const tgt = n.path[0], pos = n.rig.group.position; const dx = tgt[0] - pos.x, dz = tgt[1] - pos.z; const d = Math.hypot(dx, dz); const want = n.path.length === 1 ? Math.max(0.35, Math.min(1, d / 0.9)) : 1; n.vel = (n.vel === undefined ? 0 : n.vel) + (want - (n.vel || 0)) * Math.min(1, dt * 5); const step = n.speed * Math.max(0.2, n.vel) * dt;
     if (d < step) { pos.x = tgt[0]; pos.z = tgt[1]; n.path.shift(); if (!n.path.length && n.onArrive) { const cb = n.onArrive; n.onArrive = null; cb(); } }
     else { pos.x += dx / d * step; pos.z += dz / d * step; n.rig.group.rotation.y = lerpAngle(n.rig.group.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 10)); }
     return true;
@@ -607,7 +677,7 @@ const World = (() => {
 
   /* ---------- collisions ---------- */
   function collide(pos, radius) {
-    const all = colliders.concat(walls.filter(w => w.aabb).map(w => w.aabb));
+    const all = colliders.concat(walls.filter(w => w.aabb).map(w => w.aabb), cozyCtl && cozyCtl.on ? cozyColl : []);
     for (const b of all) {
       const cx = Math.max(b.minX, Math.min(pos.x, b.maxX)), cz = Math.max(b.minZ, Math.min(pos.z, b.maxZ)); const dx = pos.x - cx, dz = pos.z - cz, d2 = dx * dx + dz * dz;
       if (d2 < radius * radius) { if (d2 > 1e-6) { const d = Math.sqrt(d2); pos.x += dx / d * (radius - d); pos.z += dz / d * (radius - d); } else { const px = Math.min(pos.x - b.minX, b.maxX - pos.x), pz = Math.min(pos.z - b.minZ, b.maxZ - pos.z); if (px < pz) pos.x += (pos.x - b.minX < b.maxX - pos.x ? -1 : 1) * (px + radius); else pos.z += (pos.z - b.minZ < b.maxZ - pos.z ? -1 : 1) * (pz + radius); } }
@@ -627,7 +697,9 @@ const World = (() => {
     sun = new THREE.DirectionalLight(0xfff1c0, 0.7); sun.position.set(-12, 22, 14); sun.castShadow = true; sun.shadow.mapSize.set(mobile ? 1024 : 2048, mobile ? 1024 : 2048); sun.shadow.camera.left = -30; sun.shadow.camera.right = 30; sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30; sun.shadow.bias = -0.0008; scene.add(sun);
     torch = new THREE.PointLight(0xffe3a0, 0, 7, 2); scene.add(torch);
     buildRooms(); buildFurniture();
-    if (typeof buildDecor === "function") { try { buildDecor({ scene, box, cyl, sphere, mat, addCollider, roundedBoxGeo, themeMats, fadeables, textSprite }); } catch (e) { console.warn("decor failed", e); } }
+    const decorAPI = { scene, box, cyl, sphere, mat, addCollider, roundedBoxGeo, themeMats, fadeables, textSprite, roomMats: {} };
+    if (typeof buildDecor === "function") { try { buildDecor(decorAPI); } catch (e) { console.warn("decor failed", e); } }
+    if (typeof buildCozy === "function") { try { cozyCtl = buildCozy(Object.assign(decorAPI, { ROOMS, hemi, sun, windowMats, props, lightCfg, setThemeColors })); cozyColl = cozyCtl.colliders.map(([x1, z1, x2, z2]) => ({ minX: Math.min(x1, x2), maxX: Math.max(x1, x2), minZ: Math.min(z1, z2), maxZ: Math.max(z1, z2) })); } catch (e) { console.warn("cozy failed", e); cozyCtl = null; } }
     playerCfg = { skin: 0x9a5f3a, hair: 0x1b1420, shirt: 0x2f4f8f, pants: 0x24304f, hairstyle: "curly", glasses: true, glassesStyle: "round", frames: 0x2d2438, shoes: 0x23222e, coat: theme.coat, steth: true };
     player = makeHuman(playerCfg); player.group.position.set(-5, 0, -4.5); scene.add(player.group); setHumanOutfit(player, "clinic");
     setClinicPet("cat", 0x3a3a3a);
@@ -692,11 +764,12 @@ const World = (() => {
     }
     // day/night + weather
     const targetNight = opts.night ? 1 : 0; nightAmount += (targetNight - nightAmount) * Math.min(1, dt * 0.8);
-    hemi.intensity = 0.85 - nightAmount * 0.45; sun.intensity = 0.7 - nightAmount * 0.45; torch.intensity = nightAmount * 1.4; torch.position.set(pos.x, 2.2, pos.z + 0.5);
+    hemi.intensity = lightCfg.hemi - nightAmount * lightCfg.hemiN; sun.intensity = lightCfg.sun - nightAmount * lightCfg.sunN; torch.intensity = nightAmount * 1.4; torch.position.set(pos.x, 2.2, pos.z + 0.5);
     windowMats.forEach(m => m.emissiveIntensity = 0.4 + nightAmount * 0.8);
     if (searchlight) { searchlight.rotation.z = 0.5 + Math.sin(performance.now() * 0.0003) * 0.35; searchlight.rotation.x = Math.sin(performance.now() * 0.0002) * 0.3; }
     if (rain && rain.visible) { const a = rain.geometry.attributes.position; for (let i = 0; i < a.count; i++) { let y = a.getY(i) - dt * 12; if (y < 0) y = 14; a.setY(i, y); } a.needsUpdate = true; }
     if (ring.visible) ring.scale.setScalar(1 + Math.sin(performance.now() * 0.005) * 0.08);
+    if (cozyCtl) cozyCtl.update(dt, pos, nightAmount, performance.now());
     renderer.render(scene, camera);
     return { dt, moving, pos };
   }
@@ -709,8 +782,11 @@ const World = (() => {
     const n = { rig, pet, petFollow: true, path: [], speed: 2.4, onArrive: null, petMood: "calm" }; npcs.push(n); return n;
   }
   function removeNPC(n) { const i = npcs.indexOf(n); if (i >= 0) npcs.splice(i, 1); scene.remove(n.rig.group); if (n.pet) scene.remove(n.pet.group); }
-  function placePet(n, x, y, z, rotY = 0) { n.petFollow = false; n.pet.group.position.set(x, y, z); n.pet.group.rotation.y = rotY; n.pet.group.rotation.z = 0; n.pet.group.userData.baseY = y; n.pet.group.userData.surface = { x, y: y > 0.5 ? surfaceY(x, z, y) : y, z }; if (n.pet.parts.head && n.pet.parts.head.userData.y0h !== undefined) n.pet.parts.head.position.y = n.pet.parts.head.userData.y0h; n.pet.anaesth = false; n.pet.recumb = null; fitPet(n.pet); if (n.pet.parts.cage) n.pet.parts.cage.visible = false; }
+  function placePet(n, x, y, z, rotY = 0) { n.petFollow = false; const hopFrom = n.pet.group.position.clone(); n.pet.group.position.set(x, y, z); n.pet.group.rotation.y = rotY; n.pet.group.rotation.z = 0; n.pet.group.userData.baseY = y; n.pet.group.userData.surface = { x, y: y > 0.5 ? surfaceY(x, z, y) : y, z }; if (n.pet.parts.head && n.pet.parts.head.userData.y0h !== undefined) n.pet.parts.head.position.y = n.pet.parts.head.userData.y0h; n.pet.anaesth = false; n.pet.recumb = null; fitPet(n.pet); if (n.pet.parts.cage) n.pet.parts.cage.visible = false; if (y - hopFrom.y > 0.4 && Math.hypot(x - hopFrom.x, z - hopFrom.z) < 3.5 && !(typeof matchMedia !== 'undefined' && document.body.classList.contains('reduce-motion'))) n.pet.hop = { from: hopFrom, t: 0 }; }
   function playerPos() { return player.group.position; }
+  function setThemeColors(t) { if (t.wall !== undefined) { themeMats.wallClones.forEach(m => m.color.set(t.wall)); themeMats.wall.color.set(t.wall); } if (t.accent !== undefined) themeMats.accent.forEach(m => m.color.set(t.accent)); if (t.trim !== undefined) themeMats.trim.forEach(m => m.color.set(t.trim)); }
+  function setCozy(on, opts) { if (cozyCtl) cozyCtl.apply(on, opts || {}); return !!cozyCtl; }
+  function cozyRug() { return cozyCtl && cozyCtl.on ? cozyCtl.rug : null; }
   function applyTheme(t) {
     Object.assign(theme, t); themeMats.wallClones.forEach(m => m.color.set(theme.wall)); themeMats.wall.color.set(theme.wall);
     themeMats.accent.forEach(m => m.color.set(theme.accent)); themeMats.trim.forEach(m => m.color.set(theme.trim));
@@ -733,7 +809,7 @@ const World = (() => {
   function catWander(target) { if (!cat) return; cat.rig.sleeping = false; const p = cat.rig.group.position; const spot = target || cat.spots[Math.floor(Math.random() * cat.spots.length)]; cat.path = routeBetween([p.x, p.z], spot); cat.restT = 6; }
   function catPos() { return cat ? cat.rig.group.position : null; }
   function setPlayerPose(pose, target) { if (!player) return; player.pose = pose || null; if (pose && target && camMode !== "first") { const p = player.group.position; player.group.rotation.y = Math.atan2(target.x - p.x, target.z - p.z); } }
-  function setClinicPet(species, color) { if (cat) { scene.remove(cat.rig.group); } const crig = makePet(species, color); crig.group.position.set(1.5, 0, -10.8); scene.add(crig.group); crig.sleeping = true; cat = { rig: crig, path: [], speed: species === "tortoise" ? 0.5 : species === "rabbit" ? 2.2 : 1.6, onArrive: null, restT: 0, spots: [[1.5, -10.8], [-8.5, -4], [-11, -9], [-16, 9], [-1, -0.5], [1.5, -10.8], [-7, -8]] }; }
+  function setClinicPet(species, color) { if (cat) { scene.remove(cat.rig.group); } const crig = makePet(species, color); crig.group.position.set(-8.3, 0, -6.5); scene.add(crig.group); crig.sleeping = true; cat = { rig: crig, path: [], speed: species === "tortoise" ? 0.5 : species === "rabbit" ? 2.2 : 1.6, onArrive: null, restT: 0, spots: [[-8.3, -6.5], [1.5, -10.8], [-8.5, -4], [-8.6, -6.8], [-11, -9], [-16, 9], [-1, -0.5], [-8.2, -6.4], [-7, -8]] }; }
   function catMood(m) { if (cat) cat.mood = m; }
   let catLeash = false, leash = null, waypoint = null, waypointT = 0;
   function catFollow(on) { catLeash = !!on; if (!cat) return; if (!cat.baseSpeed) cat.baseSpeed = cat.speed; if (!on) cat.speed = cat.baseSpeed; cat.path = [];
@@ -753,5 +829,5 @@ const World = (() => {
     const p = posts[role]; if (!p) return null; const n = addNPC({ x: p.x, z: p.z, rotY: p.rotY, skin: [0xf1c27d, 0xc68642, 0x8d5524][Math.floor(Math.random() * 3)], hair: [0x1b1420, 0x4a2c1a, 0x3a2a20][Math.floor(Math.random() * 3)], hairstyle: ["bun", "short", "long", "curly", "buzz"][Math.floor(Math.random() * 5)], glassesStyle: Math.random() < 0.5 ? "round" : "square", shirt: p.shirt, pants: 0x24304f, glasses: Math.random() < 0.4, coat: 0xe9e9f2, outfit: p.outfit, seed: Math.floor(Math.random() * 1e9) }); n.isStaff = role; return n;
   }
 
-  return { init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, applyAvatar, setSign, setLocked, setWeather, setCamMode, lookDelta, setLookOptions, getLook, setPlayerPose, catWander, catPos, catMood, catFollow, setWaypoint, setSymptoms, setRecumbency, setFocus, project, get focused() { return !!focusCam; }, routeBetween, setClinicPet, rebuildPlayer, setPreview, enableCoop, player2Pos, screenshot, showThankCards, addStaffNPC, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get camMode() { return camMode; }, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; }, get locked() { return lockedRooms; } };
+  return { setPetAppeal, petFlinch, petWindup, setPetLook, setPetVitals, setExpression, setCozy, cozyRug, init, update, setRing, addNPC, removeNPC, placePet, playerPos, applyTheme, applyAvatar, setSign, setLocked, setWeather, setCamMode, lookDelta, setLookOptions, getLook, setPlayerPose, catWander, catPos, catMood, catFollow, setWaypoint, setSymptoms, setRecumbency, setFocus, project, get focused() { return !!focusCam; }, routeBetween, setClinicPet, rebuildPlayer, setPreview, enableCoop, player2Pos, screenshot, showThankCards, addStaffNPC, setOutfit: (o) => setHumanOutfit(player, o), roomAt, props, animatePet, npcs, get camMode() { return camMode; }, get player() { return player; }, get camera() { return camera; }, get scene() { return scene; }, get locked() { return lockedRooms; } };
 })();

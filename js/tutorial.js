@@ -4,7 +4,7 @@
    A gold marker shows where to walk; on-screen buttons pulse.
    ============================================================ */
 const TUT_TOUCH = () => matchMedia("(pointer:coarse)").matches;
-const TUT_ACT = () => TUT_TOUCH() ? "tap <b>Interact</b> (the round button, bottom right)" : "press <b>E</b>";
+const TUT_ACT = () => TUT_TOUCH() ? "<b>tap it</b> (or the name label at the bottom)" : "<b>click it</b> or press <b>E</b>";
 function tutP() { const t = G.s.tut; if (!t) return null; return G.patients.find(p => p.id === t.pid) || null; }
 function tutIt(id) { return INTERACT.find(x => x.id === id); }
 function tutPlanTarget(p) {
@@ -21,12 +21,12 @@ const TUT_STEPS = [
     done: () => { const p = World.playerPos(), s = G.tutStart || p; return Math.hypot(p.x - s.x, p.z - s.z) > 2.2; } },
   { id: "shift", title: "Open the clinic",
     text: () => `Walk to the glowing marker — the <b>Shift board</b> by the entrance — and ${TUT_ACT()}. Then tap <b>Start shift</b>.`,
-    world: () => tutIt("shiftBoard").pos, el: () => G.nearest && G.nearest.id === "shiftBoard" ? "#actBtn" : (G.panelOpen ? "#panelBody .btn.primary" : null),
+    world: () => tutIt("shiftBoard").pos, el: () => G.nearest && G.nearest.id === "shiftBoard" ? "#prompt" : (G.panelOpen ? "#panelBody .btn.primary" : null),
     done: () => G.s.shiftActive },
   { id: "arrive", title: "Your first patient",
     text: () => { const p = tutP(); return p && p.status === "arriving" ? `${p ? p.ownerName + " and " + p.name : "A patient"} are walking in. Go and stand by the <b>Reception desk</b> (the marker).` : `They're at the desk. ${TUT_ACT()[0].toUpperCase() + TUT_ACT().slice(1)} to greet them.`; },
     start: () => { if (!tutP()) { const c = CASES.find(x => x.id === "vax_dog") || CASES[0]; const p = spawnPatient(c); if (p) G.s.tut.pid = p.id; } },
-    world: () => tutIt("desk").pos, el: () => G.nearest && G.nearest.id === "desk" ? "#actBtn" : null,
+    world: () => tutIt("desk").pos, el: () => G.nearest && G.nearest.id === "desk" ? "#prompt" : null,
     done: () => { const p = tutP(); return !!p && (p.greeted || !["arriving", "at_desk"].includes(p.status)); } },
   { id: "talk", title: "Talk to the owner",
     text: () => "The owner is worried. Pick the reply that is <b>kind and clear</b> — good bedside manner raises your reputation.",
@@ -38,11 +38,11 @@ const TUT_STEPS = [
     done: () => { const p = tutP(); return !!p && !["arriving", "at_desk"].includes(p.status); } },
   { id: "callin", title: "Call the pet in",
     text: () => { const p = tutP(); return `${p ? p.name : "The pet"} is in the waiting room. Walk to them (the marker) and ${TUT_ACT()} to call them into the exam room.`; },
-    world: () => { const p = tutP(); return p && p.npc ? p.npc.rig.group.position : null; }, el: () => G.nearest && /^pet/.test(G.nearest.id) ? "#actBtn" : null,
+    world: () => { const p = tutP(); return p && p.npc ? p.npc.rig.group.position : null; }, el: () => G.nearest && /^pet/.test(G.nearest.id) ? "#prompt" : null,
     done: () => { const p = tutP(); return !!p && !["arriving", "at_desk", "waiting"].includes(p.status); } },
   { id: "toexam", title: "Go to the exam room",
     text: () => { const p = tutP(); return `${p ? p.name : "The pet"} is walking to the <b>Exam room</b>. Follow the marker to the exam table and ${TUT_ACT()}.`; },
-    world: () => tutIt("examTable").pos, el: () => G.nearest && G.nearest.id === "examTable" ? "#actBtn" : null,
+    world: () => tutIt("examTable").pos, el: () => G.nearest && G.nearest.id === "examTable" ? "#prompt" : null,
     done: () => !!G.ho || (() => { const p = tutP(); return !!p && p.dxChoice !== undefined; })() },
   { id: "exam1", title: "The hands-on exam",
     text: () => { const p = tutP(); return `Tap <b>Next step</b> — it picks the right tool and makes a spot on ${p ? p.name : "the pet"} glow. Then <b>tap the glowing spot</b>. Answer the owner if they ask something.`; },
@@ -59,11 +59,11 @@ const TUT_STEPS = [
   { id: "plan", title: "Carry out the plan",
     text: () => { const p = tutP(); if (p && p.status === "exam_ready") return "Read the feedback, then tap the gold button to carry out the plan."; const t = tutPlanTarget(p); return t ? t.text : "Follow the marker."; },
     world: () => { const p = tutP(); if (!p || p.status === "exam_ready") return null; const t = tutPlanTarget(p); const it = t && tutIt(t.id); return it ? it.pos : null; },
-    el: () => { const p = tutP(); if (p && p.status === "exam_ready") return "#panelBody .btn.primary"; const t = tutPlanTarget(p); return t && G.nearest && G.nearest.id === t.id ? "#actBtn" : null; },
+    el: () => { const p = tutP(); if (p && p.status === "exam_ready") return "#panelBody .btn.primary"; const t = tutPlanTarget(p); return t && G.nearest && G.nearest.id === t.id ? "#prompt" : null; },
     done: () => { const p = tutP(); return !p || p.status === "done" || (p.status === "ready_discharge" && !(p.rx && !p.rxDone)); } },
   { id: "discharge", title: "Discharge and get paid",
     text: () => { const p = tutP(); return G.panelOpen ? "Explain the home care to the owner, then tap the gold button to finish. You'll get paid and see a short recap of the case." : `${p ? p.name : "The patient"} is ready to go home. Walk to the <b>Reception desk</b> and ${TUT_ACT()}.`; },
-    el: () => G.panelOpen ? "#panelBody .btn.primary" : (G.nearest && G.nearest.id === "desk" ? "#actBtn" : null),
+    el: () => G.panelOpen ? "#panelBody .btn.primary" : (G.nearest && G.nearest.id === "desk" ? "#prompt" : null),
     world: () => G.panelOpen ? null : tutIt("desk").pos,
     done: () => { const p = tutP(); return !p || p.status === "done"; } },
   { id: "extras", title: "You did it!", final: true,

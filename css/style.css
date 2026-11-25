@@ -463,3 +463,11 @@ body.ho.tut #hoHint { display: none !important; }
   body.ho #tutCard:not(.final):not(.open) .tuttitle::after { content: " · tap for help"; color: var(--muted); font-weight: 600; font-size: 11px; }
   #tutCard { top: calc(8px + var(--sat)); max-height: 60vh; overflow: auto; }
 }
+
+/* ---------- v2.9 cozy retro: warm film look (a cheap overlay, hidden in medical close-ups) ---------- */
+body.film::after { content: ""; position: fixed; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; z-index: 1;
+  background: radial-gradient(ellipse at 50% 45%, rgba(255,170,90,0.07) 0%, rgba(255,150,70,0.04) 45%, rgba(24,10,4,0.38) 100%); }
+body.film.ho::after { display: none; }
+/* v2.9: no Interact button — tap the object itself, or this name label */
+#prompt { z-index: 7; cursor: pointer; }
+#actBtn { display: none !important; }

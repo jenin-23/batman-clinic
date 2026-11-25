@@ -18,7 +18,7 @@ function defaultState() {
   return { v: 2, money: 400, xp: 0, level: 1, day: 1, shiftActive: false, clockMin: 9 * 60, patientsSeen: 0, correctDx: 0, surgeries: 0, itemsSold: 0, refsRead: [], shiftsDone: 0, achievements: [], cases: [], clinicName: "Batman Clinic", outfit: "clinic",
     seenTutorial: false, stock: Object.fromEntries(SHOP_ITEMS.map(i => [i.id, 5])), theme: { v: 2, wall: "#2a2f4a", accent: "#f2c14e", trim: "#4b4f7a", floor: null, coat: "#e9e9f2", decor: true },
     rep: 3.0, hygiene: 90, staff: [], equipment: [], expansions: [], clients: [], goals: { day: 0, list: [] }, dayStats: {}, event: null, story: { seen: [], rival: false, charity: false, accredited: false, referral: false, certified: false, prestige: 0 },
-    collections: { bones: [], tools: [], species: [] }, thankCards: 0, settings: { lang: "en", hints: true, difficulty: "vet", lookSens: 1, headBob: true, textSize: 1, camMode: "third", coop: false, oneHand: "left", music: true, weather: "auto" }, avatar: { scrub: "#2f4f8f", cap: "#2f4f8f", frames: "#2d2438" },
+    collections: { bones: [], tools: [], species: [] }, thankCards: 0, settings: { lang: "en", hints: true, difficulty: "vet", lookSens: 1, headBob: true, textSize: 1, camMode: "third", coop: false, oneHand: "left", music: true, weather: "auto", look: "cozy", film: true, lights: "auto" }, avatar: { scrub: "#2f4f8f", cap: "#2f4f8f", frames: "#2d2438" },
     quiz: { boxes: {}, last: {} }, textbook: [], leaderboard: [], weekly: { week: null, best: 0 }, lastBriefing: null, payrollMissed: 0, customNames: [], news: 0, dosesDone: 0, labsDone: 0,
     energy: 100, naps: 0, coffees: 0, atHome: false, doctor: { name: "Ahmad", hairstyle: "curly", beard: "short", hair: "#1b1420", skin: "#9a5f3a", glassesStyle: "round", frames: "#2d2438", shoes: "#23222e", scrub: "#2f4f8f", cap: "#2f4f8f", coat: "#e9e9f2", scrubsOfDay: ["#2f4f8f", "#3f6f6a", "#5a3e8f", "#b4557a", "#4fb3a9", "#23222e", "#8a3350"] },
     clinicPet: { species: "cat", name: "Mishmish", personality: "curious", color: "#3a3a3a", hunger: 40, feeds: 0, bond: 0, missed: 0 } };
@@ -133,7 +133,7 @@ function spawnPatient(force) {
   const skinTones = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac], shirts = [0x7c6fcf, 0x5f8fd6, 0xe07a5f, 0xf2c14e, 0x4fb3a9, 0xb4557a, 0x3a3f66], pants = [0x24304f, 0x3a3a4e, 0x5a3e2b];
   const petColors = { dog: [0xd9a066, 0x5b4636, 0xf5e6c8, 0x8c8c8c, 0xe8d5b5], cat: [0xf2a35e, 0x3a3a3a, 0xf7f3ec, 0xa9a9a9, 0xc7b299], bird: [0x7fd1c7, 0xfff3a0, 0x9fd7ff, 0xb7e3a3], rabbit: [0xf7f3ec, 0xc7b299, 0x5b4636, 0x8c8c8c], tortoise: [0x8a9b5a] };
   p.npcCfg = Object.assign({}, returning && returning.cfg ? returning.cfg : (() => { const hs = pick(["curly", "short", "short", "long", "bun", "buzz", "afro"]); return { skin: pick(skinTones), hair: pick([0x1b1420, 0x4a2c1a, 0x8b5a2b, 0xd9b38c, 0x3a2a20]), shirt: pick(shirts), pants: pick(pants), hairstyle: hs, beard: ["short", "buzz", "curly"].includes(hs) && Math.random() < 0.35 ? pick(["stubble", "short", "full"]) : "none", glasses: Math.random() < 0.3, glassesStyle: pick(["round", "square"]), frames: pick([0x2d2438, 0x6e4b36, 0xc8873a]), seed: Math.floor(Math.random() * 1e9) }; })(), { pet: { species: c.species, color: petRec ? petRec.color : pick(petColors[c.species]) } });
-  p.npc = World.addNPC(Object.assign({ x: -5, z: -16 }, p.npcCfg)); if (typeof hoSymptomsFor === "function" && p.npc.pet) World.setSymptoms(p.npc.pet, hoSymptomsFor(p));
+  p.npc = World.addNPC(Object.assign({ x: -5, z: -16 }, p.npcCfg)); if (p.npc.pet && World.setPetAppeal) { World.setPetAppeal(p.npc.pet, p.age); try { World.setPetVitals(p.npc.pet, p.vitals || genVitals(p)); } catch (e) { } if (p.emergency) World.setExpression(p.npc.rig, "worried"); } if (typeof hoSymptomsFor === "function" && p.npc.pet) World.setSymptoms(p.npc.pet, hoSymptomsFor(p));
   G.patients.push(p);
   const q = G.patients.filter(x => ["arriving", "at_desk"].includes(x.status)).length - 1; const spot = QUEUE_SPOTS[Math.min(q, 3)];
   p.npc.path = [[-5, -11], [-5, -9.3], spot]; p.npc.speed = p.emergency ? 3.4 : 2.2; p.npc.onArrive = () => { p.status = "at_desk"; updateHUD(); };
@@ -298,7 +298,7 @@ function genVitals(p) {
   const vit = { temp: inR(v.temp, sick ? 0.3 : 0), hr: inR(v.hr, sick ? (v.hr[1] - v.hr[0]) * 0.2 : 0), rr: inR(v.rr, sick ? 4 : 0), crt: "< 2 s", mm: v.mm };
   const o = { vomit_dog: { temp: 39.4, hr: 130, rr: 28, crt: "2.5 s", mm: "pale pink, tacky" }, heat_dog: { temp: 41.6, hr: 170, rr: 80, crt: "< 1 s", mm: "brick red" }, blocked_cat: { temp: 36.8, hr: 120, rr: 30, crt: "2 s", mm: "pale" }, spleen_dog: { temp: 37.9, hr: 160, rr: 36, crt: "3 s", mm: "pale/white" }, pyometra: { temp: 39.9, hr: 140, rr: 32, crt: "2 s", mm: "injected" }, parvo_pup: { temp: 39.8, hr: 160, rr: 36, crt: "2.5 s", mm: "tacky" }, rabbit_stasis: { temp: 38.2, hr: 240, rr: 55, crt: "< 2 s", mm: "pale pink" } }[p.caseDef.id];
   const hv = typeof HO_CLIN !== "undefined" && HO_CLIN[p.caseDef.id] && HO_CLIN[p.caseDef.id].vit; if (hv) Object.assign(vit, hv);
-  return o ? Object.assign(vit, o) : vit;
+  const out = o ? Object.assign(vit, o) : vit; if (p.npc && p.npc.pet && World.setPetVitals) World.setPetVitals(p.npc.pet, out); return out;
 }
 function vitalClass(val, r) { return val < r[0] ? "low" : val > r[1] ? "high" : "ok"; }
 function uiExam() {
@@ -327,7 +327,7 @@ function renderExam(p) {
 function vitalsHTML(p) { const v = SPECIES[p.species].vitals, t = p.vitals; return `<div class="vitals"><span class="${vitalClass(t.temp, v.temp)}">T ${t.temp} °C</span><span class="${vitalClass(t.hr, v.hr)}">HR ${t.hr}</span><span class="${vitalClass(t.rr, v.rr)}">RR ${t.rr}</span><span>CRT ${t.crt}</span><span>MM ${t.mm}</span></div>`; }
 function examStep(id, step) { const p = G.patients.find(x => x.id === id); if (!p || p.examDone[step]) return; if (G.s.settings.examGames !== false && typeof examMinigame === "function") { const mg = examMinigame(p, step); if (mg) return mg.then(() => { p.examDone[step] = true; if (step === "ausc" && p.hidden && p.hidden.murmur && !p.murmurFound) { p.murmurFound = true; addXP(10, "murmur detected"); } if (step === "msk" && p.secondary) p.secondaryFound = true; renderExam(p); }); } p.examDone[step] = true; energy(-0.5); Sound.click(); if (step === "tpr" || step === "ausc") Sound.beep(); if (step === "ausc" && p.hidden && p.hidden.murmur) { p.murmurFound = true; addXP(10, "murmur detected"); } if (step === "msk" && p.secondary) p.secondaryFound = true; renderExam(p); }
 function diagnose(id, i) {
-  const p = G.patients.find(x => x.id === id); if (!p) return; if (!p.vitals) genVitals(p); if (p.reweigh) return toast("Reweigh the patient first — the nurse's weight doesn't match the file, and every dose depends on it.", "warn", 4000); const c = p.caseDef; const ok = i === c.correct; p.dxOk = ok; p.dxChoice = i;
+  const p = G.patients.find(x => x.id === id); if (!p) return; if (!p.vitals) p.vitals = genVitals(p); if (p.reweigh) return toast("Reweigh the patient first — the nurse's weight doesn't match the file, and every dose depends on it.", "warn", 4000); const c = p.caseDef; const ok = i === c.correct; p.dxOk = ok; try { if (ok) World.setExpression("player", "happy", 3); if (p.npc) { const serious = p.emergency || /surgery|xray|dental|ward/.test(p.caseDef.outcome || ""); World.setExpression(p.npc.rig, serious ? "worried" : "happy", serious ? 6 : 3); } } catch (e) { } p.dxChoice = i;
   p.record.push(`${clockStr()} — Exam: ${c.findings} TPR ${p.vitals.temp} °C / ${p.vitals.hr} / ${p.vitals.rr}.${p.murmurFound ? " Grade II murmur noted." : ""}${p.secondaryFound ? " Also: " + p.secondary + "." : ""} Plan: "${c.options[i]}" (${ok ? "correct" : "corrected"}).`);
   if (ok) { G.s.correctDx++; addXP(30, "correct assessment"); if (G.s.correctDx >= 5) award("diagnose5"); Sound.success(); rep(0.05); } else { p.mistakes++; Sound.error(); rep(-0.1, "diagnostic error"); addXP(5); }
   if (p.emergency && p.emergencyLeft > 0) { stat("emergencies"); addXP(40, "emergency treated in time"); rep(0.2, "emergency handled"); p.emergency = false; }
@@ -353,7 +353,7 @@ function admitForSurgery(p, path) {
 
 /* ---------------- FIGHT BACK ---------------- */
 function uiFightBack(p, next) {
-  const sp = SPECIES[p.species]; Sound.petAngry(p.species); Sound.vibrate(80); p.npc.petMood = "angry";
+  const sp = SPECIES[p.species]; if (p.npc && p.npc.pet && World.petWindup) World.petWindup(p.npc.pet); Sound.petAngry(p.species); Sound.vibrate(80); p.npc.petMood = "angry";
   const line = { dog: `${p.name} stiffens, lifts a lip and snaps at your hand!`, cat: `${p.name} flattens the ears, hisses and swats!`, bird: `${p.name} flaps wildly and lunges with an open beak!`, rabbit: `${p.name} kicks out violently with both hind legs!`, tortoise: `${p.name} withdraws and hisses, legs flailing.` }[p.species];
   const opts = sp.handling.slice().sort(() => Math.random() - 0.5);
   openPanel(`${icon("warn", 20)} ${p.name} is fighting back!`, `<p class="big">${line}</p><p>How do you restrain safely?</p>${opts.map(o => `<button class="btn opt" data-h="${o.replace(/"/g, "&quot;")}">${o}</button>`).join("")}`, { noClose: true });
@@ -519,7 +519,7 @@ function uiDischarge(p) {
   openPanel(`${icon("card", 20)} Discharge — ${p.name}`, `<p>Summary for ${p.ownerName}: ${p.record[p.record.length - 1].split("— ")[1]}</p>${sec}<p><b>Invoice:</b> ${fee} JD${p.stray || p.charity ? " (shelter case — no charge)" : ""}${p.mistakes ? ` <span class="muted">(${p.mistakes} correction(s) recorded — no charge)</span>` : ""}</p><h4>Recommend take-home items</h4><div class="shopgrid">${items.map(i => `<label class="shopitem"><input type="checkbox" value="${i.id}" ${G.s.stock[i.id] > 0 ? "" : "disabled"}><span class="icw">${icon(i.icon, 24)}</span><div><b>${i.name}</b> — ${i.price} JD<br><span class="muted">${i.info}</span></div></label>`).join("")}</div>${!p.client && !p.stray ? `<label>Add a pet name to the clinic's name list (optional) <input id="customName" placeholder="e.g. your own cat's name" maxlength="14"></label>` : ""}<div class="btnrow"><button class="btn primary" onclick="finishDischarge(${p.id},${fee})">Take payment & say goodbye</button></div>`, { wide: true });
 }
 function finishDischarge(id, fee) {
-  const p = G.patients.find(x => x.id === id); let total = fee; let sold = 0;
+  const p = G.patients.find(x => x.id === id); let total = fee; let sold = 0; try { if (p && p.npc) { World.setExpression(p.npc.rig, "laughing", 2.5); p.npc.rig.exprAfter = "happy"; } World.setExpression("player", "happy", 3); } catch (e) { }
   document.querySelectorAll("#panelBody .shopitem input[type=checkbox]:checked").forEach(c => { const it = SHOP_ITEMS.find(i => i.id === c.value); if (it && G.s.stock[it.id] > 0) { total += it.price; G.s.stock[it.id]--; sold++; } });
   if ($("#secAddr") && $("#secAddr").checked) { rep(0.05); addXP(10, "secondary problem addressed"); }
   const cn = $("#customName"); if (cn && cn.value.trim()) { G.s.customNames.push(cn.value.trim()); toast(`“${cn.value.trim()}” added to the clinic's pet names.`, "good"); }
@@ -592,7 +592,7 @@ function tick() {
   if (typeof phoneTick === "function") { phoneTick(dt); walkTick(dt); } if (typeof storyTick === "function") storyTick();
   G.needsT = (G.needsT || 0) + dt; if (G.needsT > 1) { G.needsT = 0; if (typeof updateNeeds === "function") updateNeeds(); }
   G.catTimer -= dt; if (G.catTimer <= 0) { const per = G.s.clinicPet.personality; G.catTimer = per === "playful" ? rnd(15, 30) : per === "lazy" ? rnd(70, 120) : rnd(35, 70); if (G.s.clinicPet.hunger > 75) World.catWander([0.6, -10.9]); else if (per === "curious" && Math.random() < 0.5) { const pp = World.playerPos(); World.catWander([pp.x + 0.8, pp.z + 0.6]); } else World.catWander(); }
-  const it = G.panelOpen ? null : nearestInteractable(pos); G.nearest = it;
+  const it = G.panelOpen ? null : nearestInteractable(pos); G.nearest = it; if (G.tapWp && (performance.now() - G.tapWp > 25000 || (it && G.nearest && !G.panelOpen && performance.now() - G.tapWp > 400 && Math.hypot(pos.x - (G.tapWpPos ? G.tapWpPos.x : 1e9), pos.z - (G.tapWpPos ? G.tapWpPos.z : 1e9)) < 2.2))) { G.tapWp = 0; if (!(typeof tutActive === "function" && tutActive()) && !G.walk) World.setWaypoint(null); }
   if (World.camMode === "first") $("#crosshair").classList.toggle("hit", !!it);
   const pr = $("#prompt"); if (it && !G.ho) { pr.classList.add("show"); pr.querySelector("span").textContent = it.label(); World.setRing(it.pos); } else { pr.classList.remove("show"); World.setRing(null); }
   if (G.s.settings.coop) { const p2 = World.player2Pos(); G.nearest2 = p2 && !G.panelOpen ? nearestInteractable(p2, true) : null; }
@@ -601,6 +601,16 @@ const POSES = { examTable: ["exam", 6.5, -7], orTable: ["exam", 7, 6.5], prepTab
 /* touch: the finger-lift after a tap sends a "click" to whatever just appeared under it — swallow that one */
 function swallowGhostClick(ms = 500) { G.noClickUntil = performance.now() + ms; }
 document.addEventListener("click", (e) => { if (G.noClickUntil && performance.now() < G.noClickUntil) { G.noClickUntil = 0; e.preventDefault(); e.stopPropagation(); } }, true);
+/* tap / click an object in the 3D view to use it (replaces the big Interact button) */
+function tapWorld(x, y) {
+  if (G.panelOpen || G.ho || G.paused || World.camMode === "first") return false;
+  const pos = World.playerPos(); let best = null, bd = 1e9;
+  for (const it of INTERACT.concat(dynamicInteractables())) { if (it.room && World.locked && World.locked[it.room]) continue; const s = World.project(it.pos.x, it.y || 0.8, it.pos.z); if (!s || s.behind) continue; const d = Math.hypot(s.x - x, s.y - y); const reach = Math.hypot(it.pos.x - pos.x, it.pos.z - pos.z); const sc = d + reach * 4; if (d < 80 && sc < bd) { bd = sc; best = it; } }
+  if (!best) return false;
+  const reach = Math.hypot(best.pos.x - pos.x, best.pos.z - pos.z);
+  if (reach <= best.r + 0.6) { G.nearest = best; const was = G.panelOpen || G.ho; interact(best); if (!was && (G.panelOpen || G.ho)) swallowGhostClick(); return true; }
+  World.setWaypoint({ x: best.pos.x, z: best.pos.z }); G.tapWp = performance.now(); G.tapWpPos = { x: best.pos.x, z: best.pos.z }; toast(`Walk to ${String(best.label()).split(" — ")[0].toLowerCase().replace(/^(call|pet) /, "$1 ")} — follow the marker.`, "info", 2200); return true;
+}
 function interact() { if (G.panelOpen || G.ho || !G.nearest) return; Sound.init(); Sound.vibrate(15); const it = G.nearest; if (typeof hoEnter === "function" && hoEnter(it)) return; it.action(); const ps = POSES[it.id]; if (ps && G.panelOpen) World.setPlayerPose(ps[0], { x: ps[1], z: ps[2] }); }
 function interact2() { if (G.panelOpen || !G.nearest2) return; Sound.init(); G.nearest2.action(); }
 
@@ -611,6 +621,7 @@ function bindInput() {
   addEventListener("keydown", (e) => { Sound.init(); if (e.target.matches("input,textarea,select")) return; if (map[e.code]) { G.keys[map[e.code]] = true; recompute(); e.preventDefault(); } if (map2[e.code] && G.s.settings.coop) { G.keys[map2[e.code]] = true; recompute(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = true; if (e.code === "KeyE" || e.code === "Space" || e.code === "Enter") { e.preventDefault(); interact(); } if (e.code === "KeyU" && G.s.settings.coop) interact2(); if (e.code === "Escape") { if (G.panelOpen) { if ($("#panelClose").style.display !== "none") closePanel(); } else togglePause(); } if (e.code === "KeyH") { if (!G.panelOpen) uiHelp(); } if (e.code === "KeyM") toggleMute(); if (e.code === "KeyV") toggleCamera(); if (e.code === "KeyP") photoMode(); if (e.code === "KeyO") { if (!G.panelOpen) uiSettings(); } });
   addEventListener("keyup", (e) => { if (map[e.code]) { G.keys[map[e.code]] = false; recompute(); } if (map2[e.code]) { G.keys[map2[e.code]] = false; recompute(); } if (e.code === "ShiftLeft" || e.code === "ShiftRight") G.input.run = false; });
   addEventListener("blur", () => { G.keys = {}; recompute(); G.input.run = false; });
+  { const cvs = $("#c"); let d0 = null; cvs.addEventListener("pointerdown", (e) => { d0 = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId }; }); cvs.addEventListener("pointerup", (e) => { if (!d0 || e.pointerId !== d0.id) return; const ok = performance.now() - d0.t < 300 && Math.hypot(e.clientX - d0.x, e.clientY - d0.y) < 10; d0 = null; if (ok) tapWorld(e.clientX, e.clientY); }); }
   $("#prompt").onclick = interact; $("#panelClose").onclick = closePanel;
   $("#gearBtn").onclick = (e) => { e.stopPropagation(); const open = $("#gearMenu").classList.contains("hidden"); closeMenus(); $("#gearMenu").classList.toggle("hidden", !open); syncMenuClass(); };
   $("#gearMenu").addEventListener("click", () => setTimeout(() => { $("#gearMenu").classList.add("hidden"); syncMenuClass(); }, 0));
@@ -630,11 +641,11 @@ function bindInput() {
 }
 function applyControlMode() { const mode = G.s.settings.controls || "joystick"; const pad = $("#dpad"), zone = $("#joyZone"); if (!G.touch) { pad.classList.remove("show"); zone.classList.remove("show"); return; } pad.classList.toggle("show", mode === "dpad"); zone.classList.toggle("show", mode === "joystick"); }
 function bindJoystick() {
-  const zone = $("#joyZone"), base = $("#joyBase"), knob = $("#joyKnob"); if (!zone) return; let active = null, cx = 0, cy = 0; const R = 52;
+  const zone = $("#joyZone"), base = $("#joyBase"), knob = $("#joyKnob"); if (!zone) return; let active = null, cx = 0, cy = 0, t0 = 0, moved = 0; const R = 52;
   const setVec = (dx, dy) => { const d = Math.hypot(dx, dy); const k = d > R ? R / d : 1; knob.style.transform = `translate(${dx * k}px, ${dy * k}px)`; const nx = dx * k / R, nz = dy * k / R; const mag = Math.hypot(nx, nz); G.input.x = mag < 0.15 ? 0 : nx; G.input.z = mag < 0.15 ? 0 : nz; G.input.run = mag > 0.92; };
-  zone.addEventListener("pointerdown", (e) => { if (active !== null && !e.isPrimary) return; active = e.pointerId; cx = e.clientX; cy = e.clientY; try { zone.setPointerCapture(e.pointerId); } catch (err) { } Sound.init(); zone.classList.add("used"); const r = zone.getBoundingClientRect(); base.style.left = (cx - r.left) + "px"; base.style.top = (cy - r.top) + "px"; base.classList.add("on"); setVec(0, 0); e.preventDefault(); });
-  zone.addEventListener("pointermove", (e) => { if (e.pointerId !== active) return; setVec(e.clientX - cx, e.clientY - cy); });
-  const end = (e) => { if (e.pointerId !== active) return; active = null; base.classList.remove("on"); G.input.x = 0; G.input.z = 0; G.input.run = false; knob.style.transform = ""; };
+  zone.addEventListener("pointerdown", (e) => { if (active !== null && !e.isPrimary) return; active = e.pointerId; cx = e.clientX; cy = e.clientY; t0 = performance.now(); moved = 0; try { zone.setPointerCapture(e.pointerId); } catch (err) { } Sound.init(); zone.classList.add("used"); const r = zone.getBoundingClientRect(); base.style.left = (cx - r.left) + "px"; base.style.top = (cy - r.top) + "px"; base.classList.add("on"); setVec(0, 0); e.preventDefault(); });
+  zone.addEventListener("pointermove", (e) => { if (e.pointerId !== active) return; moved = Math.max(moved, Math.hypot(e.clientX - cx, e.clientY - cy)); setVec(e.clientX - cx, e.clientY - cy); });
+  const end = (e) => { if (e.pointerId !== active) return; active = null; base.classList.remove("on"); G.input.x = 0; G.input.z = 0; G.input.run = false; knob.style.transform = ""; if (e.type === "pointerup" && performance.now() - t0 < 260 && moved < 12) tapWorld(e.clientX, e.clientY); };
   zone.addEventListener("pointerup", end); zone.addEventListener("pointercancel", end); zone.addEventListener("lostpointercapture", end);
   window.__joyReset = () => { active = null; base.classList.remove("on"); G.input.x = 0; G.input.z = 0; G.input.run = false; knob.style.transform = ""; };
 }
